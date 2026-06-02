@@ -11,10 +11,9 @@ st.set_page_config(
 # Advanced Glassmorphism and Background Image CSS Styling
 st.markdown("""
     <style>
-    /* Full screen background image styling with low opacity overlay */
+    /* Full screen background image styling - Restored to full original vibrant color */
     .stApp {
-        background: linear-gradient(rgba(15, 23, 42, 0.88), rgba(15, 23, 42, 0.96)), 
-                    url("https://cdn-media.theathletic.com/cdn-cgi/image/width=1000%2cquality=70%2cformat=auto/https://cdn-media.theathletic.com/vwYC1qZfTwfm_3qmyXkIC5Rja_1440x960.jpg");
+        background: url("https://cdn-media.theathletic.com/cdn-cgi/image/width=1000%2cquality=70%2cformat=auto/https://cdn-media.theathletic.com/vwYC1qZfTwfm_3qmyXkIC5Rja_1440x960.jpg");
         background-size: cover;
         background-position: center;
         background-attachment: fixed;
@@ -41,71 +40,60 @@ st.markdown("""
         color: #f1f5f9 !important;
     }
     
-    /* Master Glassmorphism Match Card Style - Now wraps the entire fixture block */
-    .match-card {
-        background: rgba(255, 255, 255, 0.06);
-        backdrop-filter: blur(16px);
-        -webkit-backdrop-filter: blur(16px);
+    /* Floating Glassmorphic Unified Match Card Container Box */
+    .unified-match-card {
+        background: rgba(15, 23, 42, 0.82);
+        backdrop-filter: blur(12px);
+        -webkit-backdrop-filter: blur(12px);
         border-radius: 16px;
-        border: 1px solid rgba(255, 255, 255, 0.12);
+        border: 2px solid rgba(255, 255, 255, 0.15);
         padding: 24px;
-        margin-bottom: 28px;
-        box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.4);
+        margin-bottom: 30px;
+        box-shadow: 0 10px 30px 0 rgba(0, 0, 0, 0.5);
     }
     
-    /* Clean text block styling for team headers inside the fixture */
-    .team-display-box {
-        background: rgba(255, 255, 255, 0.04);
-        border: 1px solid rgba(255, 255, 255, 0.08);
-        border-radius: 12px;
-        padding: 12px;
-        margin-bottom: 10px;
-        margin-top: 10px;
-        width: 100%;
-    }
-    
-    /* Mobile-Responsive Flexbox Match Layout Row */
-    .mobile-match-container {
-        display: flex;
-        flex-direction: column;
-        align-items: center;
-        justify-content: center;
-        width: 100%;
-        text-align: center;
-        gap: 4px;
-    }
-    
-    /* Custom Stylized Team Label */
-    .team-title-label {
-        font-size: 1.25rem !important;
-        font-weight: 700 !important;
+    /* Custom Stylized Center-Aligned Team Title Label */
+    .team-header-box {
+        font-size: 1.35rem !important;
+        font-weight: 800 !important;
         text-transform: uppercase !important;
         color: #ffffff !important;
-        letter-spacing: 0.05em;
+        letter-spacing: 0.06em;
         text-align: center;
+        margin: 12px 0;
+        width: 100%;
     }
     
-    /* Versus Text Divider */
-    .vs-divider {
-        font-size: 0.9rem;
+    /* Versus Styling Text Divider */
+    .versus-text-middle {
+        font-size: 0.95rem;
         text-transform: uppercase;
-        color: #94a3b8 !important;
-        font-weight: 800;
-        letter-spacing: 0.25em;
-        margin: 15px 0;
+        color: #cbd5e1 !important;
+        font-weight: 900;
+        letter-spacing: 0.3em;
+        margin: 18px 0;
         text-align: center;
+        width: 100%;
+    }
+    
+    /* Input Label Overrides to center them */
+    .stMain label div p {
+        text-align: center !important;
+        font-weight: 600 !important;
+        font-size: 1rem !important;
+        color: #e2e8f0 !important;
     }
     
     /* Custom Badge for Locked States */
     .lock-badge {
-        background-color: rgba(239, 68, 68, 0.25);
+        background-color: rgba(239, 68, 68, 0.35);
         color: #fca5a5 !important;
-        border: 1px solid rgba(239, 68, 68, 0.4);
-        padding: 6px 12px;
+        border: 1px solid rgba(239, 68, 68, 0.5);
+        padding: 8px 16px;
         border-radius: 8px;
-        font-size: 0.85rem;
+        font-size: 0.9rem;
         display: inline-block;
-        margin-bottom: 15px;
+        margin-bottom: 20px;
         font-weight: bold;
     }
     </style>
@@ -264,7 +252,7 @@ def calculate_user_points(username):
 
 # --- LOGIN SCREEN LAYER ---
 if st.session_state.current_user is None:
-    st.markdown("<div class='match-card' style='max-width: 500px; margin: 100px auto;'>", unsafe_allow_html=True)
+    st.markdown("<div class='unified-match-card' style='max-width: 500px; margin: 100px auto;'>", unsafe_allow_html=True)
     st.title("🔐 Tournament Sign-In")
     auth_tab1, auth_tab2 = st.tabs(["Login", "Create Account"])
     
@@ -350,38 +338,23 @@ elif app_tab == "📝 Submit Predictions":
                 kh = f"{selected_group}_m{idx}_h"
                 ka = f"{selected_group}_m{idx}_a"
                 
-                # REWRITE: One master match-card container wraps the ENTIRE fixture details cleanly
-                st.markdown(f"""
-                    <div class='match-card'>
-                        <div class='mobile-match-container'>
-                            <div class='team-display-box'>
-                                <div class='team-title-label'>{fmt_team(home)}</div>
-                            </div>
-                        </div>
-                """, unsafe_allow_html=True)
+                # Structural Fix: Opening container wrapper around all nested entry blocks
+                st.markdown("<div class='unified-match-card'>", unsafe_allow_html=True)
                 
-                user_preds[kh] = st.number_input("Home Score", min_value=0, max_value=15, 
+                st.markdown(f"<div class='team-header-box'>{fmt_team(home)}</div>", unsafe_allow_html=True)
+                user_preds[kh] = st.number_input("Home Team Score", min_value=0, max_value=15, 
                                                   value=user_preds.get(kh, 0), step=1, 
                                                   key=f"p_{kh}", disabled=is_group_locked)
                 
-                st.markdown("""
-                        <div class='mobile-match-container'>
-                            <div class='vs-divider'>VERSUS</div>
-                        </div>
-                """, unsafe_allow_html=True)
+                st.markdown("<div class='versus-text-middle'>— VERSUS —</div>", unsafe_allow_html=True)
                 
-                user_preds[ka] = st.number_input("Away Score", min_value=0, max_value=15, 
+                user_preds[ka] = st.number_input("Away Team Score", min_value=0, max_value=15, 
                                                   value=user_preds.get(ka, 0), step=1, 
                                                   key=f"p_{ka}", disabled=is_group_locked)
+                st.markdown(f"<div class='team-header-box'>{fmt_team(away)}</div>", unsafe_allow_html=True)
                 
-                st.markdown(f"""
-                        <div class='mobile-match-container'>
-                            <div class='team-display-box'>
-                                <div class='team-title-label'>{fmt_team(away)}</div>
-                            </div>
-                        </div>
-                    </div>
-                """, unsafe_allow_html=True)
+                # Closing container wrapper around all nested elements
+                st.markdown("</div>", unsafe_allow_html=True)
             
             if not is_group_locked:
                 if st.button(f"🔒 Lock In {selected_group} Predictions", use_container_width=True):
@@ -391,7 +364,7 @@ elif app_tab == "📝 Submit Predictions":
                     st.rerun()
                 
         with col_table:
-            st.markdown("<div class='match-card'>", unsafe_allow_html=True)
+            st.markdown("<div class='unified-match-card'>", unsafe_allow_html=True)
             st.subheader("Simulated Group Table")
             u_results, _ = run_standings_engine(user_preds)
             
@@ -416,18 +389,19 @@ elif app_tab == "📝 Submit Predictions":
             "Match 81": (get_confirmed_1st("Group D"), u_wildcards[2]), "Match 82": (get_confirmed_1st("Group G"), u_wildcards[3]),
             "Match 83": (get_confirmed_2nd("Group K"), get_confirmed_2nd("Group L")), "Match 84": (get_confirmed_1st("Group H"), get_confirmed_2nd("Group J")),
             "Match 85": (get_confirmed_2nd("Group A"), get_confirmed_2nd("Group B")), "Match 86": (get_confirmed_1st("Group J"), get_confirmed_2nd("Group H")),
-            "Match 87": (get_confirmed_1st("Group K"), u_wildcards[7]), "Match 88": (get_confirmed_2nd("Group D"), get_confirmed_2nd("Group G"))
+            "Match 87": (get_confirmed_1st("Group K"), u_wildcards[7]), "Match 88": (get_2nd("Group D"), get_2nd("Group G"))
         }
         
         ko_tabs = st.tabs(["Round of 32", "Round of 16", "Quarter-Finals", "Finals"])
         
         with ko_tabs[0]:
             for idx, (m_id, (h, a)) in enumerate(o_r32.items()):
-                st.markdown(f"<div class='match-card'><b>⚽ {m_id}</b><br><small style='opacity:0.8;'>Fixture: {fmt_team(h)} vs {fmt_team(a)}</small>", unsafe_allow_html=True)
+                st.markdown(f"<div class='unified-match-card'><b>⚽ {m_id}</b><br><small style='opacity:0.8;'>Fixture: {fmt_team(h)} vs {fmt_team(a)}</small>", unsafe_allow_html=True)
                 options = [h, a]
                 current_pick = user_preds.get(m_id, h)
                 default_idx = options.index(current_pick) if current_pick in options else 0
                 user_preds[m_id] = st.selectbox("Progresses:", options, index=default_idx, format_func=fmt_team, key=f"up_sel_{m_id}")
+                st.markdown("</div>", unsafe_allow_html=True)
                     
         with ko_tabs[1]:
             o_r16 = {
@@ -441,11 +415,12 @@ elif app_tab == "📝 Submit Predictions":
                 "Match 96": (user_preds.get("Match 85", "W85"), user_preds.get("Match 87", "W87"))
             }
             for idx, (m_id, (h, a)) in enumerate(o_r16.items()):
-                st.markdown(f"<div class='match-card'><b>📋 {m_id}</b><br><small style='opacity:0.8;'>Fixture: {fmt_team(h)} vs {fmt_team(a)}</small>", unsafe_allow_html=True)
+                st.markdown(f"<div class='unified-match-card'><b>📋 {m_id}</b><br><small style='opacity:0.8;'>Fixture: {fmt_team(h)} vs {fmt_team(a)}</small>", unsafe_allow_html=True)
                 options = [h, a]
                 current_pick = user_preds.get(m_id, h)
                 default_idx = options.index(current_pick) if current_pick in options else 0
                 user_preds[m_id] = st.selectbox("Progresses:", options, index=default_idx, format_func=fmt_team, key=f"up_sel_{m_id}")
+                st.markdown("</div>", unsafe_allow_html=True)
                     
         with ko_tabs[2]:
             o_qf = {
@@ -455,17 +430,18 @@ elif app_tab == "📝 Submit Predictions":
                 "Match 100": (user_preds.get("Match 95", "W95"), user_preds.get("Match 96", "W96"))
             }
             for m_id, (h, a) in o_qf.items():
-                st.markdown(f"<div class='match-card'><b>⭐ {m_id}</b><br><small style='opacity:0.8;'>Fixture: {fmt_team(h)} vs {fmt_team(a)}</small>", unsafe_allow_html=True)
+                st.markdown(f"<div class='unified-match-card'><b>⭐ {m_id}</b><br><small style='opacity:0.8;'>Fixture: {fmt_team(h)} vs {fmt_team(a)}</small>", unsafe_allow_html=True)
                 options = [h, a]
                 current_pick = user_preds.get(m_id, h)
                 default_idx = options.index(current_pick) if current_pick in options else 0
                 user_preds[m_id] = st.selectbox("Progresses:", options, index=default_idx, format_func=fmt_team, key=f"up_sel_{m_id}")
+                st.markdown("</div>", unsafe_allow_html=True)
                 
         with ko_tabs[3]:
             sf1_h, sf1_a = user_preds.get("Match 97", "W97"), user_preds.get("Match 98", "W98")
             sf2_h, sf2_a = user_preds.get("Match 99", "W99"), user_preds.get("Match 100", "W100")
             
-            st.markdown("<div class='match-card'>", unsafe_allow_html=True)
+            st.markdown("<div class='unified-match-card'>", unsafe_allow_html=True)
             st.markdown("#### 🌿 Final Four Series")
             
             sf1_opts = [sf1_h, sf1_a]
@@ -507,7 +483,7 @@ elif app_tab == "🛠️ Admin Dashboard":
             kh = f"{adm_group}_m{idx}_h"
             ka = f"{adm_group}_m{idx}_a"
             
-            st.markdown("<div class='match-card'>", unsafe_allow_html=True)
+            st.markdown("<div class='unified-match-card'>", unsafe_allow_html=True)
             val_h = st.number_input(f"{fmt_team(home)} Score", min_value=0, max_value=15, value=actual["group"].get(kh, 0), step=1, key=f"a_{kh}")
             val_a = st.number_input(f"{fmt_team(away)} Score", min_value=0, max_value=15, value=actual["group"].get(ka, 0), step=1, key=f"a_{ka}")
             if st.button("📢 Publish Match", key=f"btn_pub_{kh}", use_container_width=True):
@@ -536,7 +512,7 @@ elif app_tab == "🛠️ Admin Dashboard":
         st.subheader("Official Knockout Tree Declarations")
         
         for m_id, (h, a) in adm_r32_pairings.items():
-            st.markdown("<div class='match-card'>", unsafe_allow_html=True)
+            st.markdown("<div class='unified-match-card'>", unsafe_allow_html=True)
             options = [h, a]
             curr_w = actual["ko_winners"].get(m_id, h)
             sel_w = st.selectbox(f"Winner: {m_id}", options, index=options.index(curr_w) if curr_w in options else 0, format_func=fmt_team, key=f"adm_w_{m_id}")
