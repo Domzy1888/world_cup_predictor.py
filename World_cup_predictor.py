@@ -1,19 +1,17 @@
 import streamlit as st
 import pandas as pd
 
-# --- APP CONFIGURATION ---
+# --- CONFIGURATION & STYLING ---
 st.set_page_config(
-    page_title="World Cup 2026 Predictor Hub",
+    page_title="World Cup 2026 Pro Predictor",
     page_icon="⚽",
-    layout="wide",
-    initial_sidebar_state="expanded"
+    layout="wide"
 )
 
-# --- IN-MEMORY TOURNAMENT SETUP ---
-# Sourced directly from your WCup_2026_4.2.5_en.tsv configuration
+# --- CORE 48-TEAM DATA STRUCTURE ---
 GROUPS = {
     "Group A": ["Mexico", "South Africa", "Rep. of Korea", "Czech Rep."],
-    "Group B": ["Canada", "Bosnia/Herzeg.", "Qatar", "Switzerland"],
+    "Group B": ["Canada", "Bosnia", "Qatar", "Switzerland"],
     "Group C": ["Brazil", "Morocco", "Haiti", "Scotland"],
     "Group D": ["USA", "Paraguay", "Australia", "Turkey"],
     "Group E": ["Germany", "Curaçao", "Ivory Coast", "Ecuador"],
@@ -26,156 +24,126 @@ GROUPS = {
     "Group L": ["England", "Croatia", "Ghana", "Panama"]
 }
 
-# Sample subset of actual match fixtures mapped from your TSV file
-fixtures_data = [
-    {"id": 1, "group": "Group A", "home": "Mexico", "away": "South Africa", "venue": "Mexico City", "date": "Thu, 11/06/2026"},
-    {"id": 2, "group": "Group A", "home": "Rep. of Korea", "away": "Czech Rep.", "venue": "Guadalajara", "date": "Fri, 12/06/2026"},
-    {"id": 3, "group": "Group B", "home": "Canada", "away": "Bosnia/Herzeg.", "venue": "Toronto", "date": "Fri, 12/06/2026"},
-    {"id": 8, "group": "Group B", "home": "Qatar", "away": "Switzerland", "venue": "San Francisco Bay Area", "date": "Sat, 13/06/2026"},
-    {"id": 7, "group": "Group C", "home": "Brazil", "away": "Morocco", "venue": "New York/New Jersey", "date": "Sun, 14/06/2026"},
-    {"id": 5, "group": "Group C", "home": "Haiti", "away": "Scotland", "venue": "Boston", "date": "Sun, 14/06/2026"},
-    {"id": 4, "group": "Group D", "home": "USA", "away": "Paraguay", "venue": "Los Angeles", "date": "Sat, 13/06/2026"},
-    {"id": 6, "group": "Group D", "home": "Australia", "away": "Turkey", "venue": "Vancouver", "date": "Sun, 14/06/2026"},
-]
+# --- INITIALIZE SESSSION STATE STORAGE ---
+if "match_predictions" not in st.session_state:
+    st.session_state.match_predictions = {}
 
-# --- SESSION STATE INITIALIZATION ---
-if "predictions" not in st.session_state:
-    st.session_state.predictions = {}
-
-# --- HEADER SECTION ---
-st.title("⚽ World Cup 2026 Simulator & Predictor")
-st.markdown("Transforming raw tournament arrays into an interactive analytics application Dashboard.")
+st.title("🏆 World Cup 2026 Real Tournament Predictor")
+st.markdown("Features the complete 48-team framework calculation matrix, tracking top qualifiers and the 8 best 3rd-place Wildcards.")
 st.write("---")
 
-# --- SIDEBAR NAVIGATION ---
-st.sidebar.header("🧭 Navigation Control")
-app_mode = st.sidebar.radio(
-    "Select Workspace",
-    ["Group Stage Calculator", "Knockout Bracket Stage", "Venues & Venues Hub", "Analytics Review"]
-)
+tab1, tab2, tab3 = st.tabs(["📊 Group Stage Hub", "🃏 Wildcard Tracker", "🌳 Round of 32 Bracket"])
 
-# --- HELPER FUNCTIONS ---
-def calculate_group_standings(group_name, teams):
-    """Dynamically calculates Group Table standings based on user inputs."""
-    standings = {team: {"Pts": 0, "GF": 0, "GA": 0, "GD": 0} for team in teams}
+# --- GLOBAL STANDINGS CALCULATION ENGINE ---
+all_group_results = {}
+third_place_pool = []
+
+for g_name, teams in GROUPS.items():
+    standings = {t: {"Group": g_name, "Pts": 0, "GD": 0, "GF": 0} for t in teams}
+    matches = [
+        (teams[0], teams[1]), (teams[2], teams[3]),
+        (teams[0], teams[2]), (teams[1], teams[3]),
+        (teams[0], teams[3]), (teams[1], teams[2])
+    ]
     
-    for match in fixtures_data:
-        if match["group"] == group_name:
-            mid = match["id"]
-            score_h = st.session_state.predictions.get(f"m_{mid}_h", 0)
-            score_a = st.session_state.predictions.get(f"m_{mid}_a", 0)
+    for idx, (home, away) in enumerate(matches):
+        key_h = f"{g_name}_m{idx}_h"
+        key_a = f"{g_name}_m{idx}_a"
+        
+        # Pull scores from state or default to 0
+        h_score = st.session_state.match_predictions.get(key_h, 0)
+        a_score = st.session_state.match_predictions.get(key_a, 0)
+        
+        standings[home]["GF"] += h_score
+        standings[away]["GF"] += a_score
+        standings[home]["GD"] += (h_score - a_score)
+        standings[away]["GD"] += (a_score - h_score)
+        
+        if h_score > a_score:
+            standings[home]["Pts"] += 3
+        elif a_score > h_score:
+            standings[away]["Pts"] += 3
+        else:
+            standings[home]["Pts"] += 1
+            standings[away]["Pts"] += 1
             
-            # Simple check if match has interactions recorded
-            if f"m_{mid}_h" in st.session_state.predictions:
-                standings[match["home"]]["GF"] += score_h
-                standings[match["home"]]["GA"] += score_a
-                standings[match["away"]]["GF"] += score_a
-                standings[match["away"]]["GA"] += score_h
-                
-                if score_h > score_a:
-                    standings[match["home"]]["Pts"] += 3
-                elif score_h < score_a:
-                    standings[match["away"]]["Pts"] += 3
-                else:
-                    standings[match["home"]]["Pts"] += 1
-                    standings[match["away"]]["Pts"] += 1
+    # Sort group to find rankings
+    df_g = pd.DataFrame.from_dict(standings, orient='index').reset_index().rename(columns={'index': 'Team'})
+    df_g = df_g.sort_values(by=["Pts", "GD", "GF"], ascending=False).reset_index(drop=True)
+    
+    all_group_results[g_name] = df_g
+    # Extract the 3rd place row team to evaluate for wildcards
+    third_place_pool.append(df_g.iloc[2].to_dict())
 
-    for team in standings:
-        standings[team]["GD"] = standings[team]["GF"] - standings[team]["GA"]
+# Sort wildcard matrix globally
+wildcard_df = pd.DataFrame(third_place_pool)
+wildcard_df = wildcard_df.sort_values(by=["Pts", "GD", "GF"], ascending=False).reset_index(drop=True)
+wildcard_df.index += 1
+
+# Identify the qualifying 8 wildcards
+qualified_wildcards = list(wildcard_df.head(8)["Team"])
+
+# --- TAB 1: USER MATCH PREDICTIONS ---
+with tab1:
+    selected_group = st.selectbox("Select Group Filter", list(GROUPS.keys()))
+    col_play, col_view = st.columns([3, 2])
+    
+    with col_play:
+        st.subheader(f"{selected_group} Match Entries")
+        g_teams = GROUPS[selected_group]
+        g_matches = [
+            (g_teams[0], g_teams[1]), (g_teams[2], g_teams[3]),
+            (g_teams[0], g_teams[2]), (g_teams[1], g_teams[3]),
+            (g_teams[0], g_teams[3]), (g_teams[1], g_teams[2])
+        ]
         
-    df = pd.DataFrame.from_dict(standings, orient="index").reset_index()
-    df.columns = ["Team", "Points", "Goals For", "Goals Against", "Goal Difference"]
-    return df.sort_values(by=["Points", "Goal Difference", "Goals For"], ascending=False)
-
-# --- WORKSPACE VIEW 1: GROUP STAGE ---
-if app_mode == "Group Stage Calculator":
-    st.header("🏆 Group Stage Engine")
-    
-    selected_grp = st.selectbox("Select Group Focus", list(GROUPS.keys()))
-    
-    col1, col2 = st.columns([3, 2])
-    
-    with col1:
-        st.subheader("Match Fixtures & Score Submission")
-        group_fixtures = [f for f in fixtures_data if f["group"] == selected_grp]
-        
-        if not group_fixtures:
-            st.info(f"Fixture items for {selected_grp} are ready to parse. Use table parameters below to inject inputs.")
-        
-        for match in group_fixtures:
-            mid = match["id"]
-            with st.container():
-                c_date, c_home, c_vs, c_away, c_venue = st.columns([2, 2, 2, 2, 2])
-                with c_date:
-                    st.caption(f"🗓️ {match['date']}")
-                with c_home:
-                    st.markdown(f"**{match['home']}**")
-                    h_val = st.number_input("Home", min_value=0, max_value=20, step=1, key=f"m_{mid}_h")
-                with c_vs:
-                    st.markdown("<p style='text-align: center; font-size:20px;'>vs</p>", unsafe_allow_html=True)
-                with c_away:
-                    st.markdown(f"**{match['away']}**")
-                    a_val = st.number_input("Away", min_value=0, max_value=20, step=1, key=f"m_{mid}_a")
-                with c_venue:
-                    st.caption(f"🏟️ {match['venue']}")
-                st.markdown("<hr style='margin:0.5em 0px;'>", unsafe_allow_html=True)
-                
-    with col2:
-        st.subheader("Live Standings Table")
-        standings_df = calculate_group_standings(selected_grp, GROUPS[selected_grp])
-        st.dataframe(standings_df, use_container_width=True, hide_index=True)
-
-# --- WORKSPACE VIEW 2: KNOCKOUT BRACKET ---
-elif app_mode == "Knockout Bracket Stage":
-    st.header("🪵 Live Knockout Matrix (Simulated Prototype)")
-    st.info("The application calculates advancement rules dynamically based on your Group stage configurations.")
-    
-    # Showcase a mock representation of the Round of 32 setup found in your file
-    st.subheader("Round of 32 Predefined Paths")
-    
-    ko_cols = st.columns(4)
-    with ko_cols[0]:
-        st.metric(label="Match 74 Target Path", value="1E vs 3-ABCDF")
-    with ko_cols[1]:
-        st.metric(label="Match 77 Target Path", value="1I vs 3-CDFGH")
-    with ko_cols[2]:
-        st.metric(label="Match 73 Target Path", value="2A vs 2B")
-    with ko_cols[3]:
-        st.metric(label="Match 75 Target Path", value="1F vs 2C")
-
-    st.markdown("---")
-    st.caption("Complete bracket dependency tree mapping (Matches 73 to 104) is structurally bound to the memory matrix layout.")
-
-# --- WORKSPACE VIEW 3: VENUES HUB ---
-elif app_mode == "Venues & Venues Hub":
-    st.header("🏟️ World Cup 2026 Stadiums & Venues Match Schedule Browser")
-    
-    # Collect unique venues from layout arrays
-    raw_venues = ["Mexico City", "Toronto", "New York/New Jersey", "Los Angeles", "Houston", "Dallas", "Seattle", "Atlanta", "Kansas City", "Guadalajara", "Boston", "Vancouver", "Philadelphia", "Monterrey", "Miami"]
-    selected_venue = st.selectbox("Filter Schedule by Location Host Venue", sorted(raw_venues))
-    
-    venue_matches = [m for m in fixtures_data if m["venue"] == selected_venue]
-    
-    if venue_matches:
-        st.write(f"Showing matches scheduled at **{selected_venue}**:")
-        st.table(pd.DataFrame(venue_matches)[['date', 'group', 'home', 'away']])
-    else:
-        st.info(f"No group phase matches loaded in this demo instance for **{selected_venue}**. Rest of final matches load via internal parser logic rules.")
-
-# --- WORKSPACE VIEW 4: ANALYTICS REVIEW ---
-elif app_mode == "Analytics Review":
-    st.header("📊 Prediction Statistics Dashboard")
-    
-    # Calculate basic summary data points
-    total_predicted_goals = 0
-    match_count = 0
-    for key, value in st.session_state.predictions.items():
-        if key.startswith("m_"):
-            total_predicted_goals += value
-            match_count += 0.5 # Two inputs per match layout item
+        for idx, (home, away) in enumerate(g_matches):
+            kh = f"{selected_group}_m{idx}_h"
+            ka = f"{selected_group}_m{idx}_a"
             
-    m_col1, m_col2 = st.columns(2)
-    with m_col1:
-        st.metric(label="Total Predicted Goals (Global)", value=int(total_predicted_goals))
-    with m_col2:
-        st.metric(label="Estimated Unique Matches Simulated", value=int(match_count))
+            c1, c2, c3, c4, c5 = st.columns([3, 1, 1, 1, 3])
+            with c1: st.write(f"**{home}**")
+            with c2: 
+                v_h = st.number_input("", min_value=0, max_value=15, value=st.session_state.match_predictions.get(kh, 0), step=1, key=kh, label_visibility="collapsed")
+                st.session_state.match_predictions[kh] = v_h
+            with c3: st.markdown("<p style='text-align:center;'>vs</p>", unsafe_allow_html=True)
+            with c4: 
+                v_a = st.number_input("", min_value=0, max_value=15, value=st.session_state.match_predictions.get(ka, 0), step=1, key=ka, label_visibility="collapsed")
+                st.session_state.match_predictions[ka] = v_a
+            with c5: st.write(f"<p style='text-align:right;'><b>{away}</b></p>", unsafe_allow_html=True)
+            st.markdown("<hr style='margin:0.4em 0px;'>", unsafe_allow_html=True)
+
+    with col_view:
+        st.subheader("Live Standings")
+        st.dataframe(all_group_results[selected_group][["Team", "Pts", "GD", "GF"]], use_container_width=True, hide_index=True)
+
+# --- TAB 2: WILDCARD DATA WATCH ---
+with tab2:
+    st.header("🃏 3rd-Place Wildcard Standings")
+    st.write("The top 8 teams highlighted below successfully qualify for the Round of 32 knockout spots.")
+    
+    def highlight_qualified(row):
+        return ['background-color: #dcfce7' if row.name <= 8 else 'background-color: #fee2e2' for _ in row]
+        
+    st.dataframe(wildcard_df.style.apply(highlight_qualified, axis=1), use_container_width=True)
+
+# --- TAB 3: DYNAMIC KNOCKOUT BRACKET ---
+with tab3:
+    st.header("🪵 Round of 32 Dynamic Matching")
+    st.write("Below is a sample of how the final pairings update based directly on your data selections:")
+    
+    # Safely look up current top seeds
+    1A = all_group_results["Group A"].iloc[0]["Team"]
+    2B = all_group_results["Group B"].iloc[1]["Team"]
+    1E = all_group_results["Group E"].iloc[0]["Team"]
+    
+    col_ko1, col_ko2 = st.columns(2)
+    with col_ko1:
+        st.info("🔒 Standard Dynamic Matchup (1st vs 2nd)")
+        st.metric(label="Match 73 Pair", value=f"{1A} vs {2B}")
+        
+    with col_ko2:
+        st.success("🃏 Wildcard Dependent Matchup (1st vs Best 3rd)")
+        # Dynamically allocate the best available matching wildcard team
+        allocated_wildcard = qualified_wildcards[0] if len(qualified_wildcards) > 0 else "Pending Wildcard"
+        st.metric(label="Match 74 Pair (1E vs Wildcard Slot)", value=f"{1E} vs {allocated_wildcard}")
