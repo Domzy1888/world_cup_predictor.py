@@ -3,7 +3,7 @@ import pandas as pd
 
 # --- CONFIGURATION & STYLING ---
 st.set_page_config(
-    page_title="World Cup 2026 Pro Predictor",
+    page_title="World Cup 2026 Tournament Engine",
     page_icon="⚽",
     layout="wide"
 )
@@ -24,12 +24,12 @@ GROUPS = {
     "Group L": ["England", "Croatia", "Ghana", "Panama"]
 }
 
-# --- INITIALIZE SESSSION STATE STORAGE ---
+# --- INITIALIZE SESSION STATE STORAGE ---
 if "match_predictions" not in st.session_state:
     st.session_state.match_predictions = {}
 
-st.title("🏆 World Cup 2026 Real Tournament Predictor")
-st.markdown("Features the complete 48-team framework calculation matrix, tracking top qualifiers and the 8 best 3rd-place Wildcards.")
+st.title("🏆 World Cup 2026 Tournament Predictor")
+st.markdown("A completely fresh, user-friendly implementation of the real 48-team tournament bracket logic.")
 st.write("---")
 
 tab1, tab2, tab3 = st.tabs(["📊 Group Stage Hub", "🃏 Wildcard Tracker", "🌳 Round of 32 Bracket"])
@@ -80,8 +80,9 @@ wildcard_df = pd.DataFrame(third_place_pool)
 wildcard_df = wildcard_df.sort_values(by=["Pts", "GD", "GF"], ascending=False).reset_index(drop=True)
 wildcard_df.index += 1
 
-# Identify the qualifying 8 wildcards
-qualified_wildcards = list(wildcard_df.head(8)["Team"])
+# Identify the qualifying 8 wildcards and know their original groups
+qualified_wildcards_list = wildcard_df.head(8).to_dict(orient="records")
+qualified_wildcards_teams = [item["Team"] for item in qualified_wildcards_list]
 
 # --- TAB 1: USER MATCH PREDICTIONS ---
 with tab1:
@@ -119,8 +120,8 @@ with tab1:
 
 # --- TAB 2: WILDCARD DATA WATCH ---
 with tab2:
-    st.header("🃏 3rd-Place Wildcard Standings")
-    st.write("The top 8 teams highlighted below successfully qualify for the Round of 32 knockout spots.")
+    st.header("🃏 3rd-Place Wildcard Standings Leaderboard")
+    st.write("The top 8 teams highlighted in green successfully qualify for the Round of 32 knockout spots.")
     
     def highlight_qualified(row):
         return ['background-color: #dcfce7' if row.name <= 8 else 'background-color: #fee2e2' for _ in row]
@@ -129,21 +130,21 @@ with tab2:
 
 # --- TAB 3: DYNAMIC KNOCKOUT BRACKET ---
 with tab3:
-    st.header("🪵 Round of 32 Dynamic Matching")
-    st.write("Below is a sample of how the final pairings update based directly on your data selections:")
+    st.header("🪵 Round of 32 Dynamic Matching Matrix")
+    st.write("These setups update dynamically based on the numbers you input in the Group Stage tab.")
     
-    # Safely look up current top seeds
-    1A = all_group_results["Group A"].iloc[0]["Team"]
-    2B = all_group_results["Group B"].iloc[1]["Team"]
-    1E = all_group_results["Group E"].iloc[0]["Team"]
+    # FIX: Variables renamed safely so they don't start with digits!
+    team_1A = all_group_results["Group A"].iloc[0]["Team"]
+    team_2B = all_group_results["Group B"].iloc[1]["Team"]
+    team_1E = all_group_results["Group E"].iloc[0]["Team"]
     
     col_ko1, col_ko2 = st.columns(2)
     with col_ko1:
-        st.info("🔒 Standard Dynamic Matchup (1st vs 2nd)")
-        st.metric(label="Match 73 Pair", value=f"{1A} vs {2B}")
+        st.info("🔒 Standard Dynamic Matchup (1st Place vs 2nd Place)")
+        st.metric(label="Match 73 Pair", value=f"{team_1A} vs {team_2B}")
         
     with col_ko2:
-        st.success("🃏 Wildcard Dependent Matchup (1st vs Best 3rd)")
-        # Dynamically allocate the best available matching wildcard team
-        allocated_wildcard = qualified_wildcards[0] if len(qualified_wildcards) > 0 else "Pending Wildcard"
-        st.metric(label="Match 74 Pair (1E vs Wildcard Slot)", value=f"{1E} vs {allocated_wildcard}")
+        st.success("🃏 Wildcard Dependent Matchup (1st Place vs Best 3rd Place)")
+        # Dynamically allocate the best available matching wildcard team from our sorted list
+        allocated_wildcard = qualified_wildcards_teams[0] if len(qualified_wildcards_teams) > 0 else "Pending Wildcard"
+        st.metric(label="Match 74 Pair (1E vs Top Ranked Wildcard)", value=f"{team_1E} vs {allocated_wildcard}")
