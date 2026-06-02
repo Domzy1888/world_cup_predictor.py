@@ -265,80 +265,156 @@ elif app_tab == "📝 Submit Predictions":
             st.dataframe(u_results[selected_group][["Team", "Pts", "GD", "GF"]], use_container_width=True, hide_index=True)
 
     with pred_sub_tabs[1]:
-        st.subheader("🌳 Choose advancing winners using dropdown selectors")
-        _, u_wildcards = run_standings_engine(user_preds)
+        st.subheader("🌳 Knockout Bracket Selections")
+        st.write("Review the qualified teams below and use the dropdown to select who advances.")
         
-        def get_u1st(g): return u_results[g].iloc[0]["Team"] if 'u_results' in locals() else "1st Place"
-        def get_u2nd(g): return u_results[g].iloc[1]["Team"] if 'u_results' in locals() else "2nd Place"
+        # Run engine outside of UI elements to ensure clean data cascade updates
+        u_results, u_wildcards = run_standings_engine(user_preds)
         
-        u_results, _ = run_standings_engine(user_preds)
+        # Helper functions with explicit verification checks
+        def get_confirmed_1st(g):
+            if g in u_results and not u_results[g].empty:
+                return u_results[g].iloc[0]["Team"]
+            return f"1st {g}"
+
+        def get_confirmed_2nd(g):
+            if g in u_results and not u_results[g].empty:
+                return u_results[g].iloc[1]["Team"]
+            return f"2nd {g}"
         
-        # Build Bracket Structure
+        # Build the accurate Round of 32 Pairing Matrix
         o_r32 = {
-            "Match 73": (get_u1st("Group A"), u_wildcards[4]), "Match 74": (get_u1st("Group E"), u_wildcards[0]),
-            "Match 75": (get_u1st("Group F"), get_u2nd("Group C")), "Match 76": (get_u1st("Group C"), get_u2nd("Group F")),
-            "Match 77": (get_u1st("Group I"), u_wildcards[1]), "Match 78": (get_u2nd("Group E"), get_u2nd("Group I")),
-            "Match 79": (get_u1st("Group A"), u_wildcards[4]), "Match 80": (get_u1st("Group L"), u_wildcards[5]),
-            "Match 81": (get_u1st("Group D"), u_wildcards[2]), "Match 82": (get_u1st("Group G"), u_wildcards[3]),
-            "Match 83": (get_u2nd("Group K"), get_u2nd("Group L")), "Match 84": (get_u1st("Group H"), get_u2nd("Group J")),
-            "Match 85": (get_u1st("Group B"), u_wildcards[6]), "Match 86": (get_u1st("Group J"), get_u2nd("Group H")),
-            "Match 87": (get_u1st("Group K"), u_wildcards[7]), "Match 88": (get_u2nd("Group D"), get_u2nd("Group G"))
+            "Match 73": (get_confirmed_1st("Group A"), u_wildcards[4]), 
+            "Match 74": (get_confirmed_1st("Group E"), u_wildcards[0]),
+            "Match 75": (get_confirmed_1st("Group F"), get_confirmed_2nd("Group C")), 
+            "Match 76": (get_confirmed_1st("Group C"), get_confirmed_2nd("Group F")),
+            "Match 77": (get_confirmed_1st("Group I"), u_wildcards[1]), 
+            "Match 78": (get_confirmed_2nd("Group E"), get_confirmed_2nd("Group I")),
+            "Match 79": (get_confirmed_1st("Group A"), u_wildcards[4]), 
+            "Match 80": (get_confirmed_1st("Group L"), u_wildcards[5]),
+            "Match 81": (get_confirmed_1st("Group D"), u_wildcards[2]), 
+            "Match 82": (get_confirmed_1st("Group G"), u_wildcards[3]),
+            "Match 83": (get_confirmed_2nd("Group K"), get_confirmed_2nd("Group L")), 
+            "Match 84": (get_confirmed_1st("Group H"), get_confirmed_2nd("Group J")),
+            "Match 85": (get_confirmed_1st("Group B"), u_wildcards[6]), 
+            "Match 86": (get_confirmed_1st("Group J"), get_confirmed_2nd("Group H")),
+            "Match 87": (get_confirmed_1st("Group K"), u_wildcards[7]), 
+            "Match 88": (get_confirmed_2nd("Group D"), get_confirmed_2nd("Group G"))
         }
         
         ko_tabs = st.tabs(["Round of 32", "Round of 16", "Quarter-Finals", "Finals"])
         
+        # --- ROUND OF 32 ---
         with ko_tabs[0]:
-            st.markdown("#### Round of 32")
             cl, cr = st.columns(2)
             for idx, (m_id, (h, a)) in enumerate(o_r32.items()):
                 col = cl if idx < 8 else cr
                 with col:
-                    user_preds[m_id] = st.selectbox(f"📋 {m_id} Winner", [h, a], index=0, key=f"up_{m_id}")
+                    st.markdown(f"**⚽ {m_id}**")
+                    st.caption(f"Fixture: {h} vs {a}")
                     
+                    options = [h, a]
+                    current_pick = user_preds.get(m_id, h)
+                    default_idx = options.index(current_pick) if current_pick in options else 0
+                    
+                    user_preds[m_id] = st.selectbox(
+                        "Predicted Winner to Progress:", 
+                        options, 
+                        index=default_idx, 
+                        key=f"up_sel_{m_id}"
+                    )
+                    st.markdown("<hr style='margin:0.5em 0px;'>", unsafe_allow_html=True)
+                    
+        # --- ROUND OF 16 ---
         with ko_tabs[1]:
-            st.markdown("#### Round of 16")
             o_r16 = {
-                "Match 89": (user_preds.get("Match 74"), user_preds.get("Match 77")),
-                "Match 90": (user_preds.get("Match 73"), user_preds.get("Match 75")),
-                "Match 93": (user_preds.get("Match 83"), user_preds.get("Match 84")),
-                "Match 94": (user_preds.get("Match 81"), user_preds.get("Match 82")),
-                "Match 91": (user_preds.get("Match 76"), user_preds.get("Match 78")),
-                "Match 92": (user_preds.get("Match 79"), user_preds.get("Match 80")),
-                "Match 95": (user_preds.get("Match 86"), user_preds.get("Match 88")),
-                "Match 96": (user_preds.get("Match 85"), user_preds.get("Match 87"))
+                "Match 89": (user_preds.get("Match 74", "W74"), user_preds.get("Match 77", "W77")),
+                "Match 90": (user_preds.get("Match 73", "W73"), user_preds.get("Match 75", "W75")),
+                "Match 93": (user_preds.get("Match 83", "W83"), user_preds.get("Match 84", "W84")),
+                "Match 94": (user_preds.get("Match 81", "W81"), user_preds.get("Match 82", "W82")),
+                "Match 91": (user_preds.get("Match 76", "W76"), user_preds.get("Match 78", "W78")),
+                "Match 92": (user_preds.get("Match 79", "W79"), user_preds.get("Match 80", "W80")),
+                "Match 95": (user_preds.get("Match 86", "W86"), user_preds.get("Match 88", "W88")),
+                "Match 96": (user_preds.get("Match 85", "W85"), user_preds.get("Match 87", "W87"))
             }
             cl, cr = st.columns(2)
             for idx, (m_id, (h, a)) in enumerate(o_r16.items()):
                 col = cl if idx < 4 else cr
                 with col:
-                    user_preds[m_id] = st.selectbox(f"📋 {m_id} Winner", [h, a], index=0, key=f"up_{m_id}")
+                    st.markdown(f"**📋 {m_id}**")
+                    st.caption(f"Fixture: {h} vs {a}")
                     
+                    options = [h, a]
+                    current_pick = user_preds.get(m_id, h)
+                    default_idx = options.index(current_pick) if current_pick in options else 0
+                    
+                    user_preds[m_id] = st.selectbox("Predicted Winner to Progress:", options, index=default_idx, key=f"up_sel_{m_id}")
+                    st.markdown("<hr style='margin:0.5em 0px;'>", unsafe_allow_html=True)
+                    
+        # --- QUARTER-FINALS ---
         with ko_tabs[2]:
-            st.markdown("#### Quarter-Finals")
             o_qf = {
-                "Match 97": (user_preds.get("Match 89"), user_preds.get("Match 90")),
-                "Match 98": (user_preds.get("Match 93"), user_preds.get("Match 94")),
-                "Match 99": (user_preds.get("Match 91"), user_preds.get("Match 92")),
-                "Match 100": (user_preds.get("Match 95"), user_preds.get("Match 96"))
+                "Match 97": (user_preds.get("Match 89", "W89"), user_preds.get("Match 90", "W90")),
+                "Match 98": (user_preds.get("Match 93", "W93"), user_preds.get("Match 94", "W94")),
+                "Match 99": (user_preds.get("Match 91", "W91"), user_preds.get("Match 92", "W92")),
+                "Match 100": (user_preds.get("Match 95", "W95"), user_preds.get("Match 96", "W96"))
             }
             for m_id, (h, a) in o_qf.items():
-                user_preds[m_id] = st.selectbox(f"📋 {m_id} Winner", [h, a], index=0, key=f"up_{m_id}")
+                st.markdown(f"**⭐ {m_id}**")
+                st.caption(f"Fixture: {h} vs {a}")
                 
+                options = [h, a]
+                current_pick = user_preds.get(m_id, h)
+                default_idx = options.index(current_pick) if current_pick in options else 0
+                
+                user_preds[m_id] = st.selectbox("Predicted Winner to Progress:", options, index=default_idx, key=f"up_sel_{m_id}")
+                st.markdown("<hr style='margin:0.5em 0px;'>", unsafe_allow_html=True)
+                
+        # --- FINALS ---
         with ko_tabs[3]:
-            st.markdown("#### Semi-Finals & Finals")
-            sf1_h, sf1_a = user_preds.get("Match 97"), user_preds.get("Match 98")
-            sf2_h, sf2_a = user_preds.get("Match 99"), user_preds.get("Match 100")
+            sf1_h = user_preds.get("Match 97", "W97")
+            sf1_a = user_preds.get("Match 98", "W98")
+            sf2_h = user_preds.get("Match 99", "W99")
+            sf2_a = user_preds.get("Match 100", "W100")
             
-            user_preds["Match 101"] = st.selectbox(f"🌿 Semi-Final 1 Winner", [sf1_h, sf1_a], key="up_M101")
-            user_preds["Match 102"] = st.selectbox(f"🌿 Semi-Final 2 Winner", [sf2_h, sf2_a], key="up_M102")
+            st.markdown("#### 🌿 Semi-Finals")
             
-            # Losers go to 3rd place playoff
+            # SF 1 Dropdown
+            st.caption(f"Semi-Final 1: {sf1_h} vs {sf1_a}")
+            sf1_opts = [sf1_h, sf1_a]
+            sf1_pick = user_preds.get("Match 101", sf1_h)
+            sf1_idx = sf1_opts.index(sf1_pick) if sf1_pick in sf1_opts else 0
+            user_preds["Match 101"] = st.selectbox("Progresses to Final:", sf1_opts, index=sf1_idx, key=f"up_sel_M101")
+            
+            # SF 2 Dropdown
+            st.caption(f"Semi-Final 2: {sf2_h} vs {sf2_a}")
+            sf2_opts = [sf2_h, sf2_a]
+            sf2_pick = user_preds.get("Match 102", sf2_h)
+            sf2_idx = sf2_opts.index(sf2_pick) if sf2_pick in sf2_opts else 0
+            user_preds["Match 102"] = st.selectbox("Progresses to Final:", sf2_opts, index=sf2_idx, key=f"up_sel_M102")
+            
+            # Losers calculation path to 3rd place playoff
             sf1_l = sf1_a if user_preds["Match 101"] == sf1_h else sf1_h
             sf2_l = sf2_a if user_preds["Match 102"] == sf2_h else sf2_h
-            user_preds["Match 103"] = st.selectbox(f"🥉 3rd Place Playoff Winner", [sf1_l, sf2_l], key="up_M103")
             
-            # Final
-            user_preds["Match 104"] = st.selectbox(f"🥇 Final Winner", [user_preds["Match 101"], user_preds["Match 102"]], key="up_M104")
+            st.markdown("---")
+            st.markdown("#### 🥉 3rd Place Playoff")
+            st.caption(f"Match 103: {sf1_l} vs {sf2_l}")
+            p3_opts = [sf1_l, sf2_l]
+            p3_pick = user_preds.get("Match 103", sf1_l)
+            p3_idx = p3_opts.index(p3_pick) if p3_pick in p3_opts else 0
+            user_preds["Match 103"] = st.selectbox("3rd Place Winner:", p3_opts, index=p3_idx, key=f"up_sel_M103")
+            
+            # The Grand Final
+            st.markdown("---")
+            st.markdown("#### 🥇 Grand Final")
+            f_h = user_preds["Match 101"]
+            f_a = user_preds["Match 102"]
+            st.caption(f"Match 104: {f_h} vs {f_a}")
+            f_opts = [f_h, f_a]
+            f_pick = user_preds.get("Match 104", f_h)
+            f_idx = f_opts.index(f_pick) if f_pick in f_opts else 0
+            user_preds["Match 104"] = st.selectbox("World Cup Champion:", f_opts, index=f_idx, key=f"up_sel_M104")
             
         if st.button("💾 Save All Predictions"):
             st.session_state.predictions[c_user] = user_preds
@@ -366,11 +442,11 @@ elif app_tab == "🛠️ Admin Dashboard":
             with c5: st.write(away)
             
     with admin_tabs[1]:
-        # Process the official administrative standings to populate admin knockout entries
+        # Process administrative standings calculations for verified inputs
         adm_group_res, adm_wildcards = run_standings_engine(actual["group"])
         
-        def get_1st(g): return adm_group_res[g].iloc[0]["Team"] if not adm_group_res[g].empty else "1st"
-        def get_2nd(g): return adm_group_res[g].iloc[1]["Team"] if not adm_group_res[g].empty else "2nd"
+        def get_1st(g): return adm_group_res[g].iloc[0]["Team"] if not adm_group_res[g].empty else f"1st {g}"
+        def get_2nd(g): return adm_group_res[g].iloc[1]["Team"] if not adm_group_res[g].empty else f"2nd {g}"
         
         adm_r32_pairings = {
             "Match 73": (get_1st("Group A"), adm_wildcards[4]), "Match 74": (get_1st("Group E"), adm_wildcards[0]),
