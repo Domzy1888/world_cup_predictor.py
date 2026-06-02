@@ -281,7 +281,7 @@ elif app_tab == "📝 Submit Predictions":
             "Match 79": (get_u1st("Group A"), u_wildcards[4]), "Match 80": (get_u1st("Group L"), u_wildcards[5]),
             "Match 81": (get_u1st("Group D"), u_wildcards[2]), "Match 82": (get_u1st("Group G"), u_wildcards[3]),
             "Match 83": (get_u2nd("Group K"), get_u2nd("Group L")), "Match 84": (get_u1st("Group H"), get_u2nd("Group J")),
-            "Match 85": (get_1st("Group B"), u_wildcards[6]), "Match 86": (get_u1st("Group J"), get_u2nd("Group H")),
+            "Match 85": (get_u1st("Group B"), u_wildcards[6]), "Match 86": (get_u1st("Group J"), get_u2nd("Group H")),
             "Match 87": (get_u1st("Group K"), u_wildcards[7]), "Match 88": (get_u2nd("Group D"), get_u2nd("Group G"))
         }
         
