@@ -14,41 +14,56 @@ st.markdown("""
     /* Full screen background image styling with low opacity overlay */
     .stApp {
         background: linear-gradient(rgba(15, 23, 42, 0.85), rgba(15, 23, 42, 0.95)), 
-                    url("https://images.unsplash.com/photo-1508098682722-e99c43a406b2?auto=format&fit=crop&q=80&w=2000");
+                    url("https://cdn-media.theathletic.com/cdn-cgi/image/width=1000%2cquality=70%2cformat=auto/https://cdn-media.theathletic.com/vwYC1qZfTwfm_3qmyXkIC5Rja_1440x960.jpg");
         background-size: cover;
         background-position: center;
         background-attachment: fixed;
     }
     
+    /* Force crisp white/light-silver typography across the app for readability */
+    .stApp, .stApp p, .stApp div, .stApp span, .stApp label, .stApp h1, .stApp h2, .stApp h3, .stApp h4 {
+        color: #f1f5f9 !important;
+    }
+    
+    /* Keep selectbox options readable by preventing them from bleeding into the background */
+    div[data-baseweb="select"] * {
+        color: #0f172a !important;
+    }
+    
+    /* Keep standard dataframe text elements visible and dark inside tables */
+    div[data-testid="stDataFrame"] * {
+        color: #f1f5f9 !important;
+    }
+    
     /* Floating Glassmorphism Match Card Style */
     .match-card {
-        background: rgba(255, 255, 255, 0.06);
-        backdrop-filter: blur(12px);
-        -webkit-backdrop-filter: blur(12px);
+        background: rgba(255, 255, 255, 0.08);
+        backdrop-filter: blur(16px);
+        -webkit-backdrop-filter: blur(16px);
         border-radius: 16px;
-        border: 1px solid rgba(255, 255, 255, 0.1);
+        border: 1px solid rgba(255, 255, 255, 0.15);
         padding: 20px;
         margin-bottom: 20px;
-        box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.3);
+        box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.4);
         transition: transform 0.2s ease, border-color 0.2s ease;
     }
     .match-card:hover {
         transform: translateY(-2px);
-        border-color: rgba(255, 255, 255, 0.2);
+        border-color: rgba(255, 255, 255, 0.3);
     }
     
     /* Clean Divider Line */
     hr {
         border: 0;
         height: 1px;
-        background: rgba(255, 255, 255, 0.1);
+        background: rgba(255, 255, 255, 0.2);
         margin: 15px 0;
     }
     
     /* Custom Badge for Locked States */
     .lock-badge {
-        background-color: rgba(239, 68, 68, 0.2);
-        color: #f87171;
+        background-color: rgba(239, 68, 68, 0.25);
+        color: #fca5a5 !important;
         border: 1px solid rgba(239, 68, 68, 0.4);
         padding: 4px 10px;
         border-radius: 8px;
@@ -60,7 +75,6 @@ st.markdown("""
 """, unsafe_allow_html=True)
 
 # --- GLOBAL TEAMS & FLAGS MAP ---
-# Maps each country to its flag emoji for unified display throughout the app
 FLAGS = {
     "Mexico": "🇲🇽 Mexico", "South Africa": "🇿🇦 South Africa", "Rep. of Korea": "🇰🇷 Rep. of Korea", "Czech Rep.": "🇨🇿 Czech Rep.",
     "Canada": "🇨🇦 Canada", "Bosnia/Herzeg.": "🇧🇦 Bosnia/Herzeg.", "Qatar": "🇶🇦 Qatar", "Switzerland": "🇨🇭 Switzerland",
@@ -77,7 +91,6 @@ FLAGS = {
 }
 
 def fmt_team(name):
-    """Gracefully formats a country name with its flag or preserves structural placeholders."""
     return FLAGS.get(name, name)
 
 # --- CORE DATA STRUCTURE ---
@@ -317,7 +330,6 @@ elif app_tab == "📝 Submit Predictions":
                 with c5: st.write(f"<p style='text-align:right;'><b>{fmt_team(away)}</b></p>", unsafe_allow_html=True)
                 if idx < 5: st.markdown("<hr>", unsafe_allow_html=True)
             
-            # Lock Group Submission Button
             if not is_group_locked:
                 if st.button(f"🔒 Lock In {selected_group} Predictions", use_container_width=True):
                     st.session_state.locked_groups[c_user].append(selected_group)
@@ -331,7 +343,6 @@ elif app_tab == "📝 Submit Predictions":
             st.subheader("Simulated Group Table")
             u_results, _ = run_standings_engine(user_preds)
             
-            # Add decorative flags into simulated standings grid layout
             df_display = u_results[selected_group][["Team", "Pts", "GD", "GF"]].copy()
             df_display["Team"] = df_display["Team"].apply(fmt_team)
             st.dataframe(df_display, use_container_width=True, hide_index=True)
@@ -350,7 +361,7 @@ elif app_tab == "📝 Submit Predictions":
             "Match 81": (get_confirmed_1st("Group D"), u_wildcards[2]), "Match 82": (get_confirmed_1st("Group G"), u_wildcards[3]),
             "Match 83": (get_confirmed_2nd("Group K"), get_confirmed_2nd("Group L")), "Match 84": (get_confirmed_1st("Group H"), get_confirmed_2nd("Group J")),
             "Match 85": (get_confirmed_2nd("Group A"), get_confirmed_2nd("Group B")), "Match 86": (get_confirmed_1st("Group J"), get_confirmed_2nd("Group H")),
-            "Match 87": (get_confirmed_1st("Group K"), u_wildcards[7]), "Match 88": (get_2nd("Group D"), get_2nd("Group G"))
+            "Match 87": (get_confirmed_1st("Group K"), u_wildcards[7]), "Match 88": (get_confirmed_2nd("Group D"), get_confirmed_2nd("Group G"))
         }
         
         ko_tabs = st.tabs(["Round of 32", "Round of 16", "Quarter-Finals", "Finals"])
@@ -360,12 +371,10 @@ elif app_tab == "📝 Submit Predictions":
             for idx, (m_id, (h, a)) in enumerate(o_r32.items()):
                 col = cl if idx < 8 else cr
                 with col:
-                    st.markdown(f"<div class='match-card'><b>⚽ {m_id}</b><br><small style='opacity:0.7;'>Fixture: {fmt_team(h)} vs {fmt_team(a)}</small>", unsafe_allow_html=True)
+                    st.markdown(f"<div class='match-card'><b>⚽ {m_id}</b><br><small style='opacity:0.8;'>Fixture: {fmt_team(h)} vs {fmt_team(a)}</small>", unsafe_allow_html=True)
                     options = [h, a]
                     current_pick = user_preds.get(m_id, h)
                     default_idx = options.index(current_pick) if current_pick in options else 0
-                    
-                    # Formatted text display inside the interactive selection dropdowns
                     user_preds[m_id] = st.selectbox("Progresses:", options, index=default_idx, format_func=fmt_team, key=f"up_sel_{m_id}")
                     st.markdown("</div>", unsafe_allow_html=True)
                     
@@ -384,7 +393,7 @@ elif app_tab == "📝 Submit Predictions":
             for idx, (m_id, (h, a)) in enumerate(o_r16.items()):
                 col = cl if idx < 4 else cr
                 with col:
-                    st.markdown(f"<div class='match-card'><b>📋 {m_id}</b><br><small style='opacity:0.7;'>Fixture: {fmt_team(h)} vs {fmt_team(a)}</small>", unsafe_allow_html=True)
+                    st.markdown(f"<div class='match-card'><b>📋 {m_id}</b><br><small style='opacity:0.8;'>Fixture: {fmt_team(h)} vs {fmt_team(a)}</small>", unsafe_allow_html=True)
                     options = [h, a]
                     current_pick = user_preds.get(m_id, h)
                     default_idx = options.index(current_pick) if current_pick in options else 0
@@ -399,7 +408,7 @@ elif app_tab == "📝 Submit Predictions":
                 "Match 100": (user_preds.get("Match 95", "W95"), user_preds.get("Match 96", "W96"))
             }
             for m_id, (h, a) in o_qf.items():
-                st.markdown(f"<div class='match-card'><b>⭐ {m_id}</b><br><small style='opacity:0.7;'>Fixture: {fmt_team(h)} vs {fmt_team(a)}</small>", unsafe_allow_html=True)
+                st.markdown(f"<div class='match-card'><b>⭐ {m_id}</b><br><small style='opacity:0.8;'>Fixture: {fmt_team(h)} vs {fmt_team(a)}</small>", unsafe_allow_html=True)
                 options = [h, a]
                 current_pick = user_preds.get(m_id, h)
                 default_idx = options.index(current_pick) if current_pick in options else 0
@@ -460,7 +469,6 @@ elif app_tab == "🛠️ Admin Dashboard":
             with c4: val_a = st.number_input("", min_value=0, max_value=15, value=actual["group"].get(ka, 0), step=1, key=f"a_{ka}", label_visibility="collapsed")
             with c5: st.write(f"**{fmt_team(away)}**")
             with c6:
-                # Instantaneous inline publishing configuration button
                 if st.button("📢 Publish Match", key=f"btn_pub_{kh}", use_container_width=True):
                     actual["group"][kh] = val_h
                     actual["group"][ka] = val_a
