@@ -11,7 +11,7 @@ st.set_page_config(
 # Advanced Glassmorphism and Background Image CSS Styling
 st.markdown("""
     <style>
-    /* Full screen background image styling - Restored to full original vibrant color */
+    /* Full screen background image styling - Full original vibrant color */
     .stApp {
         background: url("https://cdn-media.theathletic.com/cdn-cgi/image/width=1000%2cquality=70%2cformat=auto/https://cdn-media.theathletic.com/vwYC1qZfTwfm_3qmyXkIC5Rja_1440x960.jpg");
         background-size: cover;
@@ -22,6 +22,18 @@ st.markdown("""
     /* Force crisp white typography ONLY in the main app block for maximum readability */
     .stMain, .stMain p, .stMain div, .stMain span, .stMain label, .stMain h1, .stMain h2, .stMain h3, .stMain h4 {
         color: #f1f5f9 !important;
+    }
+    
+    /* Target Streamlit's native st.container(border=True) to make it a true floating card */
+    div[data-testid="stVerticalBlockBorder"] {
+        background: rgba(15, 23, 42, 0.85) !important;
+        backdrop-filter: blur(12px) !important;
+        -webkit-backdrop-filter: blur(12px) !important;
+        border-radius: 16px !important;
+        border: 2px solid rgba(255, 255, 255, 0.18) !important;
+        padding: 24px !important;
+        margin-bottom: 25px !important;
+        box-shadow: 0 12px 32px 0 rgba(0, 0, 0, 0.6) !important;
     }
     
     /* Force the sidebar text to remain dark charcoal so it is readable on mobile and desktop layouts */
@@ -40,18 +52,6 @@ st.markdown("""
         color: #f1f5f9 !important;
     }
     
-    /* Floating Glassmorphic Unified Match Card Container Box */
-    .unified-match-card {
-        background: rgba(15, 23, 42, 0.82);
-        backdrop-filter: blur(12px);
-        -webkit-backdrop-filter: blur(12px);
-        border-radius: 16px;
-        border: 2px solid rgba(255, 255, 255, 0.15);
-        padding: 24px;
-        margin-bottom: 30px;
-        box-shadow: 0 10px 30px 0 rgba(0, 0, 0, 0.5);
-    }
-    
     /* Custom Stylized Center-Aligned Team Title Label */
     .team-header-box {
         font-size: 1.35rem !important;
@@ -60,7 +60,7 @@ st.markdown("""
         color: #ffffff !important;
         letter-spacing: 0.06em;
         text-align: center;
-        margin: 12px 0;
+        margin: 8px 0;
         width: 100%;
     }
     
@@ -71,7 +71,7 @@ st.markdown("""
         color: #cbd5e1 !important;
         font-weight: 900;
         letter-spacing: 0.3em;
-        margin: 18px 0;
+        margin: 12px 0;
         text-align: center;
         width: 100%;
     }
@@ -252,29 +252,28 @@ def calculate_user_points(username):
 
 # --- LOGIN SCREEN LAYER ---
 if st.session_state.current_user is None:
-    st.markdown("<div class='unified-match-card' style='max-width: 500px; margin: 100px auto;'>", unsafe_allow_html=True)
-    st.title("🔐 Tournament Sign-In")
-    auth_tab1, auth_tab2 = st.tabs(["Login", "Create Account"])
-    
-    with auth_tab1:
-        lin_user = st.text_input("Username", key="lin_user")
-        lin_pass = st.text_input("Password", type="password", key="lin_pass")
-        if st.button("Log In", use_container_width=True):
-            if lin_user in st.session_state.users and st.session_state.users[lin_user]["password"] == lin_pass:
-                st.session_state.current_user = lin_user
-                st.rerun()
-            else: st.error("Invalid credentials.")
-                
-    with auth_tab2:
-        reg_user = st.text_input("Choose Username", key="reg_user")
-        reg_pass = st.text_input("Choose Password", type="password", key="reg_pass")
-        if st.button("Register Account", use_container_width=True):
-            if reg_user.strip() == "" or reg_pass.strip() == "": st.error("Fields cannot be empty.")
-            elif reg_user in st.session_state.users: st.error("Username already exists.")
-            else:
-                st.session_state.users[reg_user] = {"password": reg_pass, "is_admin": False}
-                st.success("Registration successful! Proceed to Login tab.")
-    st.markdown("</div>", unsafe_allow_html=True)
+    with st.container(border=True):
+        st.title("🔐 Tournament Sign-In")
+        auth_tab1, auth_tab2 = st.tabs(["Login", "Create Account"])
+        
+        with auth_tab1:
+            lin_user = st.text_input("Username", key="lin_user")
+            lin_pass = st.text_input("Password", type="password", key="lin_pass")
+            if st.button("Log In", use_container_width=True):
+                if lin_user in st.session_state.users and st.session_state.users[lin_user]["password"] == lin_pass:
+                    st.session_state.current_user = lin_user
+                    st.rerun()
+                else: st.error("Invalid credentials.")
+                    
+        with auth_tab2:
+            reg_user = st.text_input("Choose Username", key="reg_user")
+            reg_pass = st.text_input("Choose Password", type="password", key="reg_pass")
+            if st.button("Register Account", use_container_width=True):
+                if reg_user.strip() == "" or reg_pass.strip() == "": st.error("Fields cannot be empty.")
+                elif reg_user in st.session_state.users: st.error("Username already exists.")
+                else:
+                    st.session_state.users[reg_user] = {"password": reg_pass, "is_admin": False}
+                    st.success("Registration successful! Proceed to Login tab.")
     st.stop()
 
 # --- INTERFACE MENU LAYOUT ---
@@ -338,23 +337,19 @@ elif app_tab == "📝 Submit Predictions":
                 kh = f"{selected_group}_m{idx}_h"
                 ka = f"{selected_group}_m{idx}_a"
                 
-                # Structural Fix: Opening container wrapper around all nested entry blocks
-                st.markdown("<div class='unified-match-card'>", unsafe_allow_html=True)
-                
-                st.markdown(f"<div class='team-header-box'>{fmt_team(home)}</div>", unsafe_allow_html=True)
-                user_preds[kh] = st.number_input("Home Team Score", min_value=0, max_value=15, 
-                                                  value=user_preds.get(kh, 0), step=1, 
-                                                  key=f"p_{kh}", disabled=is_group_locked)
-                
-                st.markdown("<div class='versus-text-middle'>— VERSUS —</div>", unsafe_allow_html=True)
-                
-                user_preds[ka] = st.number_input("Away Team Score", min_value=0, max_value=15, 
-                                                  value=user_preds.get(ka, 0), step=1, 
-                                                  key=f"p_{ka}", disabled=is_group_locked)
-                st.markdown(f"<div class='team-header-box'>{fmt_team(away)}</div>", unsafe_allow_html=True)
-                
-                # Closing container wrapper around all nested elements
-                st.markdown("</div>", unsafe_allow_html=True)
+                # FIX: Native stateful border container ensures components CANNOT step out of the floating block
+                with st.container(border=True):
+                    st.markdown(f"<div class='team-header-box'>{fmt_team(home)}</div>", unsafe_allow_html=True)
+                    user_preds[kh] = st.number_input("Home Team Score", min_value=0, max_value=15, 
+                                                      value=user_preds.get(kh, 0), step=1, 
+                                                      key=f"p_{kh}", disabled=is_group_locked)
+                    
+                    st.markdown("<div class='versus-text-middle'>— VERSUS —</div>", unsafe_allow_html=True)
+                    
+                    user_preds[ka] = st.number_input("Away Team Score", min_value=0, max_value=15, 
+                                                      value=user_preds.get(ka, 0), step=1, 
+                                                      key=f"p_{ka}", disabled=is_group_locked)
+                    st.markdown(f"<div class='team-header-box'>{fmt_team(away)}</div>", unsafe_allow_html=True)
             
             if not is_group_locked:
                 if st.button(f"🔒 Lock In {selected_group} Predictions", use_container_width=True):
@@ -364,14 +359,13 @@ elif app_tab == "📝 Submit Predictions":
                     st.rerun()
                 
         with col_table:
-            st.markdown("<div class='unified-match-card'>", unsafe_allow_html=True)
-            st.subheader("Simulated Group Table")
-            u_results, _ = run_standings_engine(user_preds)
-            
-            df_display = u_results[selected_group][["Team", "Pts", "GD", "GF"]].copy()
-            df_display["Team"] = df_display["Team"].apply(fmt_team)
-            st.dataframe(df_display, use_container_width=True, hide_index=True)
-            st.markdown("</div>", unsafe_allow_html=True)
+            with st.container(border=True):
+                st.subheader("Simulated Group Table")
+                u_results, _ = run_standings_engine(user_preds)
+                
+                df_display = u_results[selected_group][["Team", "Pts", "GD", "GF"]].copy()
+                df_display["Team"] = df_display["Team"].apply(fmt_team)
+                st.dataframe(df_display, use_container_width=True, hide_index=True)
 
     with pred_sub_tabs[1]:
         u_results, u_wildcards = run_standings_engine(user_preds)
@@ -396,13 +390,13 @@ elif app_tab == "📝 Submit Predictions":
         
         with ko_tabs[0]:
             for idx, (m_id, (h, a)) in enumerate(o_r32.items()):
-                st.markdown(f"<div class='unified-match-card'><b>⚽ {m_id}</b><br><small style='opacity:0.8;'>Fixture: {fmt_team(h)} vs {fmt_team(a)}</small>", unsafe_allow_html=True)
-                options = [h, a]
-                current_pick = user_preds.get(m_id, h)
-                default_idx = options.index(current_pick) if current_pick in options else 0
-                user_preds[m_id] = st.selectbox("Progresses:", options, index=default_idx, format_func=fmt_team, key=f"up_sel_{m_id}")
-                st.markdown("</div>", unsafe_allow_html=True)
-                    
+                with st.container(border=True):
+                    st.markdown(f"<b>⚽ {m_id}</b><br><small style='opacity:0.8;'>Fixture: {fmt_team(h)} vs {fmt_team(a)}</small>", unsafe_allow_html=True)
+                    options = [h, a]
+                    current_pick = user_preds.get(m_id, h)
+                    default_idx = options.index(current_pick) if current_pick in options else 0
+                    user_preds[m_id] = st.selectbox("Progresses:", options, index=default_idx, format_func=fmt_team, key=f"up_sel_{m_id}")
+                        
         with ko_tabs[1]:
             o_r16 = {
                 "Match 89": (user_preds.get("Match 74", "W74"), user_preds.get("Match 77", "W77")),
@@ -415,13 +409,13 @@ elif app_tab == "📝 Submit Predictions":
                 "Match 96": (user_preds.get("Match 85", "W85"), user_preds.get("Match 87", "W87"))
             }
             for idx, (m_id, (h, a)) in enumerate(o_r16.items()):
-                st.markdown(f"<div class='unified-match-card'><b>📋 {m_id}</b><br><small style='opacity:0.8;'>Fixture: {fmt_team(h)} vs {fmt_team(a)}</small>", unsafe_allow_html=True)
-                options = [h, a]
-                current_pick = user_preds.get(m_id, h)
-                default_idx = options.index(current_pick) if current_pick in options else 0
-                user_preds[m_id] = st.selectbox("Progresses:", options, index=default_idx, format_func=fmt_team, key=f"up_sel_{m_id}")
-                st.markdown("</div>", unsafe_allow_html=True)
-                    
+                with st.container(border=True):
+                    st.markdown(f"<b>📋 {m_id}</b><br><small style='opacity:0.8;'>Fixture: {fmt_team(h)} vs {fmt_team(a)}</small>", unsafe_allow_html=True)
+                    options = [h, a]
+                    current_pick = user_preds.get(m_id, h)
+                    default_idx = options.index(current_pick) if current_pick in options else 0
+                    user_preds[m_id] = st.selectbox("Progresses:", options, index=default_idx, format_func=fmt_team, key=f"up_sel_{m_id}")
+                        
         with ko_tabs[2]:
             o_qf = {
                 "Match 97": (user_preds.get("Match 89", "W89"), user_preds.get("Match 90", "W90")),
@@ -430,42 +424,41 @@ elif app_tab == "📝 Submit Predictions":
                 "Match 100": (user_preds.get("Match 95", "W95"), user_preds.get("Match 96", "W96"))
             }
             for m_id, (h, a) in o_qf.items():
-                st.markdown(f"<div class='unified-match-card'><b>⭐ {m_id}</b><br><small style='opacity:0.8;'>Fixture: {fmt_team(h)} vs {fmt_team(a)}</small>", unsafe_allow_html=True)
-                options = [h, a]
-                current_pick = user_preds.get(m_id, h)
-                default_idx = options.index(current_pick) if current_pick in options else 0
-                user_preds[m_id] = st.selectbox("Progresses:", options, index=default_idx, format_func=fmt_team, key=f"up_sel_{m_id}")
-                st.markdown("</div>", unsafe_allow_html=True)
-                
+                with st.container(border=True):
+                    st.markdown(f"<b>⭐ {m_id}</b><br><small style='opacity:0.8;'>Fixture: {fmt_team(h)} vs {fmt_team(a)}</small>", unsafe_allow_html=True)
+                    options = [h, a]
+                    current_pick = user_preds.get(m_id, h)
+                    default_idx = options.index(current_pick) if current_pick in options else 0
+                    user_preds[m_id] = st.selectbox("Progresses:", options, index=default_idx, format_func=fmt_team, key=f"up_sel_{m_id}")
+                    
         with ko_tabs[3]:
             sf1_h, sf1_a = user_preds.get("Match 97", "W97"), user_preds.get("Match 98", "W98")
             sf2_h, sf2_a = user_preds.get("Match 99", "W99"), user_preds.get("Match 100", "W100")
             
-            st.markdown("<div class='unified-match-card'>", unsafe_allow_html=True)
-            st.markdown("#### 🌿 Final Four Series")
-            
-            sf1_opts = [sf1_h, sf1_a]
-            sf1_idx = sf1_opts.index(user_preds.get("Match 101", sf1_h)) if user_preds.get("Match 101", sf1_h) in sf1_opts else 0
-            user_preds["Match 101"] = st.selectbox(f"Semi Final 1 Winner", sf1_opts, index=sf1_idx, format_func=fmt_team, key="up_sel_M101")
-            
-            sf2_opts = [sf2_h, sf2_a]
-            sf2_idx = sf2_opts.index(user_preds.get("Match 102", sf2_h)) if user_preds.get("Match 102", sf2_h) in sf2_opts else 0
-            user_preds["Match 102"] = st.selectbox(f"Semi Final 2 Winner", sf2_opts, index=sf2_idx, format_func=fmt_team, key="up_sel_M102")
-            
-            sf1_l = sf1_a if user_preds["Match 101"] == sf1_h else sf1_h
-            sf2_l = sf2_a if user_preds["Match 102"] == sf2_h else sf2_h
-            
-            st.markdown("<hr>", unsafe_allow_html=True)
-            p3_opts = [sf1_l, sf2_l]
-            p3_idx = p3_opts.index(user_preds.get("Match 103", sf1_l)) if user_preds.get("Match 103", sf1_l) in p3_opts else 0
-            user_preds["Match 103"] = st.selectbox(f"🥉 3rd Place Playoff Winner", p3_opts, index=p3_idx, format_func=fmt_team, key="up_sel_M103")
-            
-            st.markdown("<hr>", unsafe_allow_html=True)
-            f_opts = [user_preds["Match 101"], user_preds["Match 102"]]
-            f_idx = f_opts.index(user_preds.get("Match 104", f_opts[0])) if user_preds.get("Match 104", f_opts[0]) in f_opts else 0
-            user_preds["Match 104"] = st.selectbox(f"🥇 Grand Champion Prediction", f_opts, index=f_idx, format_func=fmt_team, key="up_sel_M104")
-            st.markdown("</div>", unsafe_allow_html=True)
-            
+            with st.container(border=True):
+                st.markdown("#### 🌿 Final Four Series")
+                
+                sf1_opts = [sf1_h, sf1_a]
+                sf1_idx = sf1_opts.index(user_preds.get("Match 101", sf1_h)) if user_preds.get("Match 101", sf1_h) in sf1_opts else 0
+                user_preds["Match 101"] = st.selectbox(f"Semi Final 1 Winner", sf1_opts, index=sf1_idx, format_func=fmt_team, key="up_sel_M101")
+                
+                sf2_opts = [sf2_h, sf2_a]
+                sf2_idx = sf2_opts.index(user_preds.get("Match 102", sf2_h)) if user_preds.get("Match 102", sf2_h) in sf2_opts else 0
+                user_preds["Match 102"] = st.selectbox(f"Semi Final 2 Winner", sf2_opts, index=sf2_idx, format_func=fmt_team, key="up_sel_M102")
+                
+                sf1_l = sf1_a if user_preds["Match 101"] == sf1_h else sf1_h
+                sf2_l = sf2_a if user_preds["Match 102"] == sf2_h else sf2_h
+                
+                st.markdown("<hr>", unsafe_allow_html=True)
+                p3_opts = [sf1_l, sf2_l]
+                p3_idx = p3_opts.index(user_preds.get("Match 103", sf1_l)) if user_preds.get("Match 103", sf1_l) in p3_opts else 0
+                user_preds["Match 103"] = st.selectbox(f"🥉 3rd Place Playoff Winner", p3_opts, index=p3_idx, format_func=fmt_team, key="up_sel_M103")
+                
+                st.markdown("<hr>", unsafe_allow_html=True)
+                f_opts = [user_preds["Match 101"], user_preds["Match 102"]]
+                f_idx = f_opts.index(user_preds.get("Match 104", f_opts[0])) if user_preds.get("Match 104", f_opts[0]) in f_opts else 0
+                user_preds["Match 104"] = st.selectbox(f"🥇 Grand Champion Prediction", f_opts, index=f_idx, format_func=fmt_team, key="up_sel_M104")
+                
         if st.button("💾 Archive Complete Bracket Matrix", use_container_width=True):
             st.session_state.predictions[c_user] = user_preds
             st.success("Bracket pathways updated safely!")
@@ -483,15 +476,14 @@ elif app_tab == "🛠️ Admin Dashboard":
             kh = f"{adm_group}_m{idx}_h"
             ka = f"{adm_group}_m{idx}_a"
             
-            st.markdown("<div class='unified-match-card'>", unsafe_allow_html=True)
-            val_h = st.number_input(f"{fmt_team(home)} Score", min_value=0, max_value=15, value=actual["group"].get(kh, 0), step=1, key=f"a_{kh}")
-            val_a = st.number_input(f"{fmt_team(away)} Score", min_value=0, max_value=15, value=actual["group"].get(ka, 0), step=1, key=f"a_{ka}")
-            if st.button("📢 Publish Match", key=f"btn_pub_{kh}", use_container_width=True):
-                actual["group"][kh] = val_h
-                actual["group"][ka] = val_a
-                st.session_state.actual_results = actual
-                st.success("Leaderboard points updated instantly!")
-            st.markdown("</div>", unsafe_allow_html=True)
+            with st.container(border=True):
+                val_h = st.number_input(f"{fmt_team(home)} Score", min_value=0, max_value=15, value=actual["group"].get(kh, 0), step=1, key=f"a_{kh}")
+                val_a = st.number_input(f"{fmt_team(away)} Score", min_value=0, max_value=15, value=actual["group"].get(ka, 0), step=1, key=f"a_{ka}")
+                if st.button("📢 Publish Match", key=f"btn_pub_{kh}", use_container_width=True):
+                    actual["group"][kh] = val_h
+                    actual["group"][ka] = val_a
+                    st.session_state.actual_results = actual
+                    st.success("Leaderboard points updated instantly!")
             
     with admin_tabs[1]:
         adm_group_res, adm_wildcards = run_standings_engine(actual["group"])
@@ -512,12 +504,11 @@ elif app_tab == "🛠️ Admin Dashboard":
         st.subheader("Official Knockout Tree Declarations")
         
         for m_id, (h, a) in adm_r32_pairings.items():
-            st.markdown("<div class='unified-match-card'>", unsafe_allow_html=True)
-            options = [h, a]
-            curr_w = actual["ko_winners"].get(m_id, h)
-            sel_w = st.selectbox(f"Winner: {m_id}", options, index=options.index(curr_w) if curr_w in options else 0, format_func=fmt_team, key=f"adm_w_{m_id}")
-            if st.button("📢 Save Winner", key=f"btn_ko_{m_id}", use_container_width=True):
-                actual["ko_winners"][m_id] = sel_w
-                st.session_state.actual_results = actual
-                st.success(f"{m_id} updated!")
-            st.markdown("</div>", unsafe_allow_html=True)
+            with st.container(border=True):
+                options = [h, a]
+                curr_w = actual["ko_winners"].get(m_id, h)
+                sel_w = st.selectbox(f"Winner: {m_id}", options, index=options.index(curr_w) if curr_w in options else 0, format_func=fmt_team, key=f"adm_w_{m_id}")
+                if st.button("📢 Save Winner", key=f"btn_ko_{m_id}", use_container_width=True):
+                    actual["ko_winners"][m_id] = sel_w
+                    st.session_state.actual_results = actual
+                    st.success(f"{m_id} updated!")
