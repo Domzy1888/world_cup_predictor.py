@@ -24,16 +24,25 @@ st.markdown("""
         color: #f1f5f9 !important;
     }
     
-    /* Target Streamlit's native st.container(border=True) to make it a true floating card */
-    div[data-testid="stVerticalBlockBorder"] {
-        background: rgba(15, 23, 42, 0.85) !important;
-        backdrop-filter: blur(12px) !important;
-        -webkit-backdrop-filter: blur(12px) !important;
-        border-radius: 16px !important;
-        border: 2px solid rgba(255, 255, 255, 0.18) !important;
+    /* Target ONLY specific match containers that have our markdown anchor inside them */
+    div[data-testid="stVerticalBlockBorder"]:has(div#match-card-anchor) {
+        background: rgba(15, 23, 42, 0.65) !important;
+        backdrop-filter: blur(16px) saturate(180%) !important;
+        -webkit-backdrop-filter: blur(16px) saturate(180%) !important;
+        border-radius: 20px !important;
+        border: 2px solid rgba(255, 255, 255, 0.28) !important;
         padding: 24px !important;
-        margin-bottom: 25px !important;
-        box-shadow: 0 12px 32px 0 rgba(0, 0, 0, 0.6) !important;
+        margin-top: 15px !important;
+        margin-bottom: 35px !important;
+        box-shadow: 0 20px 40px rgba(0, 0, 0, 0.7) !important;
+    }
+    
+    /* Standardize general containers (tables/login) to have a clean, dark card backdrop */
+    div[data-testid="stVerticalBlockBorder"] {
+        background: rgba(15, 23, 42, 0.5);
+        border-radius: 16px;
+        border: 1px solid rgba(255, 255, 255, 0.15);
+        padding: 20px;
     }
     
     /* Force the sidebar text to remain dark charcoal so it is readable on mobile and desktop layouts */
@@ -54,7 +63,7 @@ st.markdown("""
     
     /* Custom Stylized Center-Aligned Team Title Label */
     .team-header-box {
-        font-size: 1.35rem !important;
+        font-size: 1.4rem !important;
         font-weight: 800 !important;
         text-transform: uppercase !important;
         color: #ffffff !important;
@@ -62,33 +71,35 @@ st.markdown("""
         text-align: center;
         margin: 8px 0;
         width: 100%;
+        text-shadow: 0 2px 4px rgba(0,0,0,0.5);
     }
     
     /* Versus Styling Text Divider */
     .versus-text-middle {
-        font-size: 0.95rem;
+        font-size: 1rem;
         text-transform: uppercase;
-        color: #cbd5e1 !important;
+        color: #e2e8f0 !important;
         font-weight: 900;
-        letter-spacing: 0.3em;
-        margin: 12px 0;
+        letter-spacing: 0.4em;
+        margin: 16px 0;
         text-align: center;
         width: 100%;
+        text-shadow: 0 2px 4px rgba(0,0,0,0.5);
     }
     
     /* Input Label Overrides to center them */
     .stMain label div p {
         text-align: center !important;
-        font-weight: 600 !important;
-        font-size: 1rem !important;
-        color: #e2e8f0 !important;
+        font-weight: 700 !important;
+        font-size: 1.05rem !important;
+        color: #ffffff !important;
     }
     
     /* Custom Badge for Locked States */
     .lock-badge {
-        background-color: rgba(239, 68, 68, 0.35);
-        color: #fca5a5 !important;
-        border: 1px solid rgba(239, 68, 68, 0.5);
+        background-color: rgba(239, 68, 68, 0.5);
+        color: #ffffff !important;
+        border: 1px solid rgba(239, 68, 68, 0.7);
         padding: 8px 16px;
         border-radius: 8px;
         font-size: 0.9rem;
@@ -337,8 +348,10 @@ elif app_tab == "📝 Submit Predictions":
                 kh = f"{selected_group}_m{idx}_h"
                 ka = f"{selected_group}_m{idx}_a"
                 
-                # FIX: Native stateful border container ensures components CANNOT step out of the floating block
+                # FIX: Hidden tracking anchor inside tells CSS exactly which container to turn into a blurred glass card
                 with st.container(border=True):
+                    st.markdown("<div id='match-card-anchor'></div>", unsafe_allow_html=True)
+                    
                     st.markdown(f"<div class='team-header-box'>{fmt_team(home)}</div>", unsafe_allow_html=True)
                     user_preds[kh] = st.number_input("Home Team Score", min_value=0, max_value=15, 
                                                       value=user_preds.get(kh, 0), step=1, 
@@ -391,7 +404,8 @@ elif app_tab == "📝 Submit Predictions":
         with ko_tabs[0]:
             for idx, (m_id, (h, a)) in enumerate(o_r32.items()):
                 with st.container(border=True):
-                    st.markdown(f"<b>⚽ {m_id}</b><br><small style='opacity:0.8;'>Fixture: {fmt_team(h)} vs {fmt_team(a)}</small>", unsafe_allow_html=True)
+                    st.markdown("<div id='match-card-anchor'></div>", unsafe_allow_html=True)
+                    st.markdown(f"<b>⚽ {m_id}</b><br><small style='opacity:0.9;'>Fixture: {fmt_team(h)} vs {fmt_team(a)}</small>", unsafe_allow_html=True)
                     options = [h, a]
                     current_pick = user_preds.get(m_id, h)
                     default_idx = options.index(current_pick) if current_pick in options else 0
@@ -410,7 +424,8 @@ elif app_tab == "📝 Submit Predictions":
             }
             for idx, (m_id, (h, a)) in enumerate(o_r16.items()):
                 with st.container(border=True):
-                    st.markdown(f"<b>📋 {m_id}</b><br><small style='opacity:0.8;'>Fixture: {fmt_team(h)} vs {fmt_team(a)}</small>", unsafe_allow_html=True)
+                    st.markdown("<div id='match-card-anchor'></div>", unsafe_allow_html=True)
+                    st.markdown(f"<b>📋 {m_id}</b><br><small style='opacity:0.9;'>Fixture: {fmt_team(h)} vs {fmt_team(a)}</small>", unsafe_allow_html=True)
                     options = [h, a]
                     current_pick = user_preds.get(m_id, h)
                     default_idx = options.index(current_pick) if current_pick in options else 0
@@ -425,7 +440,8 @@ elif app_tab == "📝 Submit Predictions":
             }
             for m_id, (h, a) in o_qf.items():
                 with st.container(border=True):
-                    st.markdown(f"<b>⭐ {m_id}</b><br><small style='opacity:0.8;'>Fixture: {fmt_team(h)} vs {fmt_team(a)}</small>", unsafe_allow_html=True)
+                    st.markdown("<div id='match-card-anchor'></div>", unsafe_allow_html=True)
+                    st.markdown(f"<b>⭐ {m_id}</b><br><small style='opacity:0.9;'>Fixture: {fmt_team(h)} vs {fmt_team(a)}</small>", unsafe_allow_html=True)
                     options = [h, a]
                     current_pick = user_preds.get(m_id, h)
                     default_idx = options.index(current_pick) if current_pick in options else 0
@@ -436,6 +452,7 @@ elif app_tab == "📝 Submit Predictions":
             sf2_h, sf2_a = user_preds.get("Match 99", "W99"), user_preds.get("Match 100", "W100")
             
             with st.container(border=True):
+                st.markdown("<div id='match-card-anchor'></div>", unsafe_allow_html=True)
                 st.markdown("#### 🌿 Final Four Series")
                 
                 sf1_opts = [sf1_h, sf1_a]
@@ -477,6 +494,7 @@ elif app_tab == "🛠️ Admin Dashboard":
             ka = f"{adm_group}_m{idx}_a"
             
             with st.container(border=True):
+                st.markdown("<div id='match-card-anchor'></div>", unsafe_allow_html=True)
                 val_h = st.number_input(f"{fmt_team(home)} Score", min_value=0, max_value=15, value=actual["group"].get(kh, 0), step=1, key=f"a_{kh}")
                 val_a = st.number_input(f"{fmt_team(away)} Score", min_value=0, max_value=15, value=actual["group"].get(ka, 0), step=1, key=f"a_{ka}")
                 if st.button("📢 Publish Match", key=f"btn_pub_{kh}", use_container_width=True):
@@ -505,6 +523,7 @@ elif app_tab == "🛠️ Admin Dashboard":
         
         for m_id, (h, a) in adm_r32_pairings.items():
             with st.container(border=True):
+                st.markdown("<div id='match-card-anchor'></div>", unsafe_allow_html=True)
                 options = [h, a]
                 curr_w = actual["ko_winners"].get(m_id, h)
                 sel_w = st.selectbox(f"Winner: {m_id}", options, index=options.index(curr_w) if curr_w in options else 0, format_func=fmt_team, key=f"adm_w_{m_id}")
