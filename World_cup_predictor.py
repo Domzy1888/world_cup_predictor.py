@@ -13,16 +13,22 @@ st.markdown("""
     <style>
     /* Full screen background image styling with low opacity overlay */
     .stApp {
-        background: linear-gradient(rgba(15, 23, 42, 0.85), rgba(15, 23, 42, 0.95)), 
+        background: linear-gradient(rgba(15, 23, 42, 0.88), rgba(15, 23, 42, 0.96)), 
                     url("https://cdn-media.theathletic.com/cdn-cgi/image/width=1000%2cquality=70%2cformat=auto/https://cdn-media.theathletic.com/vwYC1qZfTwfm_3qmyXkIC5Rja_1440x960.jpg");
         background-size: cover;
         background-position: center;
         background-attachment: fixed;
     }
     
-    /* Force crisp white/light-silver typography across the app for readability */
-    .stApp, .stApp p, .stApp div, .stApp span, .stApp label, .stApp h1, .stApp h2, .stApp h3, .stApp h4 {
+    /* Force crisp white typography ONLY in the main app block for maximum readability */
+    .stMain, .stMain p, .stMain div, .stMain span, .stMain label, .stMain h1, .stMain h2, .stMain h3, .stMain h4 {
         color: #f1f5f9 !important;
+    }
+    
+    /* FIX: Force the sidebar text to remain dark charcoal so it is readable on mobile and desktop layouts */
+    [data-testid="stSidebar"] *, [data-testid="stSidebar"] p, [data-testid="stSidebar"] label, [data-testid="stSidebar"] span {
+        color: #1e293b !important;
+        font-weight: 500;
     }
     
     /* Keep selectbox options readable by preventing them from bleeding into the background */
@@ -37,27 +43,54 @@ st.markdown("""
     
     /* Floating Glassmorphism Match Card Style */
     .match-card {
-        background: rgba(255, 255, 255, 0.08);
+        background: rgba(255, 255, 255, 0.07);
         backdrop-filter: blur(16px);
         -webkit-backdrop-filter: blur(16px);
         border-radius: 16px;
-        border: 1px solid rgba(255, 255, 255, 0.15);
+        border: 1px solid rgba(255, 255, 255, 0.12);
         padding: 20px;
         margin-bottom: 20px;
         box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.4);
-        transition: transform 0.2s ease, border-color 0.2s ease;
     }
-    .match-card:hover {
-        transform: translateY(-2px);
-        border-color: rgba(255, 255, 255, 0.3);
+    
+    /* Mobile-Responsive Flexbox Match Layout Row */
+    .mobile-match-container {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        width: 100%;
+        text-align: center;
+        gap: 8px;
+    }
+    
+    /* Custom Stylized Team Label */
+    .team-title-label {
+        font-size: 1.15rem !important;
+        font-weight: 700 !important;
+        text-transform: uppercase !important;
+        color: #ffffff !important;
+        letter-spacing: 0.05em;
+        margin: 5px 0;
+        text-align: center;
+    }
+    
+    /* Versus Text Divider */
+    .vs-divider {
+        font-size: 0.85rem;
+        text-transform: uppercase;
+        opacity: 0.5;
+        font-weight: bold;
+        letter-spacing: 0.2em;
+        margin: 2px 0;
     }
     
     /* Clean Divider Line */
     hr {
         border: 0;
         height: 1px;
-        background: rgba(255, 255, 255, 0.2);
-        margin: 15px 0;
+        background: rgba(255, 255, 255, 0.15);
+        margin: 20px 0;
     }
     
     /* Custom Badge for Locked States */
@@ -65,33 +98,34 @@ st.markdown("""
         background-color: rgba(239, 68, 68, 0.25);
         color: #fca5a5 !important;
         border: 1px solid rgba(239, 68, 68, 0.4);
-        padding: 4px 10px;
+        padding: 6px 12px;
         border-radius: 8px;
         font-size: 0.85rem;
         display: inline-block;
-        margin-bottom: 10px;
+        margin-bottom: 15px;
+        font-weight: bold;
     }
     </style>
 """, unsafe_allow_html=True)
 
 # --- GLOBAL TEAMS & FLAGS MAP ---
 FLAGS = {
-    "Mexico": "🇲🇽 Mexico", "South Africa": "🇿🇦 South Africa", "Rep. of Korea": "🇰🇷 Rep. of Korea", "Czech Rep.": "🇨🇿 Czech Rep.",
-    "Canada": "🇨🇦 Canada", "Bosnia/Herzeg.": "🇧🇦 Bosnia/Herzeg.", "Qatar": "🇶🇦 Qatar", "Switzerland": "🇨🇭 Switzerland",
-    "Brazil": "🇧🇷 Brazil", "Morocco": "🇲🇦 Morocco", "Haiti": "🇭🇹 Haiti", "Scotland": "🏴󠁧󠁢󠁳󠁣󠁴󠁿 Scotland",
-    "USA": "🇺🇸 USA", "Paraguay": "🇵🇾 Paraguay", "Australia": "🇦🇺 Australia", "Turkey": "🇹🇷 Turkey",
-    "Germany": "🇩🇪 Germany", "Curaçao": "🇨🇼 Curaçao", "Ivory Coast": "🇨🇮 Ivory Coast", "Ecuador": "🇪🇨 Ecuador",
-    "Netherlands": "🇳🇱 Netherlands", "Japan": "🇯🇵 Japan", "Sweden": "🇸🇪 Sweden", "Tunisia": "🇹🇳 Tunisia",
-    "Belgium": "🇧🇪 Belgium", "Egypt": "🇪🇬 Egypt", "IR Iran": "🇮🇷 IR Iran", "New Zealand": "🇳🇿 New Zealand",
-    "Spain": "🇪🇸 Spain", "Cape Verde": "🇨🇻 Cape Verde", "Saudi Arabia": "🇸🇦 Saudi Arabia", "Uruguay": "🇺🇾 Uruguay",
-    "France": "🇫🇷 France", "Senegal": "🇸🇳 Senegal", "Iraq": "🇮🇶 Iraq", "Norway": "🇳🇴 Norway",
-    "Argentina": "🇦🇷 Argentina", "Algeria": "🇩🇿 Algeria", "Austria": "🇦🇹 Austria", "Jordan": "🇯🇴 Jordan",
-    "Portugal": "🇵🇹 Portugal", "DR Congo": "🇨🇩 DR Congo", "Uzbekistan": "🇺🇿 Uzbekistan", "Colombia": "🇨🇴 Colombia",
-    "England": "🏴󠁧󠁢󠁥󠁮󠁧󠁿 England", "Croatia": "🇭🇷 Croatia", "Ghana": "🇬🇭 Ghana", "Panama": "🇵🇦 Panama"
+    "Mexico": "🇲🇽 MEXICO", "South Africa": "🇿🇦 SOUTH AFRICA", "Rep. of Korea": "🇰🇷 REP. OF KOREA", "Czech Rep.": "🇨🇿 CZECH REP.",
+    "Canada": "🇨🇦 CANADA", "Bosnia/Herzeg.": "🇧🇦 BOSNIA/HERZEG.", "Qatar": "🇶🇦 QATAR", "Switzerland": "🇨🇭 SWITZERLAND",
+    "Brazil": "🇧🇷 BRAZIL", "Morocco": "🇲🇦 MOROCCO", "Haiti": "🇭🇹 HAITI", "Scotland": "🏴󠁧󠁢󠁳󠁣󠁴󠁿 SCOTLAND",
+    "USA": "🇺🇸 USA", "Paraguay": "🇵🇾 PARAGUAY", "Australia": "🇦🇺 AUSTRALIA", "Turkey": "🇹🇷 TURKEY",
+    "Germany": "🇩🇪 GERMANY", "Curaçao": "🇨🇼 CURAÇAO", "Ivory Coast": "🇨🇮 IVORY COAST", "Ecuador": "🇪🇨 ECUADOR",
+    "Netherlands": "🇳🇱 NETHERLANDS", "Japan": "🇯🇵 JAPAN", "Sweden": "🇸🇪 SWEDEN", "Tunisia": "🇹🇳 TUNISIA",
+    "Belgium": "🇧🇪 BELGIUM", "Egypt": "🇪🇬 EGYPT", "IR Iran": "🇮🇷 IR IRAN", "New Zealand": "🇳🇿 NEW ZEALAND",
+    "Spain": "🇪🇸 SPAIN", "Cape Verde": "🇨🇻 CAPE VERDE", "Saudi Arabia": "🇸🇦 SAUDI ARABIA", "Uruguay": "🇺🇾 URUGUAY",
+    "France": "🇫🇷 FRANCE", "Senegal": "🇸🇳 SENEGAL", "Iraq": "🇮🇶 IRAQ", "Norway": "🇳🇴 NORWAY",
+    "Argentina": "🇦🇷 ARGENTINA", "Algeria": "🇩🇿 ALGERIA", "Austria": "🇦🇹 AUSTRIA", "Jordan": "🇯🇴 JORDAN",
+    "Portugal": "🇵🇹 PORTUGAL", "DR Congo": "🇨🇩 DR CONGO", "Uzbekistan": "🇺🇿 UZBEKISTAN", "Colombia": "🇨🇴 COLOMBIA",
+    "England": "🏴󠁧󠁢󠁥󠁮󠁧󠁿 ENGLAND", "Croatia": "🇭🇷 CROATIA", "Ghana": "🇬🇭 GHANA", "Panama": "🇵🇦 PANAMA"
 }
 
 def fmt_team(name):
-    return FLAGS.get(name, name)
+    return FLAGS.get(name, name.upper())
 
 # --- CORE DATA STRUCTURE ---
 GROUPS = {
@@ -301,34 +335,49 @@ elif app_tab == "📝 Submit Predictions":
         selected_group = st.selectbox("Choose Group Stage Pool", list(GROUPS.keys()))
         is_group_locked = selected_group in st.session_state.locked_groups[c_user]
         
-        col_input, col_table = st.columns([4, 3])
+        col_input, col_table = st.columns([1, 1])
         
         with col_input:
-            st.markdown("<div class='match-card'>", unsafe_allow_html=True)
             if is_group_locked:
                 st.markdown("<div class='lock-badge'>🔒 This Group is Locked In</div>", unsafe_allow_html=True)
             else:
-                st.markdown("<div style='color:#34d399; margin-bottom:10px;'>🔓 Unlocked - Edits Allowed</div>", unsafe_allow_html=True)
+                st.markdown("<div style='color:#34d399; margin-bottom:15px; font-weight:bold; font-size:1.1rem;'>🔓 Unlocked - Edits Allowed</div>", unsafe_allow_html=True)
                 
             for idx, (home, away) in enumerate(MATCH_IDS[selected_group]):
                 kh = f"{selected_group}_m{idx}_h"
                 ka = f"{selected_group}_m{idx}_a"
                 
-                c1, c2, c3, c4, c5 = st.columns([3, 1, 1, 1, 3])
-                with c1: st.write(f"**{fmt_team(home)}**")
-                with c2:
-                    user_preds[kh] = st.number_input("", min_value=0, max_value=15, 
-                                                      value=user_preds.get(kh, 0), step=1, 
-                                                      key=f"p_{kh}", label_visibility="collapsed", 
-                                                      disabled=is_group_locked)
-                with c3: st.markdown("<p style='text-align:center; opacity:0.6;'>vs</p>", unsafe_allow_html=True)
-                with c4:
-                    user_preds[ka] = st.number_input("", min_value=0, max_value=15, 
-                                                      value=user_preds.get(ka, 0), step=1, 
-                                                      key=f"p_{ka}", label_visibility="collapsed", 
-                                                      disabled=is_group_locked)
-                with c5: st.write(f"<p style='text-align:right;'><b>{fmt_team(away)}</b></p>", unsafe_allow_html=True)
-                if idx < 5: st.markdown("<hr>", unsafe_allow_html=True)
+                # REWRITE: Built completely using native Flexbox blocks to prevent floating/wrapping text bugs on mobile layouts
+                st.markdown(f"""
+                    <div class='match-card'>
+                        <div class='mobile-match-container'>
+                            <div class='team-title-label'>{fmt_team(home)}</div>
+                        </div>
+                    </div>
+                """, unsafe_allow_html=True)
+                
+                user_preds[kh] = st.number_input("Home Score", min_value=0, max_value=15, 
+                                                  value=user_preds.get(kh, 0), step=1, 
+                                                  key=f"p_{kh}", disabled=is_group_locked)
+                
+                st.markdown("""
+                    <div class='mobile-match-container'>
+                        <div class='vs-divider'>versus</div>
+                    </div>
+                """, unsafe_allow_html=True)
+                
+                user_preds[ka] = st.number_input("Away Score", min_value=0, max_value=15, 
+                                                  value=user_preds.get(ka, 0), step=1, 
+                                                  key=f"p_{ka}", disabled=is_group_locked)
+                
+                st.markdown(f"""
+                    <div class='match-card' style='margin-top:10px;'>
+                        <div class='mobile-match-container'>
+                            <div class='team-title-label'>{fmt_team(away)}</div>
+                        </div>
+                    </div>
+                    <hr>
+                """, unsafe_allow_html=True)
             
             if not is_group_locked:
                 if st.button(f"🔒 Lock In {selected_group} Predictions", use_container_width=True):
@@ -336,7 +385,6 @@ elif app_tab == "📝 Submit Predictions":
                     st.session_state.predictions[c_user] = user_preds
                     st.success(f"{selected_group} selections have been locked permanently!")
                     st.rerun()
-            st.markdown("</div>", unsafe_allow_html=True)
                 
         with col_table:
             st.markdown("<div class='match-card'>", unsafe_allow_html=True)
@@ -353,11 +401,14 @@ elif app_tab == "📝 Submit Predictions":
         def get_confirmed_1st(g): return u_results[g].iloc[0]["Team"] if g in u_results and not u_results[g].empty else f"1st {g}"
         def get_confirmed_2nd(g): return u_results[g].iloc[1]["Team"] if g in u_results and not u_results[g].empty else f"2nd {g}"
         
+        def get_1st(g): return get_confirmed_1st(g)
+        def get_2nd(g): return get_confirmed_2nd(g)
+
         o_r32 = {
             "Match 73": (get_confirmed_1st("Group A"), u_wildcards[4]), "Match 74": (get_confirmed_1st("Group E"), u_wildcards[0]),
             "Match 75": (get_confirmed_1st("Group F"), get_confirmed_2nd("Group C")), "Match 76": (get_confirmed_1st("Group C"), get_confirmed_2nd("Group F")),
-            "Match 77": (get_confirmed_1st("Group I"), u_wildcards[1]), "Match 78": (get_confirmed_2nd("Group E"), get_confirmed_2nd("Group I")),
-            "Match 79": (get_confirmed_1st("Group B"), u_wildcards[6]), "Match 80": (get_confirmed_1st("Group L"), u_wildcards[5]),
+            "Match 77": (get_confirmed_1st("Group I"), u_wildcards[1]), "Match 78": (get_2nd("Group E"), get_2nd("Group I")),
+            "Match 79": (get_1st("Group B"), u_wildcards[6]), "Match 80": (get_confirmed_1st("Group L"), u_wildcards[5]),
             "Match 81": (get_confirmed_1st("Group D"), u_wildcards[2]), "Match 82": (get_confirmed_1st("Group G"), u_wildcards[3]),
             "Match 83": (get_confirmed_2nd("Group K"), get_confirmed_2nd("Group L")), "Match 84": (get_confirmed_1st("Group H"), get_confirmed_2nd("Group J")),
             "Match 85": (get_confirmed_2nd("Group A"), get_confirmed_2nd("Group B")), "Match 86": (get_confirmed_1st("Group J"), get_confirmed_2nd("Group H")),
@@ -367,16 +418,12 @@ elif app_tab == "📝 Submit Predictions":
         ko_tabs = st.tabs(["Round of 32", "Round of 16", "Quarter-Finals", "Finals"])
         
         with ko_tabs[0]:
-            cl, cr = st.columns(2)
             for idx, (m_id, (h, a)) in enumerate(o_r32.items()):
-                col = cl if idx < 8 else cr
-                with col:
-                    st.markdown(f"<div class='match-card'><b>⚽ {m_id}</b><br><small style='opacity:0.8;'>Fixture: {fmt_team(h)} vs {fmt_team(a)}</small>", unsafe_allow_html=True)
-                    options = [h, a]
-                    current_pick = user_preds.get(m_id, h)
-                    default_idx = options.index(current_pick) if current_pick in options else 0
-                    user_preds[m_id] = st.selectbox("Progresses:", options, index=default_idx, format_func=fmt_team, key=f"up_sel_{m_id}")
-                    st.markdown("</div>", unsafe_allow_html=True)
+                st.markdown(f"<div class='match-card'><b>⚽ {m_id}</b><br><small style='opacity:0.8;'>Fixture: {fmt_team(h)} vs {fmt_team(a)}</small>", unsafe_allow_html=True)
+                options = [h, a]
+                current_pick = user_preds.get(m_id, h)
+                default_idx = options.index(current_pick) if current_pick in options else 0
+                user_preds[m_id] = st.selectbox("Progresses:", options, index=default_idx, format_func=fmt_team, key=f"up_sel_{m_id}")
                     
         with ko_tabs[1]:
             o_r16 = {
@@ -389,16 +436,12 @@ elif app_tab == "📝 Submit Predictions":
                 "Match 95": (user_preds.get("Match 86", "W86"), user_preds.get("Match 88", "W88")),
                 "Match 96": (user_preds.get("Match 85", "W85"), user_preds.get("Match 87", "W87"))
             }
-            cl, cr = st.columns(2)
             for idx, (m_id, (h, a)) in enumerate(o_r16.items()):
-                col = cl if idx < 4 else cr
-                with col:
-                    st.markdown(f"<div class='match-card'><b>📋 {m_id}</b><br><small style='opacity:0.8;'>Fixture: {fmt_team(h)} vs {fmt_team(a)}</small>", unsafe_allow_html=True)
-                    options = [h, a]
-                    current_pick = user_preds.get(m_id, h)
-                    default_idx = options.index(current_pick) if current_pick in options else 0
-                    user_preds[m_id] = st.selectbox("Progresses:", options, index=default_idx, format_func=fmt_team, key=f"up_sel_{m_id}")
-                    st.markdown("</div>", unsafe_allow_html=True)
+                st.markdown(f"<div class='match-card'><b>📋 {m_id}</b><br><small style='opacity:0.8;'>Fixture: {fmt_team(h)} vs {fmt_team(a)}</small>", unsafe_allow_html=True)
+                options = [h, a]
+                current_pick = user_preds.get(m_id, h)
+                default_idx = options.index(current_pick) if current_pick in options else 0
+                user_preds[m_id] = st.selectbox("Progresses:", options, index=default_idx, format_func=fmt_team, key=f"up_sel_{m_id}")
                     
         with ko_tabs[2]:
             o_qf = {
@@ -413,7 +456,6 @@ elif app_tab == "📝 Submit Predictions":
                 current_pick = user_preds.get(m_id, h)
                 default_idx = options.index(current_pick) if current_pick in options else 0
                 user_preds[m_id] = st.selectbox("Progresses:", options, index=default_idx, format_func=fmt_team, key=f"up_sel_{m_id}")
-                st.markdown("</div>", unsafe_allow_html=True)
                 
         with ko_tabs[3]:
             sf1_h, sf1_a = user_preds.get("Match 97", "W97"), user_preds.get("Match 98", "W98")
@@ -462,18 +504,13 @@ elif app_tab == "🛠️ Admin Dashboard":
             ka = f"{adm_group}_m{idx}_a"
             
             st.markdown("<div class='match-card'>", unsafe_allow_html=True)
-            c1, c2, c3, c4, c5, c6 = st.columns([3, 1, 1, 1, 3, 2])
-            with c1: st.write(f"**{fmt_team(home)}**")
-            with c2: val_h = st.number_input("", min_value=0, max_value=15, value=actual["group"].get(kh, 0), step=1, key=f"a_{kh}", label_visibility="collapsed")
-            with c3: st.markdown("<p style='text-align:center;'>-</p>", unsafe_allow_html=True)
-            with c4: val_a = st.number_input("", min_value=0, max_value=15, value=actual["group"].get(ka, 0), step=1, key=f"a_{ka}", label_visibility="collapsed")
-            with c5: st.write(f"**{fmt_team(away)}**")
-            with c6:
-                if st.button("📢 Publish Match", key=f"btn_pub_{kh}", use_container_width=True):
-                    actual["group"][kh] = val_h
-                    actual["group"][ka] = val_a
-                    st.session_state.actual_results = actual
-                    st.success("Leaderboard points updated instantly!")
+            val_h = st.number_input(f"{fmt_team(home)} Score", min_value=0, max_value=15, value=actual["group"].get(kh, 0), step=1, key=f"a_{kh}")
+            val_a = st.number_input(f"{fmt_team(away)} Score", min_value=0, max_value=15, value=actual["group"].get(ka, 0), step=1, key=f"a_{ka}")
+            if st.button("📢 Publish Match", key=f"btn_pub_{kh}", use_container_width=True):
+                actual["group"][kh] = val_h
+                actual["group"][ka] = val_a
+                st.session_state.actual_results = actual
+                st.success("Leaderboard points updated instantly!")
             st.markdown("</div>", unsafe_allow_html=True)
             
     with admin_tabs[1]:
@@ -496,15 +533,11 @@ elif app_tab == "🛠️ Admin Dashboard":
         
         for m_id, (h, a) in adm_r32_pairings.items():
             st.markdown("<div class='match-card'>", unsafe_allow_html=True)
-            c1, c2 = st.columns([6, 2])
-            with c1:
-                options = [h, a]
-                curr_w = actual["ko_winners"].get(m_id, h)
-                sel_w = st.selectbox(f"Winner: {m_id}", options, index=options.index(curr_w) if curr_w in options else 0, format_func=fmt_team, key=f"adm_w_{m_id}")
-            with c2:
-                st.write("") 
-                if st.button("📢 Save Winner", key=f"btn_ko_{m_id}", use_container_width=True):
-                    actual["ko_winners"][m_id] = sel_w
-                    st.session_state.actual_results = actual
-                    st.success(f"{m_id} updated!")
+            options = [h, a]
+            curr_w = actual["ko_winners"].get(m_id, h)
+            sel_w = st.selectbox(f"Winner: {m_id}", options, index=options.index(curr_w) if curr_w in options else 0, format_func=fmt_team, key=f"adm_w_{m_id}")
+            if st.button("📢 Save Winner", key=f"btn_ko_{m_id}", use_container_width=True):
+                actual["ko_winners"][m_id] = sel_w
+                st.session_state.actual_results = actual
+                st.success(f"{m_id} updated!")
             st.markdown("</div>", unsafe_allow_html=True)
