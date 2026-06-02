@@ -8,10 +8,10 @@ st.set_page_config(
     layout="wide"
 )
 
-# Advanced Glassmorphism and Background Image CSS Styling
+# Advanced Layout Separation & Glassmorphism Fixes
 st.markdown("""
     <style>
-    /* Full screen background image styling - Full original vibrant color */
+    /* Full screen background image styling */
     .stApp {
         background: url("https://cdn-media.theathletic.com/cdn-cgi/image/width=1000%2cquality=70%2cformat=auto/https://cdn-media.theathletic.com/vwYC1qZfTwfm_3qmyXkIC5Rja_1440x960.jpg");
         background-size: cover;
@@ -19,84 +19,64 @@ st.markdown("""
         background-attachment: fixed;
     }
     
-    /* Force crisp white typography ONLY in the main app block for maximum readability */
-    .stMain, .stMain p, .stMain div, .stMain span, .stMain label, .stMain h1, .stMain h2, .stMain h3, .stMain h4 {
-        color: #f1f5f9 !important;
-    }
-    
-    /* DIRECT TARGET: Turn every st.container(border=True) into a heavily frosted, dark transparent floating glass card */
+    /* Clean, universal mobile-friendly card design */
     div[data-testid="stVerticalBlockBorder"] {
-        background: rgba(10, 15, 30, 0.75) !important; /* Slightly darker transparent tint filter */
-        backdrop-filter: blur(20px) saturate(160%) !important; /* Heavy premium frosted/blurred glass effect */
-        -webkit-backdrop-filter: blur(20px) saturate(160%) !important;
-        border-radius: 16px !important;
-        border: 2px solid rgba(255, 255, 255, 0.25) !important; /* Highly visible, crisp card borders */
-        padding: 24px !important;
-        margin-bottom: 30px !important;
-        box-shadow: 0 15px 35px rgba(0, 0, 0, 0.75) !important; /* Deep edge drop-shadows */
+        background: rgba(15, 23, 42, 0.8) !important;
+        backdrop-filter: blur(12px) saturate(140%) !important;
+        -webkit-backdrop-filter: blur(12px) saturate(140%) !important;
+        border-radius: 14px !important;
+        border: 1px solid rgba(255, 255, 255, 0.15) !important;
+        padding: 16px !important;
+        margin-bottom: 20px !important;
+        box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.37) !important;
+    }
+
+    /* Target specific headings inside the workspace text blocks */
+    .match-card-title {
+        text-align: center;
+        color: #ffffff !important;
+        font-weight: 800;
+        font-size: 1.25rem;
+        text-transform: uppercase;
+        margin-bottom: 12px;
+        letter-spacing: 0.05em;
+    }
+
+    .team-row-label {
+        color: #f8fafc !important;
+        font-weight: 700 !important;
+        font-size: 1.1rem !important;
+        margin-bottom: 4px;
+        display: block;
+    }
+
+    /* Fix label typography styling issues inside main columns */
+    .stMain label div p {
+        color: #cbd5e1 !important;
+        font-weight: 600 !important;
+        font-size: 0.95rem !important;
     }
     
-    /* Force the sidebar text to remain dark charcoal so it is readable on mobile and desktop layouts */
-    [data-testid="stSidebar"] *, [data-testid="stSidebar"] p, [data-testid="stSidebar"] label, [data-testid="stSidebar"] span {
-        color: #1e293b !important;
-        font-weight: 500;
-    }
-    
-    /* Keep selectbox options readable by preventing them from bleeding into the background */
+    /* Keep selectbox context items strictly legible */
     div[data-baseweb="select"] * {
         color: #0f172a !important;
     }
     
-    /* Keep standard dataframe text elements visible and dark inside tables */
+    /* Keep data tables properly structured */
     div[data-testid="stDataFrame"] * {
-        color: #f1f5f9 !important;
-    }
-    
-    /* Custom Stylized Center-Aligned Team Title Label */
-    .team-header-box {
-        font-size: 1.4rem !important;
-        font-weight: 800 !important;
-        text-transform: uppercase !important;
-        color: #ffffff !important;
-        letter-spacing: 0.06em;
-        text-align: center;
-        margin: 8px 0;
-        width: 100%;
-        text-shadow: 0 2px 4px rgba(0,0,0,0.6);
-    }
-    
-    /* Versus Styling Text Divider */
-    .versus-text-middle {
-        font-size: 1rem;
-        text-transform: uppercase;
-        color: #cbd5e1 !important;
-        font-weight: 900;
-        letter-spacing: 0.4em;
-        margin: 16px 0;
-        text-align: center;
-        width: 100%;
-        text-shadow: 0 2px 4px rgba(0,0,0,0.6);
-    }
-    
-    /* Input Label Overrides to center them */
-    .stMain label div p {
-        text-align: center !important;
-        font-weight: 700 !important;
-        font-size: 1.05rem !important;
         color: #ffffff !important;
     }
     
     /* Custom Badge for Locked States */
     .lock-badge {
-        background-color: rgba(239, 68, 68, 0.6);
+        background-color: rgba(239, 68, 68, 0.85);
         color: #ffffff !important;
-        border: 1px solid rgba(239, 68, 68, 0.8);
-        padding: 8px 16px;
+        padding: 10px 16px;
         border-radius: 8px;
-        font-size: 0.9rem;
-        display: inline-block;
-        margin-bottom: 20px;
+        font-size: 1rem;
         font-weight: bold;
+        text-align: center;
+        margin-bottom: 20px;
     }
     </style>
 """, unsafe_allow_html=True)
@@ -160,10 +140,7 @@ if "locked_groups" not in st.session_state:
 
 if "actual_results" not in st.session_state:
     st.session_state.actual_results = {
-        "group": {},       
-        "ko_winners": {},  
-        "third_place": "", 
-        "finalists": []    
+        "group": {}, "ko_winners": {}, "third_place": "", "finalists": []    
     }
 
 if "current_user" not in st.session_state:
@@ -327,30 +304,33 @@ elif app_tab == "📝 Submit Predictions":
         selected_group = st.selectbox("Choose Group Stage Pool", list(GROUPS.keys()))
         is_group_locked = selected_group in st.session_state.locked_groups[c_user]
         
+        if is_group_locked:
+            st.markdown("<div class='lock-badge'>🔒 This Group is Locked In</div>", unsafe_allow_html=True)
+        else:
+            st.markdown("<div style='color:#34d399; margin-bottom:15px; font-weight:bold; font-size:1.1rem; text-align:center;'>🔓 Unlocked - Edits Allowed</div>", unsafe_allow_html=True)
+            
         col_input, col_table = st.columns([1, 1])
         
         with col_input:
-            if is_group_locked:
-                st.markdown("<div class='lock-badge'>🔒 This Group is Locked In</div>", unsafe_allow_html=True)
-            else:
-                st.markdown("<div style='color:#34d399; margin-bottom:15px; font-weight:bold; font-size:1.1rem;'>🔓 Unlocked - Edits Allowed</div>", unsafe_allow_html=True)
-                
             for idx, (home, away) in enumerate(MATCH_IDS[selected_group]):
                 kh = f"{selected_group}_m{idx}_h"
                 ka = f"{selected_group}_m{idx}_a"
                 
+                # ISOLATED CARD STRUCTURE: Enforce separate compact blocks per match fixture
                 with st.container(border=True):
-                    st.markdown(f"<div class='team-header-box'>{fmt_team(home)}</div>", unsafe_allow_html=True)
-                    user_preds[kh] = st.number_input("Home Team Score", min_value=0, max_value=15, 
+                    st.markdown(f"<div class='match-card-title'>Match {idx+1}</div>", unsafe_allow_html=True)
+                    
+                    st.markdown(f"<span class='team-row-label'>{fmt_team(home)}</span>", unsafe_allow_html=True)
+                    user_preds[kh] = st.number_input("Goals Scored", min_value=0, max_value=15, 
                                                       value=user_preds.get(kh, 0), step=1, 
-                                                      key=f"p_{kh}", disabled=is_group_locked)
+                                                      key=f"p_{kh}", disabled=is_group_locked, label_visibility="collapsed")
                     
-                    st.markdown("<div class='versus-text-middle'>— VERSUS —</div>", unsafe_allow_html=True)
+                    st.markdown("<div style='text-align:center; color:#94a3b8; font-weight:800; font-size:0.85rem; margin:8px 0;'>VS</div>", unsafe_allow_html=True)
                     
-                    user_preds[ka] = st.number_input("Away Team Score", min_value=0, max_value=15, 
+                    st.markdown(f"<span class='team-row-label'>{fmt_team(away)}</span>", unsafe_allow_html=True)
+                    user_preds[ka] = st.number_input("Goals Scored", min_value=0, max_value=15, 
                                                       value=user_preds.get(ka, 0), step=1, 
-                                                      key=f"p_{ka}", disabled=is_group_locked)
-                    st.markdown(f"<div class='team-header-box'>{fmt_team(away)}</div>", unsafe_allow_html=True)
+                                                      key=f"p_{ka}", disabled=is_group_locked, label_visibility="collapsed")
             
             if not is_group_locked:
                 if st.button(f"🔒 Lock In {selected_group} Predictions", use_container_width=True):
@@ -392,7 +372,7 @@ elif app_tab == "📝 Submit Predictions":
         with ko_tabs[0]:
             for idx, (m_id, (h, a)) in enumerate(o_r32.items()):
                 with st.container(border=True):
-                    st.markdown(f"<b>⚽ {m_id}</b><br><small style='opacity:0.9;'>Fixture: {fmt_team(h)} vs {fmt_team(a)}</small>", unsafe_allow_html=True)
+                    st.markdown(f"<b>⚽ {m_id}</b><br><small style='color:#e2e8f0;'>Fixture: {fmt_team(h)} vs {fmt_team(a)}</small>", unsafe_allow_html=True)
                     options = [h, a]
                     current_pick = user_preds.get(m_id, h)
                     default_idx = options.index(current_pick) if current_pick in options else 0
@@ -411,7 +391,7 @@ elif app_tab == "📝 Submit Predictions":
             }
             for idx, (m_id, (h, a)) in enumerate(o_r16.items()):
                 with st.container(border=True):
-                    st.markdown(f"<b>📋 {m_id}</b><br><small style='opacity:0.9;'>Fixture: {fmt_team(h)} vs {fmt_team(a)}</small>", unsafe_allow_html=True)
+                    st.markdown(f"<b>📋 {m_id}</b><br><small style='color:#e2e8f0;'>Fixture: {fmt_team(h)} vs {fmt_team(a)}</small>", unsafe_allow_html=True)
                     options = [h, a]
                     current_pick = user_preds.get(m_id, h)
                     default_idx = options.index(current_pick) if current_pick in options else 0
@@ -426,7 +406,7 @@ elif app_tab == "📝 Submit Predictions":
             }
             for m_id, (h, a) in o_qf.items():
                 with st.container(border=True):
-                    st.markdown(f"<b>⭐ {m_id}</b><br><small style='opacity:0.9;'>Fixture: {fmt_team(h)} vs {fmt_team(a)}</small>", unsafe_allow_html=True)
+                    st.markdown(f"<b>⭐ {m_id}</b><br><small style='color:#e2e8f0;'>Fixture: {fmt_team(h)} vs {fmt_team(a)}</small>", unsafe_allow_html=True)
                     options = [h, a]
                     current_pick = user_preds.get(m_id, h)
                     default_idx = options.index(current_pick) if current_pick in options else 0
@@ -478,8 +458,13 @@ elif app_tab == "🛠️ Admin Dashboard":
             ka = f"{adm_group}_m{idx}_a"
             
             with st.container(border=True):
-                val_h = st.number_input(f"{fmt_team(home)} Score", min_value=0, max_value=15, value=actual["group"].get(kh, 0), step=1, key=f"a_{kh}")
-                val_a = st.number_input(f"{fmt_team(away)} Score", min_value=0, max_value=15, value=actual["group"].get(ka, 0), step=1, key=f"a_{ka}")
+                st.markdown(f"<div class='match-card-title'>Match {idx+1}</div>", unsafe_allow_html=True)
+                st.markdown(f"<span class='team-row-label'>{fmt_team(home)}</span>", unsafe_allow_html=True)
+                val_h = st.number_input("Goals", min_value=0, max_value=15, value=actual["group"].get(kh, 0), step=1, key=f"a_{kh}", label_visibility="collapsed")
+                
+                st.markdown(f"<span class='team-row-label'>{fmt_team(away)}</span>", unsafe_allow_html=True)
+                val_a = st.number_input("Goals", min_value=0, max_value=15, value=actual["group"].get(ka, 0), step=1, key=f"a_{ka}", label_visibility="collapsed")
+                
                 if st.button("📢 Publish Match", key=f"btn_pub_{kh}", use_container_width=True):
                     actual["group"][kh] = val_h
                     actual["group"][ka] = val_a
