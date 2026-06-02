@@ -8,6 +8,78 @@ st.set_page_config(
     layout="wide"
 )
 
+# Advanced Glassmorphism and Background Image CSS Styling
+st.markdown("""
+    <style>
+    /* Full screen background image styling with low opacity overlay */
+    .stApp {
+        background: linear-gradient(rgba(15, 23, 42, 0.85), rgba(15, 23, 42, 0.95)), 
+                    url("https://images.unsplash.com/photo-1508098682722-e99c43a406b2?auto=format&fit=crop&q=80&w=2000");
+        background-size: cover;
+        background-position: center;
+        background-attachment: fixed;
+    }
+    
+    /* Floating Glassmorphism Match Card Style */
+    .match-card {
+        background: rgba(255, 255, 255, 0.06);
+        backdrop-filter: blur(12px);
+        -webkit-backdrop-filter: blur(12px);
+        border-radius: 16px;
+        border: 1px solid rgba(255, 255, 255, 0.1);
+        padding: 20px;
+        margin-bottom: 20px;
+        box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.3);
+        transition: transform 0.2s ease, border-color 0.2s ease;
+    }
+    .match-card:hover {
+        transform: translateY(-2px);
+        border-color: rgba(255, 255, 255, 0.2);
+    }
+    
+    /* Clean Divider Line */
+    hr {
+        border: 0;
+        height: 1px;
+        background: rgba(255, 255, 255, 0.1);
+        margin: 15px 0;
+    }
+    
+    /* Custom Badge for Locked States */
+    .lock-badge {
+        background-color: rgba(239, 68, 68, 0.2);
+        color: #f87171;
+        border: 1px solid rgba(239, 68, 68, 0.4);
+        padding: 4px 10px;
+        border-radius: 8px;
+        font-size: 0.85rem;
+        display: inline-block;
+        margin-bottom: 10px;
+    }
+    </style>
+""", unsafe_allow_html=True)
+
+# --- GLOBAL TEAMS & FLAGS MAP ---
+# Maps each country to its flag emoji for unified display throughout the app
+FLAGS = {
+    "Mexico": "🇲🇽 Mexico", "South Africa": "🇿🇦 South Africa", "Rep. of Korea": "🇰🇷 Rep. of Korea", "Czech Rep.": "🇨🇿 Czech Rep.",
+    "Canada": "🇨🇦 Canada", "Bosnia/Herzeg.": "🇧🇦 Bosnia/Herzeg.", "Qatar": "🇶🇦 Qatar", "Switzerland": "🇨🇭 Switzerland",
+    "Brazil": "🇧🇷 Brazil", "Morocco": "🇲🇦 Morocco", "Haiti": "🇭🇹 Haiti", "Scotland": "🏴󠁧󠁢󠁳󠁣󠁴󠁿 Scotland",
+    "USA": "🇺🇸 USA", "Paraguay": "🇵🇾 Paraguay", "Australia": "🇦🇺 Australia", "Turkey": "🇹🇷 Turkey",
+    "Germany": "🇩🇪 Germany", "Curaçao": "🇨🇼 Curaçao", "Ivory Coast": "🇨🇮 Ivory Coast", "Ecuador": "🇪🇨 Ecuador",
+    "Netherlands": "🇳🇱 Netherlands", "Japan": "🇯🇵 Japan", "Sweden": "🇸🇪 Sweden", "Tunisia": "🇹🇳 Tunisia",
+    "Belgium": "🇧🇪 Belgium", "Egypt": "🇪🇬 Egypt", "IR Iran": "🇮🇷 IR Iran", "New Zealand": "🇳🇿 New Zealand",
+    "Spain": "🇪🇸 Spain", "Cape Verde": "🇨🇻 Cape Verde", "Saudi Arabia": "🇸🇦 Saudi Arabia", "Uruguay": "🇺🇾 Uruguay",
+    "France": "🇫🇷 France", "Senegal": "🇸🇳 Senegal", "Iraq": "🇮🇶 Iraq", "Norway": "🇳🇴 Norway",
+    "Argentina": "🇦🇷 Argentina", "Algeria": "🇩🇿 Algeria", "Austria": "🇦🇹 Austria", "Jordan": "🇯🇴 Jordan",
+    "Portugal": "🇵🇹 Portugal", "DR Congo": "🇨🇩 DR Congo", "Uzbekistan": "🇺🇿 Uzbekistan", "Colombia": "🇨🇴 Colombia",
+    "England": "🏴󠁧󠁢󠁥󠁮󠁧󠁿 England", "Croatia": "🇭🇷 Croatia", "Ghana": "🇬🇭 Ghana", "Panama": "🇵🇦 Panama"
+}
+
+def fmt_team(name):
+    """Gracefully formats a country name with its flag or preserves structural placeholders."""
+    return FLAGS.get(name, name)
+
 # --- CORE DATA STRUCTURE ---
 GROUPS = {
     "Group A": ["Mexico", "South Africa", "Rep. of Korea", "Czech Rep."],
@@ -24,7 +96,6 @@ GROUPS = {
     "Group L": ["England", "Croatia", "Ghana", "Panama"]
 }
 
-# Match identification numbers mapped directly to standard scheduling
 MATCH_IDS = {}
 for g_name, teams in GROUPS.items():
     MATCH_IDS[g_name] = [
@@ -44,6 +115,9 @@ if "users" not in st.session_state:
 if "predictions" not in st.session_state:
     st.session_state.predictions = {}
 
+if "locked_groups" not in st.session_state:
+    st.session_state.locked_groups = {} 
+
 if "actual_results" not in st.session_state:
     st.session_state.actual_results = {
         "group": {},       
@@ -55,9 +129,8 @@ if "actual_results" not in st.session_state:
 if "current_user" not in st.session_state:
     st.session_state.current_user = None
 
-# --- HELPER FUNCTIONS ---
+# --- ENGINE LOGIC ---
 def run_standings_engine(scores_dict):
-    """Calculates full group-stage positions and extracts wildcard pools."""
     all_group_results = {}
     third_place_pool = []
     
@@ -68,27 +141,25 @@ def run_standings_engine(scores_dict):
             kh = f"{g_name}_m{idx}_h"
             ka = f"{g_name}_m{idx}_a"
             
-            h_score = scores_dict.get(kh, None)
-            a_score = scores_dict.get(ka, None)
+            h_score = scores_dict.get(kh, 0)
+            a_score = scores_dict.get(ka, 0)
             
-            if h_score is not None and a_score is not None:
-                standings[home]["GF"] += h_score
-                standings[away]["GF"] += a_score
-                standings[home]["GD"] += (h_score - a_score)
-                standings[away]["GD"] += (a_score - h_score)
-                
-                if h_score > a_score:
-                    standings[home]["Pts"] += 3
-                elif a_score > h_score:
-                    standings[away]["Pts"] += 3
-                else:
-                    standings[home]["Pts"] += 1
-                    standings[away]["Pts"] += 1
+            standings[home]["GF"] += h_score
+            standings[away]["GF"] += a_score
+            standings[home]["GD"] += (h_score - a_score)
+            standings[away]["GD"] += (a_score - h_score)
+            
+            if h_score > a_score:
+                standings[home]["Pts"] += 3
+            elif a_score > h_score:
+                standings[away]["Pts"] += 3
+            else:
+                standings[home]["Pts"] += 1
+                standings[away]["Pts"] += 1
                     
         df_g = pd.DataFrame.from_dict(standings, orient='index').reset_index().rename(columns={'index': 'Team'})
         df_g = df_g.sort_values(by=["Pts", "GD", "GF"], ascending=False).reset_index(drop=True)
         all_group_results[g_name] = df_g
-        
         if len(df_g) >= 3:
             third_place_pool.append(df_g.iloc[2].to_dict())
             
@@ -98,19 +169,16 @@ def run_standings_engine(scores_dict):
         adv_wildcards = list(wildcard_df.head(8)["Team"])
     else:
         adv_wildcards = []
-        
     while len(adv_wildcards) < 8:
         adv_wildcards.append(f"Wildcard Slot {len(adv_wildcards)+1}")
         
     return all_group_results, adv_wildcards
 
 def calculate_user_points(username):
-    """Calculates a user's scoring points against actual verified admin results."""
     user_preds = st.session_state.predictions.get(username, {})
     actual = st.session_state.actual_results
     points = 0
     
-    # 1. Group Stage Scoring
     for g_name, matches in MATCH_IDS.items():
         for idx, (home, away) in enumerate(matches):
             kh = f"{g_name}_m{idx}_h"
@@ -127,194 +195,180 @@ def calculate_user_points(username):
                 elif (p_h > p_a and a_h > a_a) or (p_a > p_h and a_a > a_h) or (p_h == p_a and a_h == a_a):
                     points += 1  
                     
-    # 2. Knockout Stage Scoring
     for m in [f"Match {i}" for i in range(73, 89)]:
-        if user_preds.get(m) and user_preds.get(m) == actual["ko_winners"].get(m):
-            points += 3
-            
+        if user_preds.get(m) and user_preds.get(m) == actual["ko_winners"].get(m): points += 3
     for m in [f"Match {i}" for i in range(89, 97)]:
-        if user_preds.get(m) and user_preds.get(m) == actual["ko_winners"].get(m):
-            points += 5
-            
+        if user_preds.get(m) and user_preds.get(m) == actual["ko_winners"].get(m): points += 5
     for m in [f"Match {i}" for i in range(97, 101)]:
-        if user_preds.get(m) and user_preds.get(m) == actual["ko_winners"].get(m):
-            points += 10
-            
+        if user_preds.get(m) and user_preds.get(m) == actual["ko_winners"].get(m): points += 10
     for m in ["Match 101", "Match 102"]:
-        if user_preds.get(m) and user_preds.get(m) == actual["ko_winners"].get(m):
-            points += 15
-            
-    if user_preds.get("Match 103") and user_preds.get("Match 103") == actual.get("third_place"):
-        points += 15
+        if user_preds.get(m) and user_preds.get(m) == actual["ko_winners"].get(m): points += 15
+    if user_preds.get("Match 103") and user_preds.get("Match 103") == actual.get("third_place"): points += 15
         
     user_finalists = [user_preds.get("Match 101"), user_preds.get("Match 102")]
     for team in user_finalists:
-        if team and team in actual["finalists"]:
-            points += 20
-            
-    if user_preds.get("Match 104") and user_preds.get("Match 104") == actual["ko_winners"].get("Match 104"):
-        points += 25
+        if team and team in actual["finalists"]: points += 20
+    if user_preds.get("Match 104") and user_preds.get("Match 104") == actual["ko_winners"].get("Match 104"): points += 25
         
     return points
 
-# --- AUTHENTICATION INTERFACE LAYER ---
+# --- LOGIN SCREEN LAYER ---
 if st.session_state.current_user is None:
-    st.title("🔐 World Cup 2026 Friends League Sign-In")
+    st.markdown("<div class='match-card' style='max-width: 500px; margin: 100px auto;'>", unsafe_allow_html=True)
+    st.title("🔐 Tournament Sign-In")
     auth_tab1, auth_tab2 = st.tabs(["Login", "Create Account"])
     
     with auth_tab1:
         lin_user = st.text_input("Username", key="lin_user")
         lin_pass = st.text_input("Password", type="password", key="lin_pass")
-        if st.button("Log In"):
+        if st.button("Log In", use_container_width=True):
             if lin_user in st.session_state.users and st.session_state.users[lin_user]["password"] == lin_pass:
                 st.session_state.current_user = lin_user
                 st.rerun()
-            else:
-                st.error("Invalid credentials.")
+            else: st.error("Invalid credentials.")
                 
     with auth_tab2:
         reg_user = st.text_input("Choose Username", key="reg_user")
         reg_pass = st.text_input("Choose Password", type="password", key="reg_pass")
-        if st.button("Register"):
-            if reg_user.strip() == "":
-                st.error("Username cannot be empty.")
-            elif reg_user in st.session_state.users:
-                st.error("Username already exists.")
+        if st.button("Register Account", use_container_width=True):
+            if reg_user.strip() == "" or reg_pass.strip() == "": st.error("Fields cannot be empty.")
+            elif reg_user in st.session_state.users: st.error("Username already exists.")
             else:
                 st.session_state.users[reg_user] = {"password": reg_pass, "is_admin": False}
-                st.success("Registration successful! Proceed to Login.")
+                st.success("Registration successful! Proceed to Login tab.")
+    st.markdown("</div>", unsafe_allow_html=True)
     st.stop()
 
-# --- NAVBAR ---
+# --- INTERFACE MENU LAYOUT ---
 c_user = st.session_state.current_user
+if c_user not in st.session_state.locked_groups:
+    st.session_state.locked_groups[c_user] = []
+
 col_nav1, col_nav2 = st.columns([8, 2])
 with col_nav1:
-    st.write(f"Logged in as: **{c_user}** " + ("(🛠️ Administrator)" if st.session_state.users[c_user]["is_admin"] else "(🏃 Competitor)"))
+    st.markdown(f"👥 Active Account: **{c_user}** " + ("<span style='color:#60a5fa;'>(🛠️ Admin)</span>" if st.session_state.users[c_user]["is_admin"] else ""), unsafe_allow_html=True)
 with col_nav2:
-    if st.button("Log Out"):
+    if st.button("🚪 Log Out", use_container_width=True):
         st.session_state.current_user = None
         st.rerun()
 
-# --- MAIN APP LAYOUT CONFIG ---
 main_tabs = ["🏆 Leaderboard", "📝 Submit Predictions"]
 if st.session_state.users[c_user]["is_admin"]:
     main_tabs.append("🛠️ Admin Dashboard")
     
-app_tab = st.sidebar.radio("Navigation Menu", main_tabs)
+app_tab = st.sidebar.radio("Main Menu Navigation", main_tabs)
 
 if c_user not in st.session_state.predictions:
     st.session_state.predictions[c_user] = {}
+user_preds = st.session_state.predictions[c_user]
 
-# --- LEADERBOARD TAB ---
+# --- LEADERBOARD ---
 if app_tab == "🏆 Leaderboard":
-    st.header("🏆 League Standings Leaderboard")
+    st.header("🏆 Active Standings Leaderboard")
     leaderboard_data = []
     
     for user, info in st.session_state.users.items():
         if not info["is_admin"]:
             score = calculate_user_points(user)
-            leaderboard_data.append({"Competitor": user, "Total Points": score})
+            leaderboard_data.append({"Competitor Name": user, "Current Total Points": score})
             
     df_leaderboard = pd.DataFrame(leaderboard_data)
     if not df_leaderboard.empty:
-        df_leaderboard = df_leaderboard.sort_values(by="Total Points", ascending=False).reset_index(drop=True)
+        df_leaderboard = df_leaderboard.sort_values(by="Current Total Points", ascending=False).reset_index(drop=True)
         df_leaderboard.index += 1
         st.dataframe(df_leaderboard, use_container_width=True)
-    else:
-        st.info("No prediction data received yet.")
+    else: st.info("No league prediction metrics found yet.")
 
-# --- USER PREDICTIONS FILL SHEET ---
+# --- COMPETITOR SHEETS ---
 elif app_tab == "📝 Submit Predictions":
-    st.header("📝 Submit Your Tournament Predictions")
-    
-    pred_sub_tabs = st.tabs(["📊 Group Stage Matches", "🌳 Knockout Bracket Path"])
-    user_preds = st.session_state.predictions[c_user]
+    st.header("📝 Player Prediction Desk")
+    pred_sub_tabs = st.tabs(["📊 Group Matches Workspace", "🌳 Knockout Brackets"])
     
     with pred_sub_tabs[0]:
-        selected_group = st.selectbox("Select Group", list(GROUPS.keys()))
-        g_teams = GROUPS[selected_group]
+        selected_group = st.selectbox("Choose Group Stage Pool", list(GROUPS.keys()))
+        is_group_locked = selected_group in st.session_state.locked_groups[c_user]
         
-        col_input, col_table = st.columns([3, 2])
+        col_input, col_table = st.columns([4, 3])
         
         with col_input:
-            st.subheader("Predict Scorelines")
+            st.markdown("<div class='match-card'>", unsafe_allow_html=True)
+            if is_group_locked:
+                st.markdown("<div class='lock-badge'>🔒 This Group is Locked In</div>", unsafe_allow_html=True)
+            else:
+                st.markdown("<div style='color:#34d399; margin-bottom:10px;'>🔓 Unlocked - Edits Allowed</div>", unsafe_allow_html=True)
+                
             for idx, (home, away) in enumerate(MATCH_IDS[selected_group]):
                 kh = f"{selected_group}_m{idx}_h"
                 ka = f"{selected_group}_m{idx}_a"
                 
                 c1, c2, c3, c4, c5 = st.columns([3, 1, 1, 1, 3])
-                with c1: st.write(f"**{home}**")
-                with c2: user_preds[kh] = st.number_input("", min_value=0, max_value=15, value=user_preds.get(kh, 0), step=1, key=f"p_{kh}", label_visibility="collapsed")
-                with c3: st.markdown("<p style='text-align:center;'>vs</p>", unsafe_allow_html=True)
-                with c4: user_preds[ka] = st.number_input("", min_value=0, max_value=15, value=user_preds.get(ka, 0), step=1, key=f"p_{ka}", label_visibility="collapsed")
-                with c5: st.write(f"<p style='text-align:right;'><b>{away}</b></p>", unsafe_allow_html=True)
-                st.markdown("<hr style='margin:0.2em 0px;'>", unsafe_allow_html=True)
+                with c1: st.write(f"**{fmt_team(home)}**")
+                with c2:
+                    user_preds[kh] = st.number_input("", min_value=0, max_value=15, 
+                                                      value=user_preds.get(kh, 0), step=1, 
+                                                      key=f"p_{kh}", label_visibility="collapsed", 
+                                                      disabled=is_group_locked)
+                with c3: st.markdown("<p style='text-align:center; opacity:0.6;'>vs</p>", unsafe_allow_html=True)
+                with c4:
+                    user_preds[ka] = st.number_input("", min_value=0, max_value=15, 
+                                                      value=user_preds.get(ka, 0), step=1, 
+                                                      key=f"p_{ka}", label_visibility="collapsed", 
+                                                      disabled=is_group_locked)
+                with c5: st.write(f"<p style='text-align:right;'><b>{fmt_team(away)}</b></p>", unsafe_allow_html=True)
+                if idx < 5: st.markdown("<hr>", unsafe_allow_html=True)
+            
+            # Lock Group Submission Button
+            if not is_group_locked:
+                if st.button(f"🔒 Lock In {selected_group} Predictions", use_container_width=True):
+                    st.session_state.locked_groups[c_user].append(selected_group)
+                    st.session_state.predictions[c_user] = user_preds
+                    st.success(f"{selected_group} selections have been locked permanently!")
+                    st.rerun()
+            st.markdown("</div>", unsafe_allow_html=True)
                 
         with col_table:
-            st.subheader("Your Predicted Standings")
+            st.markdown("<div class='match-card'>", unsafe_allow_html=True)
+            st.subheader("Simulated Group Table")
             u_results, _ = run_standings_engine(user_preds)
-            st.dataframe(u_results[selected_group][["Team", "Pts", "GD", "GF"]], use_container_width=True, hide_index=True)
+            
+            # Add decorative flags into simulated standings grid layout
+            df_display = u_results[selected_group][["Team", "Pts", "GD", "GF"]].copy()
+            df_display["Team"] = df_display["Team"].apply(fmt_team)
+            st.dataframe(df_display, use_container_width=True, hide_index=True)
+            st.markdown("</div>", unsafe_allow_html=True)
 
     with pred_sub_tabs[1]:
-        st.subheader("🌳 Knockout Bracket Selections")
-        st.write("Review the qualified teams below and use the dropdown to select who advances.")
-        
         u_results, u_wildcards = run_standings_engine(user_preds)
+        def get_confirmed_1st(g): return u_results[g].iloc[0]["Team"] if g in u_results and not u_results[g].empty else f"1st {g}"
+        def get_confirmed_2nd(g): return u_results[g].iloc[1]["Team"] if g in u_results and not u_results[g].empty else f"2nd {g}"
         
-        def get_confirmed_1st(g):
-            if g in u_results and not u_results[g].empty:
-                return u_results[g].iloc[0]["Team"]
-            return f"1st {g}"
-
-        def get_confirmed_2nd(g):
-            if g in u_results and not u_results[g].empty:
-                return u_results[g].iloc[1]["Team"]
-            return f"2nd {g}"
-        
-        # Build the accurate Round of 32 Pairing Matrix (Typo Duplicates Fixed Here)
         o_r32 = {
-            "Match 73": (get_confirmed_1st("Group A"), u_wildcards[4]), 
-            "Match 74": (get_confirmed_1st("Group E"), u_wildcards[0]),
-            "Match 75": (get_confirmed_1st("Group F"), get_confirmed_2nd("Group C")), 
-            "Match 76": (get_confirmed_1st("Group C"), get_confirmed_2nd("Group F")),
-            "Match 77": (get_confirmed_1st("Group I"), u_wildcards[1]), 
-            "Match 78": (get_confirmed_2nd("Group E"), get_confirmed_2nd("Group I")),
-            "Match 79": (get_confirmed_1st("Group B"), u_wildcards[6]), 
-            "Match 80": (get_confirmed_1st("Group L"), u_wildcards[5]),
-            "Match 81": (get_confirmed_1st("Group D"), u_wildcards[2]), 
-            "Match 82": (get_confirmed_1st("Group G"), u_wildcards[3]),
-            "Match 83": (get_confirmed_2nd("Group K"), get_confirmed_2nd("Group L")), 
-            "Match 84": (get_confirmed_1st("Group H"), get_confirmed_2nd("Group J")),
-            "Match 85": (get_confirmed_2nd("Group A"), get_confirmed_2nd("Group B")), 
-            "Match 86": (get_confirmed_1st("Group J"), get_confirmed_2nd("Group H")),
-            "Match 87": (get_confirmed_1st("Group K"), u_wildcards[7]), 
-            "Match 88": (get_confirmed_2nd("Group D"), get_confirmed_2nd("Group G"))
+            "Match 73": (get_confirmed_1st("Group A"), u_wildcards[4]), "Match 74": (get_confirmed_1st("Group E"), u_wildcards[0]),
+            "Match 75": (get_confirmed_1st("Group F"), get_confirmed_2nd("Group C")), "Match 76": (get_confirmed_1st("Group C"), get_confirmed_2nd("Group F")),
+            "Match 77": (get_confirmed_1st("Group I"), u_wildcards[1]), "Match 78": (get_confirmed_2nd("Group E"), get_confirmed_2nd("Group I")),
+            "Match 79": (get_confirmed_1st("Group B"), u_wildcards[6]), "Match 80": (get_confirmed_1st("Group L"), u_wildcards[5]),
+            "Match 81": (get_confirmed_1st("Group D"), u_wildcards[2]), "Match 82": (get_confirmed_1st("Group G"), u_wildcards[3]),
+            "Match 83": (get_confirmed_2nd("Group K"), get_confirmed_2nd("Group L")), "Match 84": (get_confirmed_1st("Group H"), get_confirmed_2nd("Group J")),
+            "Match 85": (get_confirmed_2nd("Group A"), get_confirmed_2nd("Group B")), "Match 86": (get_confirmed_1st("Group J"), get_confirmed_2nd("Group H")),
+            "Match 87": (get_confirmed_1st("Group K"), u_wildcards[7]), "Match 88": (get_2nd("Group D"), get_2nd("Group G"))
         }
         
         ko_tabs = st.tabs(["Round of 32", "Round of 16", "Quarter-Finals", "Finals"])
         
-        # --- ROUND OF 32 ---
         with ko_tabs[0]:
             cl, cr = st.columns(2)
             for idx, (m_id, (h, a)) in enumerate(o_r32.items()):
                 col = cl if idx < 8 else cr
                 with col:
-                    st.markdown(f"**⚽ {m_id}**")
-                    st.caption(f"Fixture: {h} vs {a}")
-                    
+                    st.markdown(f"<div class='match-card'><b>⚽ {m_id}</b><br><small style='opacity:0.7;'>Fixture: {fmt_team(h)} vs {fmt_team(a)}</small>", unsafe_allow_html=True)
                     options = [h, a]
                     current_pick = user_preds.get(m_id, h)
                     default_idx = options.index(current_pick) if current_pick in options else 0
                     
-                    user_preds[m_id] = st.selectbox(
-                        "Predicted Winner to Progress:", 
-                        options, 
-                        index=default_idx, 
-                        key=f"up_sel_{m_id}"
-                    )
-                    st.markdown("<hr style='margin:0.5em 0px;'>", unsafe_allow_html=True)
+                    # Formatted text display inside the interactive selection dropdowns
+                    user_preds[m_id] = st.selectbox("Progresses:", options, index=default_idx, format_func=fmt_team, key=f"up_sel_{m_id}")
+                    st.markdown("</div>", unsafe_allow_html=True)
                     
-        # --- ROUND OF 16 ---
         with ko_tabs[1]:
             o_r16 = {
                 "Match 89": (user_preds.get("Match 74", "W74"), user_preds.get("Match 77", "W77")),
@@ -330,17 +384,13 @@ elif app_tab == "📝 Submit Predictions":
             for idx, (m_id, (h, a)) in enumerate(o_r16.items()):
                 col = cl if idx < 4 else cr
                 with col:
-                    st.markdown(f"**📋 {m_id}**")
-                    st.caption(f"Fixture: {h} vs {a}")
-                    
+                    st.markdown(f"<div class='match-card'><b>📋 {m_id}</b><br><small style='opacity:0.7;'>Fixture: {fmt_team(h)} vs {fmt_team(a)}</small>", unsafe_allow_html=True)
                     options = [h, a]
                     current_pick = user_preds.get(m_id, h)
                     default_idx = options.index(current_pick) if current_pick in options else 0
+                    user_preds[m_id] = st.selectbox("Progresses:", options, index=default_idx, format_func=fmt_team, key=f"up_sel_{m_id}")
+                    st.markdown("</div>", unsafe_allow_html=True)
                     
-                    user_preds[m_id] = st.selectbox("Predicted Winner to Progress:", options, index=default_idx, key=f"up_sel_{m_id}")
-                    st.markdown("<hr style='margin:0.5em 0px;'>", unsafe_allow_html=True)
-                    
-        # --- QUARTER-FINALS ---
         with ko_tabs[2]:
             o_qf = {
                 "Match 97": (user_preds.get("Match 89", "W89"), user_preds.get("Match 90", "W90")),
@@ -349,90 +399,80 @@ elif app_tab == "📝 Submit Predictions":
                 "Match 100": (user_preds.get("Match 95", "W95"), user_preds.get("Match 96", "W96"))
             }
             for m_id, (h, a) in o_qf.items():
-                st.markdown(f"**⭐ {m_id}**")
-                st.caption(f"Fixture: {h} vs {a}")
-                
+                st.markdown(f"<div class='match-card'><b>⭐ {m_id}</b><br><small style='opacity:0.7;'>Fixture: {fmt_team(h)} vs {fmt_team(a)}</small>", unsafe_allow_html=True)
                 options = [h, a]
                 current_pick = user_preds.get(m_id, h)
                 default_idx = options.index(current_pick) if current_pick in options else 0
+                user_preds[m_id] = st.selectbox("Progresses:", options, index=default_idx, format_func=fmt_team, key=f"up_sel_{m_id}")
+                st.markdown("</div>", unsafe_allow_html=True)
                 
-                user_preds[m_id] = st.selectbox("Predicted Winner to Progress:", options, index=default_idx, key=f"up_sel_{m_id}")
-                st.markdown("<hr style='margin:0.5em 0px;'>", unsafe_allow_html=True)
-                
-        # --- FINALS ---
         with ko_tabs[3]:
-            sf1_h = user_preds.get("Match 97", "W97")
-            sf1_a = user_preds.get("Match 98", "W98")
-            sf2_h = user_preds.get("Match 99", "W99")
-            sf2_a = user_preds.get("Match 100", "W100")
+            sf1_h, sf1_a = user_preds.get("Match 97", "W97"), user_preds.get("Match 98", "W98")
+            sf2_h, sf2_a = user_preds.get("Match 99", "W99"), user_preds.get("Match 100", "W100")
             
-            st.markdown("#### 🌿 Semi-Finals")
+            st.markdown("<div class='match-card'>", unsafe_allow_html=True)
+            st.markdown("#### 🌿 Final Four Series")
             
-            st.caption(f"Semi-Final 1: {sf1_h} vs {sf1_a}")
             sf1_opts = [sf1_h, sf1_a]
-            sf1_pick = user_preds.get("Match 101", sf1_h)
-            sf1_idx = sf1_opts.index(sf1_pick) if sf1_pick in sf1_opts else 0
-            user_preds["Match 101"] = st.selectbox("Progresses to Final:", sf1_opts, index=sf1_idx, key=f"up_sel_M101")
+            sf1_idx = sf1_opts.index(user_preds.get("Match 101", sf1_h)) if user_preds.get("Match 101", sf1_h) in sf1_opts else 0
+            user_preds["Match 101"] = st.selectbox(f"Semi Final 1 Winner", sf1_opts, index=sf1_idx, format_func=fmt_team, key="up_sel_M101")
             
-            st.caption(f"Semi-Final 2: {sf2_h} vs {sf2_a}")
             sf2_opts = [sf2_h, sf2_a]
-            sf2_pick = user_preds.get("Match 102", sf2_h)
-            sf2_idx = sf2_opts.index(sf2_pick) if sf2_pick in sf2_opts else 0
-            user_preds["Match 102"] = st.selectbox("Progresses to Final:", sf2_opts, index=sf2_idx, key=f"up_sel_M102")
+            sf2_idx = sf2_opts.index(user_preds.get("Match 102", sf2_h)) if user_preds.get("Match 102", sf2_h) in sf2_opts else 0
+            user_preds["Match 102"] = st.selectbox(f"Semi Final 2 Winner", sf2_opts, index=sf2_idx, format_func=fmt_team, key="up_sel_M102")
             
             sf1_l = sf1_a if user_preds["Match 101"] == sf1_h else sf1_h
             sf2_l = sf2_a if user_preds["Match 102"] == sf2_h else sf2_h
             
-            st.markdown("---")
-            st.markdown("#### 🥉 3rd Place Playoff")
-            st.caption(f"Match 103: {sf1_l} vs {sf2_l}")
+            st.markdown("<hr>", unsafe_allow_html=True)
             p3_opts = [sf1_l, sf2_l]
-            p3_pick = user_preds.get("Match 103", sf1_l)
-            p3_idx = p3_opts.index(p3_pick) if p3_pick in p3_opts else 0
-            user_preds["Match 103"] = st.selectbox("3rd Place Winner:", p3_opts, index=p3_idx, key=f"up_sel_M103")
+            p3_idx = p3_opts.index(user_preds.get("Match 103", sf1_l)) if user_preds.get("Match 103", sf1_l) in p3_opts else 0
+            user_preds["Match 103"] = st.selectbox(f"🥉 3rd Place Playoff Winner", p3_opts, index=p3_idx, format_func=fmt_team, key="up_sel_M103")
             
-            st.markdown("---")
-            st.markdown("#### 🥇 Grand Final")
-            f_h = user_preds["Match 101"]
-            f_a = user_preds["Match 102"]
-            st.caption(f"Match 104: {f_h} vs {f_a}")
-            f_opts = [f_h, f_a]
-            f_pick = user_preds.get("Match 104", f_h)
-            f_idx = f_opts.index(f_pick) if f_pick in f_opts else 0
-            user_preds["Match 104"] = st.selectbox("World Cup Champion:", f_opts, index=f_idx, key=f"up_sel_M104")
+            st.markdown("<hr>", unsafe_allow_html=True)
+            f_opts = [user_preds["Match 101"], user_preds["Match 102"]]
+            f_idx = f_opts.index(user_preds.get("Match 104", f_opts[0])) if user_preds.get("Match 104", f_opts[0]) in f_opts else 0
+            user_preds["Match 104"] = st.selectbox(f"🥇 Grand Champion Prediction", f_opts, index=f_idx, format_func=fmt_team, key="up_sel_M104")
+            st.markdown("</div>", unsafe_allow_html=True)
             
-        if st.button("💾 Save All Predictions"):
+        if st.button("💾 Archive Complete Bracket Matrix", use_container_width=True):
             st.session_state.predictions[c_user] = user_preds
-            st.success("Your changes have been safely archived!")
+            st.success("Bracket pathways updated safely!")
 
-# --- SECURE ADMINISTRATIVE DECK ---
+# --- ADMINISTRATIVE CONTROL PANEL ---
 elif app_tab == "🛠️ Admin Dashboard":
-    st.header("🛠️ Official Admin Dashboard")
-    st.write("Enter the real-life scorelines and match winners to distribute points to players.")
-    
-    admin_tabs = st.tabs(["Group Results", "Knockout Results"])
+    st.header("🛠️ Real-time Admin Scoresheet Panel")
+    admin_tabs = st.tabs(["Group Stage Results", "Knockout Progress Matches"])
     actual = st.session_state.actual_results
     
     with admin_tabs[0]:
-        adm_group = st.selectbox("Verify Group", list(GROUPS.keys()), key="adm_grp")
+        adm_group = st.selectbox("Verify Target Group Pool", list(GROUPS.keys()))
+        
         for idx, (home, away) in enumerate(MATCH_IDS[adm_group]):
             kh = f"{adm_group}_m{idx}_h"
             ka = f"{adm_group}_m{idx}_a"
             
-            c1, c2, c3, c4, c5 = st.columns([3, 1, 1, 1, 3])
-            with c1: st.write(home)
-            with c2: actual["group"][kh] = st.number_input("", min_value=0, max_value=15, value=actual["group"].get(kh, 0), step=1, key=f"a_{kh}", label_visibility="collapsed")
-            with c3: st.markdown("<p style='text-align:center;'>vs</p>", unsafe_allow_html=True)
-            with c4: actual["group"][ka] = st.number_input("", min_value=0, max_value=15, value=actual["group"].get(ka, 0), step=1, key=f"a_{ka}", label_visibility="collapsed")
-            with c5: st.write(away)
+            st.markdown("<div class='match-card'>", unsafe_allow_html=True)
+            c1, c2, c3, c4, c5, c6 = st.columns([3, 1, 1, 1, 3, 2])
+            with c1: st.write(f"**{fmt_team(home)}**")
+            with c2: val_h = st.number_input("", min_value=0, max_value=15, value=actual["group"].get(kh, 0), step=1, key=f"a_{kh}", label_visibility="collapsed")
+            with c3: st.markdown("<p style='text-align:center;'>-</p>", unsafe_allow_html=True)
+            with c4: val_a = st.number_input("", min_value=0, max_value=15, value=actual["group"].get(ka, 0), step=1, key=f"a_{ka}", label_visibility="collapsed")
+            with c5: st.write(f"**{fmt_team(away)}**")
+            with c6:
+                # Instantaneous inline publishing configuration button
+                if st.button("📢 Publish Match", key=f"btn_pub_{kh}", use_container_width=True):
+                    actual["group"][kh] = val_h
+                    actual["group"][ka] = val_a
+                    st.session_state.actual_results = actual
+                    st.success("Leaderboard points updated instantly!")
+            st.markdown("</div>", unsafe_allow_html=True)
             
     with admin_tabs[1]:
         adm_group_res, adm_wildcards = run_standings_engine(actual["group"])
-        
         def get_1st(g): return adm_group_res[g].iloc[0]["Team"] if not adm_group_res[g].empty else f"1st {g}"
         def get_2nd(g): return adm_group_res[g].iloc[1]["Team"] if not adm_group_res[g].empty else f"2nd {g}"
         
-        # Parallel administrative matrix matching fixed user structure
         adm_r32_pairings = {
             "Match 73": (get_1st("Group A"), adm_wildcards[4]), "Match 74": (get_1st("Group E"), adm_wildcards[0]),
             "Match 75": (get_1st("Group F"), get_2nd("Group C")), "Match 76": (get_1st("Group C"), get_2nd("Group F")),
@@ -444,53 +484,19 @@ elif app_tab == "🛠️ Admin Dashboard":
             "Match 87": (get_1st("Group K"), adm_wildcards[7]), "Match 88": (get_2nd("Group D"), get_2nd("Group G"))
         }
         
-        st.subheader("Verify Knockout Winners")
+        st.subheader("Official Knockout Tree Declarations")
         
-        st.markdown("---")
         for m_id, (h, a) in adm_r32_pairings.items():
-            actual["ko_winners"][m_id] = st.selectbox(f"Actual Winner: {m_id} ({h} vs {a})", [h, a], key=f"adm_w_{m_id}")
-            
-        st.markdown("---")
-        adm_r16_pairings = {
-            "Match 89": (actual["ko_winners"].get("Match 74"), actual["ko_winners"].get("Match 77")),
-            "Match 90": (actual["ko_winners"].get("Match 73"), actual["ko_winners"].get("Match 75")),
-            "Match 93": (actual["ko_winners"].get("Match 83"), actual["ko_winners"].get("Match 84")),
-            "Match 94": (actual["ko_winners"].get("Match 81"), actual["ko_winners"].get("Match 82")),
-            "Match 91": (actual["ko_winners"].get("Match 76"), actual["ko_winners"].get("Match 78")),
-            "Match 92": (actual["ko_winners"].get("Match 79"), actual["ko_winners"].get("Match 80")),
-            "Match 95": (actual["ko_winners"].get("Match 86"), actual["ko_winners"].get("Match 88")),
-            "Match 96": (actual["ko_winners"].get("Match 85"), actual["ko_winners"].get("Match 87"))
-        }
-        for m_id, (h, a) in adm_r16_pairings.items():
-            if h and a:
-                actual["ko_winners"][m_id] = st.selectbox(f"Actual Winner: {m_id} ({h} vs {a})", [h, a], key=f"adm_w_{m_id}")
-                
-        st.markdown("---")
-        adm_qf_pairings = {
-            "Match 97": (actual["ko_winners"].get("Match 89"), actual["ko_winners"].get("Match 90")),
-            "Match 98": (actual["ko_winners"].get("Match 93"), actual["ko_winners"].get("Match 94")),
-            "Match 99": (actual["ko_winners"].get("Match 91"), actual["ko_winners"].get("Match 92")),
-            "Match 100": (actual["ko_winners"].get("Match 95"), actual["ko_winners"].get("Match 96"))
-        }
-        for m_id, (h, a) in adm_qf_pairings.items():
-            if h and a:
-                actual["ko_winners"][m_id] = st.selectbox(f"Actual Winner: {m_id} ({h} vs {a})", [h, a], key=f"adm_w_{m_id}")
-                
-        st.markdown("---")
-        sf1_h, sf1_a = actual["ko_winners"].get("Match 97"), actual["ko_winners"].get("Match 98")
-        sf2_h, sf2_a = actual["ko_winners"].get("Match 99"), actual["ko_winners"].get("Match 100")
-        
-        if sf1_h and sf1_a and sf2_h and sf2_a:
-            actual["ko_winners"]["Match 101"] = st.selectbox(f"Actual Semi-Final 1 Winner", [sf1_h, sf1_a], key="adm_w_M101")
-            actual["ko_winners"]["Match 102"] = st.selectbox(f"Actual Semi-Final 2 Winner", [sf2_h, sf2_a], key="adm_w_M102")
-            
-            actual["finalists"] = [actual["ko_winners"]["Match 101"], actual["ko_winners"]["Match 102"]]
-            
-            sf1_l = sf1_a if actual["ko_winners"]["Match 101"] == sf1_h else sf1_h
-            sf2_l = sf2_a if actual["ko_winners"]["Match 102"] == sf2_h else sf2_h
-            actual["third_place"] = st.selectbox(f"Actual 3rd Place Match Winner", [sf1_l, sf2_l], key="adm_w_M103")
-            actual["ko_winners"]["Match 104"] = st.selectbox(f"Actual Tournament Champion", actual["finalists"], key="adm_w_M104")
-
-    if st.button("📢 Publish Verified Results & Update Scores"):
-        st.session_state.actual_results = actual
-        st.success("Scores have been updated across all user profiles!")
+            st.markdown("<div class='match-card'>", unsafe_allow_html=True)
+            c1, c2 = st.columns([6, 2])
+            with c1:
+                options = [h, a]
+                curr_w = actual["ko_winners"].get(m_id, h)
+                sel_w = st.selectbox(f"Winner: {m_id}", options, index=options.index(curr_w) if curr_w in options else 0, format_func=fmt_team, key=f"adm_w_{m_id}")
+            with c2:
+                st.write("") 
+                if st.button("📢 Save Winner", key=f"btn_ko_{m_id}", use_container_width=True):
+                    actual["ko_winners"][m_id] = sel_w
+                    st.session_state.actual_results = actual
+                    st.success(f"{m_id} updated!")
+            st.markdown("</div>", unsafe_allow_html=True)
