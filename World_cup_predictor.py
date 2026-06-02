@@ -35,7 +35,6 @@ for g_name, teams in GROUPS.items():
 
 # --- SESSION STATE INITIALIZATION ---
 if "users" not in st.session_state:
-    # Pre-populating a sample admin account and some user profiles
     st.session_state.users = {
         "admin": {"password": "admin123", "is_admin": True},
         "Player_1": {"password": "password123", "is_admin": False},
@@ -47,10 +46,10 @@ if "predictions" not in st.session_state:
 
 if "actual_results" not in st.session_state:
     st.session_state.actual_results = {
-        "group": {},       # Format: {"Group A_m0_h": score, "Group A_m0_a": score}
-        "ko_winners": {},  # Format: {"Match 73": "TeamName"}
-        "third_place": "", # Name of 3rd place playoff winner
-        "finalists": []    # Top two finalists
+        "group": {},       
+        "ko_winners": {},  
+        "third_place": "", 
+        "finalists": []    
     }
 
 if "current_user" not in st.session_state:
@@ -124,42 +123,35 @@ def calculate_user_points(username):
             
             if p_h is not None and p_a is not None and a_h is not None and a_a is not None:
                 if p_h == a_h and p_a == a_a:
-                    points += 3  # Correct Score
+                    points += 3  
                 elif (p_h > p_a and a_h > a_a) or (p_a > p_h and a_a > a_h) or (p_h == p_a and a_h == a_a):
-                    points += 1  # Correct Outcome
+                    points += 1  
                     
     # 2. Knockout Stage Scoring
-    # Round of 32 (3pts each)
     for m in [f"Match {i}" for i in range(73, 89)]:
         if user_preds.get(m) and user_preds.get(m) == actual["ko_winners"].get(m):
             points += 3
             
-    # Round of 16 (5pts each)
     for m in [f"Match {i}" for i in range(89, 97)]:
         if user_preds.get(m) and user_preds.get(m) == actual["ko_winners"].get(m):
             points += 5
             
-    # Quarter-Finals (10pts each)
     for m in [f"Match {i}" for i in range(97, 101)]:
         if user_preds.get(m) and user_preds.get(m) == actual["ko_winners"].get(m):
             points += 10
             
-    # Semi-Finals (15pts each)
     for m in ["Match 101", "Match 102"]:
         if user_preds.get(m) and user_preds.get(m) == actual["ko_winners"].get(m):
             points += 15
             
-    # 3rd Place Match (15pts)
     if user_preds.get("Match 103") and user_preds.get("Match 103") == actual.get("third_place"):
         points += 15
         
-    # Correct Finalists Checking (20pts per correct team regardless of match sequence)
     user_finalists = [user_preds.get("Match 101"), user_preds.get("Match 102")]
     for team in user_finalists:
         if team and team in actual["finalists"]:
             points += 20
             
-    # Grand Final Winner (25pts)
     if user_preds.get("Match 104") and user_preds.get("Match 104") == actual["ko_winners"].get("Match 104"):
         points += 25
         
@@ -210,7 +202,6 @@ if st.session_state.users[c_user]["is_admin"]:
     
 app_tab = st.sidebar.radio("Navigation Menu", main_tabs)
 
-# Initialize predictions dictionary for current user if empty
 if c_user not in st.session_state.predictions:
     st.session_state.predictions[c_user] = {}
 
@@ -268,10 +259,8 @@ elif app_tab == "📝 Submit Predictions":
         st.subheader("🌳 Knockout Bracket Selections")
         st.write("Review the qualified teams below and use the dropdown to select who advances.")
         
-        # Run engine outside of UI elements to ensure clean data cascade updates
         u_results, u_wildcards = run_standings_engine(user_preds)
         
-        # Helper functions with explicit verification checks
         def get_confirmed_1st(g):
             if g in u_results and not u_results[g].empty:
                 return u_results[g].iloc[0]["Team"]
@@ -282,7 +271,7 @@ elif app_tab == "📝 Submit Predictions":
                 return u_results[g].iloc[1]["Team"]
             return f"2nd {g}"
         
-        # Build the accurate Round of 32 Pairing Matrix
+        # Build the accurate Round of 32 Pairing Matrix (Typo Duplicates Fixed Here)
         o_r32 = {
             "Match 73": (get_confirmed_1st("Group A"), u_wildcards[4]), 
             "Match 74": (get_confirmed_1st("Group E"), u_wildcards[0]),
@@ -290,13 +279,13 @@ elif app_tab == "📝 Submit Predictions":
             "Match 76": (get_confirmed_1st("Group C"), get_confirmed_2nd("Group F")),
             "Match 77": (get_confirmed_1st("Group I"), u_wildcards[1]), 
             "Match 78": (get_confirmed_2nd("Group E"), get_confirmed_2nd("Group I")),
-            "Match 79": (get_confirmed_1st("Group A"), u_wildcards[4]), 
+            "Match 79": (get_confirmed_1st("Group B"), u_wildcards[6]), 
             "Match 80": (get_confirmed_1st("Group L"), u_wildcards[5]),
             "Match 81": (get_confirmed_1st("Group D"), u_wildcards[2]), 
             "Match 82": (get_confirmed_1st("Group G"), u_wildcards[3]),
             "Match 83": (get_confirmed_2nd("Group K"), get_confirmed_2nd("Group L")), 
             "Match 84": (get_confirmed_1st("Group H"), get_confirmed_2nd("Group J")),
-            "Match 85": (get_confirmed_1st("Group B"), u_wildcards[6]), 
+            "Match 85": (get_confirmed_2nd("Group A"), get_confirmed_2nd("Group B")), 
             "Match 86": (get_confirmed_1st("Group J"), get_confirmed_2nd("Group H")),
             "Match 87": (get_confirmed_1st("Group K"), u_wildcards[7]), 
             "Match 88": (get_confirmed_2nd("Group D"), get_confirmed_2nd("Group G"))
@@ -379,21 +368,18 @@ elif app_tab == "📝 Submit Predictions":
             
             st.markdown("#### 🌿 Semi-Finals")
             
-            # SF 1 Dropdown
             st.caption(f"Semi-Final 1: {sf1_h} vs {sf1_a}")
             sf1_opts = [sf1_h, sf1_a]
             sf1_pick = user_preds.get("Match 101", sf1_h)
             sf1_idx = sf1_opts.index(sf1_pick) if sf1_pick in sf1_opts else 0
             user_preds["Match 101"] = st.selectbox("Progresses to Final:", sf1_opts, index=sf1_idx, key=f"up_sel_M101")
             
-            # SF 2 Dropdown
             st.caption(f"Semi-Final 2: {sf2_h} vs {sf2_a}")
             sf2_opts = [sf2_h, sf2_a]
             sf2_pick = user_preds.get("Match 102", sf2_h)
             sf2_idx = sf2_opts.index(sf2_pick) if sf2_pick in sf2_opts else 0
             user_preds["Match 102"] = st.selectbox("Progresses to Final:", sf2_opts, index=sf2_idx, key=f"up_sel_M102")
             
-            # Losers calculation path to 3rd place playoff
             sf1_l = sf1_a if user_preds["Match 101"] == sf1_h else sf1_h
             sf2_l = sf2_a if user_preds["Match 102"] == sf2_h else sf2_h
             
@@ -405,7 +391,6 @@ elif app_tab == "📝 Submit Predictions":
             p3_idx = p3_opts.index(p3_pick) if p3_pick in p3_opts else 0
             user_preds["Match 103"] = st.selectbox("3rd Place Winner:", p3_opts, index=p3_idx, key=f"up_sel_M103")
             
-            # The Grand Final
             st.markdown("---")
             st.markdown("#### 🥇 Grand Final")
             f_h = user_preds["Match 101"]
@@ -442,31 +427,29 @@ elif app_tab == "🛠️ Admin Dashboard":
             with c5: st.write(away)
             
     with admin_tabs[1]:
-        # Process administrative standings calculations for verified inputs
         adm_group_res, adm_wildcards = run_standings_engine(actual["group"])
         
         def get_1st(g): return adm_group_res[g].iloc[0]["Team"] if not adm_group_res[g].empty else f"1st {g}"
         def get_2nd(g): return adm_group_res[g].iloc[1]["Team"] if not adm_group_res[g].empty else f"2nd {g}"
         
+        # Parallel administrative matrix matching fixed user structure
         adm_r32_pairings = {
             "Match 73": (get_1st("Group A"), adm_wildcards[4]), "Match 74": (get_1st("Group E"), adm_wildcards[0]),
             "Match 75": (get_1st("Group F"), get_2nd("Group C")), "Match 76": (get_1st("Group C"), get_2nd("Group F")),
             "Match 77": (get_1st("Group I"), adm_wildcards[1]), "Match 78": (get_2nd("Group E"), get_2nd("Group I")),
-            "Match 79": (get_1st("Group A"), adm_wildcards[4]), "Match 80": (get_1st("Group L"), adm_wildcards[5]),
+            "Match 79": (get_1st("Group B"), adm_wildcards[6]), "Match 80": (get_1st("Group L"), adm_wildcards[5]),
             "Match 81": (get_1st("Group D"), adm_wildcards[2]), "Match 82": (get_1st("Group G"), adm_wildcards[3]),
             "Match 83": (get_2nd("Group K"), get_2nd("Group L")), "Match 84": (get_1st("Group H"), get_2nd("Group J")),
-            "Match 85": (get_1st("Group B"), adm_wildcards[6]), "Match 86": (get_1st("Group J"), get_2nd("Group H")),
+            "Match 85": (get_2nd("Group A"), get_2nd("Group B")), "Match 86": (get_1st("Group J"), get_2nd("Group H")),
             "Match 87": (get_1st("Group K"), adm_wildcards[7]), "Match 88": (get_2nd("Group D"), get_2nd("Group G"))
         }
         
         st.subheader("Verify Knockout Winners")
         
-        # Round of 32
         st.markdown("---")
         for m_id, (h, a) in adm_r32_pairings.items():
             actual["ko_winners"][m_id] = st.selectbox(f"Actual Winner: {m_id} ({h} vs {a})", [h, a], key=f"adm_w_{m_id}")
             
-        # Round of 16
         st.markdown("---")
         adm_r16_pairings = {
             "Match 89": (actual["ko_winners"].get("Match 74"), actual["ko_winners"].get("Match 77")),
@@ -482,7 +465,6 @@ elif app_tab == "🛠️ Admin Dashboard":
             if h and a:
                 actual["ko_winners"][m_id] = st.selectbox(f"Actual Winner: {m_id} ({h} vs {a})", [h, a], key=f"adm_w_{m_id}")
                 
-        # Quarter-Finals
         st.markdown("---")
         adm_qf_pairings = {
             "Match 97": (actual["ko_winners"].get("Match 89"), actual["ko_winners"].get("Match 90")),
@@ -494,7 +476,6 @@ elif app_tab == "🛠️ Admin Dashboard":
             if h and a:
                 actual["ko_winners"][m_id] = st.selectbox(f"Actual Winner: {m_id} ({h} vs {a})", [h, a], key=f"adm_w_{m_id}")
                 
-        # Finals Setup
         st.markdown("---")
         sf1_h, sf1_a = actual["ko_winners"].get("Match 97"), actual["ko_winners"].get("Match 98")
         sf2_h, sf2_a = actual["ko_winners"].get("Match 99"), actual["ko_winners"].get("Match 100")
