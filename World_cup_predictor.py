@@ -25,7 +25,7 @@ st.markdown("""
         color: #f1f5f9 !important;
     }
     
-    /* FIX: Force the sidebar text to remain dark charcoal so it is readable on mobile and desktop layouts */
+    /* Force the sidebar text to remain dark charcoal so it is readable on mobile and desktop layouts */
     [data-testid="stSidebar"] *, [data-testid="stSidebar"] p, [data-testid="stSidebar"] label, [data-testid="stSidebar"] span {
         color: #1e293b !important;
         font-weight: 500;
@@ -41,16 +41,27 @@ st.markdown("""
         color: #f1f5f9 !important;
     }
     
-    /* Floating Glassmorphism Match Card Style */
+    /* Master Glassmorphism Match Card Style - Now wraps the entire fixture block */
     .match-card {
-        background: rgba(255, 255, 255, 0.07);
+        background: rgba(255, 255, 255, 0.06);
         backdrop-filter: blur(16px);
         -webkit-backdrop-filter: blur(16px);
         border-radius: 16px;
         border: 1px solid rgba(255, 255, 255, 0.12);
-        padding: 20px;
-        margin-bottom: 20px;
+        padding: 24px;
+        margin-bottom: 28px;
         box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.4);
+    }
+    
+    /* Clean text block styling for team headers inside the fixture */
+    .team-display-box {
+        background: rgba(255, 255, 255, 0.04);
+        border: 1px solid rgba(255, 255, 255, 0.08);
+        border-radius: 12px;
+        padding: 12px;
+        margin-bottom: 10px;
+        margin-top: 10px;
+        width: 100%;
     }
     
     /* Mobile-Responsive Flexbox Match Layout Row */
@@ -61,36 +72,28 @@ st.markdown("""
         justify-content: center;
         width: 100%;
         text-align: center;
-        gap: 8px;
+        gap: 4px;
     }
     
     /* Custom Stylized Team Label */
     .team-title-label {
-        font-size: 1.15rem !important;
+        font-size: 1.25rem !important;
         font-weight: 700 !important;
         text-transform: uppercase !important;
         color: #ffffff !important;
         letter-spacing: 0.05em;
-        margin: 5px 0;
         text-align: center;
     }
     
     /* Versus Text Divider */
     .vs-divider {
-        font-size: 0.85rem;
+        font-size: 0.9rem;
         text-transform: uppercase;
-        opacity: 0.5;
-        font-weight: bold;
-        letter-spacing: 0.2em;
-        margin: 2px 0;
-    }
-    
-    /* Clean Divider Line */
-    hr {
-        border: 0;
-        height: 1px;
-        background: rgba(255, 255, 255, 0.15);
-        margin: 20px 0;
+        color: #94a3b8 !important;
+        font-weight: 800;
+        letter-spacing: 0.25em;
+        margin: 15px 0;
+        text-align: center;
     }
     
     /* Custom Badge for Locked States */
@@ -347,13 +350,14 @@ elif app_tab == "📝 Submit Predictions":
                 kh = f"{selected_group}_m{idx}_h"
                 ka = f"{selected_group}_m{idx}_a"
                 
-                # REWRITE: Built completely using native Flexbox blocks to prevent floating/wrapping text bugs on mobile layouts
+                # REWRITE: One master match-card container wraps the ENTIRE fixture details cleanly
                 st.markdown(f"""
                     <div class='match-card'>
                         <div class='mobile-match-container'>
-                            <div class='team-title-label'>{fmt_team(home)}</div>
+                            <div class='team-display-box'>
+                                <div class='team-title-label'>{fmt_team(home)}</div>
+                            </div>
                         </div>
-                    </div>
                 """, unsafe_allow_html=True)
                 
                 user_preds[kh] = st.number_input("Home Score", min_value=0, max_value=15, 
@@ -361,9 +365,9 @@ elif app_tab == "📝 Submit Predictions":
                                                   key=f"p_{kh}", disabled=is_group_locked)
                 
                 st.markdown("""
-                    <div class='mobile-match-container'>
-                        <div class='vs-divider'>versus</div>
-                    </div>
+                        <div class='mobile-match-container'>
+                            <div class='vs-divider'>VERSUS</div>
+                        </div>
                 """, unsafe_allow_html=True)
                 
                 user_preds[ka] = st.number_input("Away Score", min_value=0, max_value=15, 
@@ -371,12 +375,12 @@ elif app_tab == "📝 Submit Predictions":
                                                   key=f"p_{ka}", disabled=is_group_locked)
                 
                 st.markdown(f"""
-                    <div class='match-card' style='margin-top:10px;'>
                         <div class='mobile-match-container'>
-                            <div class='team-title-label'>{fmt_team(away)}</div>
+                            <div class='team-display-box'>
+                                <div class='team-title-label'>{fmt_team(away)}</div>
+                            </div>
                         </div>
                     </div>
-                    <hr>
                 """, unsafe_allow_html=True)
             
             if not is_group_locked:
