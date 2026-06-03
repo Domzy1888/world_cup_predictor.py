@@ -1,19 +1,19 @@
 import streamlit as st
 import pandas as pd
 
-# --- 1. CONFIGURATION & CLEAN DARK THEME STYLING ---
+# --- 1. CONFIGURATION & FULL COLOUR DARK THEME STYLING ---
 st.set_page_config(
     page_title="World Cup 2026 Prediction League",
     page_icon="🏆",
     layout="wide"
 )
 
-# Custom CSS: Removed all darts gold formatting. Back to clean whites, grays, and vivid team highlights.
+# Custom CSS: Restored full colour background image and removed ghost wrapper footprints
 st.markdown("""
     <style>
-    /* Background Image setup with dark overlay for readability */
+    /* Background Image setup - Full colour restored (Overlay transparency turned down to let original colors show) */
     .stApp {
-        background: linear-gradient(rgba(15, 23, 42, 0.85), rgba(15, 23, 42, 0.85)),
+        background: linear-gradient(rgba(15, 23, 42, 0.2), rgba(15, 23, 42, 0.4)),
                     url("https://cdn-media.theathletic.com/cdn-cgi/image/width=1000%2cquality=70%2cformat=auto/https://cdn-media.theathletic.com/vwYC1qZfTwfm_3qmyXkIC5Rja_1440x960.jpg");
         background-size: cover;
         background-position: center;
@@ -24,6 +24,7 @@ st.markdown("""
     html, body, [class*="st-"] p, label, .stMarkdown, .stText, [data-testid="stWidgetLabel"] p {
         color: #f8fafc !important;
         font-weight: 500 !important;
+        text-shadow: 1px 1px 3px rgba(0, 0, 0, 0.8);
     }
     
     h1, h2, h3, h4 {
@@ -31,12 +32,13 @@ st.markdown("""
         text-transform: uppercase;
         font-weight: 800 !important;
         letter-spacing: 0.5px;
+        text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.9);
     }
 
     /* Clean Semi-Transparent Content Panels */
     .glass-panel {
-        background: rgba(30, 41, 59, 0.7) !important;
-        border: 1px solid rgba(255, 255, 255, 0.1) !important;
+        background: rgba(15, 23, 42, 0.75) !important;
+        border: 1px solid rgba(255, 255, 255, 0.15) !important;
         border-radius: 12px !important;
         padding: 20px !important;
         margin-bottom: 20px !important;
@@ -44,9 +46,9 @@ st.markdown("""
 
     /* Input Element Styles */
     div[data-baseweb="select"] > div {
-        background-color: rgba(15, 23, 42, 0.9) !important;
+        background-color: rgba(15, 23, 42, 0.95) !important;
         color: white !important;
-        border: 1px solid rgba(255, 255, 255, 0.2) !important;
+        border: 1px solid rgba(255, 255, 255, 0.25) !important;
     }
     
     /* Button Layouts */
@@ -59,6 +61,7 @@ st.markdown("""
         border: none !important;
         border-radius: 6px !important;
         padding: 10px !important;
+        box-shadow: 0 4px 6px rgba(0,0,0,0.3);
     }
     
     div.stButton > button:hover {
@@ -67,7 +70,7 @@ st.markdown("""
     
     /* Lock Banner Indicator */
     .lock-badge-banner {
-        background-color: rgba(220, 38, 38, 0.85);
+        background-color: rgba(220, 38, 38, 0.9);
         color: #ffffff !important;
         border: 1px solid #ef4444;
         padding: 12px;
@@ -140,16 +143,12 @@ if "current_user" not in st.session_state:
 
 # --- 5. UNIFIED INTEGRATED MATCH CARD RENDERER ---
 def render_match_card(home, away, label, key_prefix, disabled=False, score_mode=False, scores_dict=None):
-    """
-    Renders unified match items where inputs and scores are fully enclosed inside 
-    the card structure without any leaking margins or floating wrappers.
-    """
     disp1 = fmt_team(home)
     disp2 = fmt_team(away)
     
-    # Outer unified card wrapper container
+    # Outer structural card
     st.markdown(f"""
-        <div style="border: 1px solid rgba(255,255,255,0.15); border-radius: 10px; background: rgba(15, 23, 42, 0.6); padding: 14px; margin-top: 10px; margin-bottom: 2px;">
+        <div style="border: 1px solid rgba(255,255,255,0.2); border-radius: 10px; background: rgba(15, 23, 42, 0.8); padding: 14px; margin-top: 10px; margin-bottom: 2px;">
             <div style="text-align: center; color: #94a3b8; font-size: 0.8rem; margin-bottom: 8px; font-weight: bold; text-transform: uppercase;">{label}</div>
             <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
                 <div style="text-align: left; width: 42%; font-weight: 700; color: white; font-size: 0.95rem;">{disp1}</div>
@@ -159,7 +158,6 @@ def render_match_card(home, away, label, key_prefix, disabled=False, score_mode=
         </div>
     """, unsafe_allow_html=True)
 
-    # Inputs are nested closely below the label with minimal spacer gaps
     if score_mode and scores_dict is not None:
         kh, ka = f"{key_prefix}_h", f"{key_prefix}_a"
         c1, c2 = st.columns(2)
@@ -294,9 +292,9 @@ elif app_tab == "📝 Submit Predictions":
     pred_sub_tabs = st.tabs(["📊 Group Matches Workspace", "🌳 Knockout Brackets"])
     
     with pred_sub_tabs[0]:
-        st.markdown('<div class="glass-panel">', unsafe_allow_html=True)
+        # FIX FOR `1000077543.jpg`: Removed the glass-panel markdown wrapper block entirely. 
+        # The dropdown now sits cleanly and directly in the natural flow without ghost layout footprints.
         selected_group = st.selectbox("Choose Group Stage Pool", list(GROUPS.keys()))
-        st.markdown('</div>', unsafe_allow_html=True)
         
         col_input, col_table = st.columns([1, 1])
         with col_input:
@@ -340,7 +338,6 @@ elif app_tab == "📝 Submit Predictions":
         def get_confirmed_1st(g): return u_results[g].iloc[0]["Team"] if g in u_results and not u_results[g].empty else f"1st {g}"
         def get_confirmed_2nd(g): return u_results[g].iloc[1]["Team"] if g in u_results and not u_results[g].empty else f"2nd {g}"
 
-        # FIX: Replaced the broken get_2nd typo with the correct get_confirmed_2nd function call
         o_r32 = {
             "Match 73": (get_confirmed_1st("Group A"), u_wildcards[4]), "Match 74": (get_confirmed_1st("Group E"), u_wildcards[0]),
             "Match 75": (get_confirmed_1st("Group F"), get_confirmed_2nd("Group C")), "Match 76": (get_confirmed_1st("Group C"), get_confirmed_2nd("Group F")),
@@ -418,21 +415,19 @@ elif app_tab == "🛠️ Admin Dashboard":
     actual = st.session_state.actual_results
     
     with admin_tabs[0]:
-        st.markdown('<div class="glass-panel">', unsafe_allow_html=True)
-        adm_group = st.selectbox("Verify Target Group Pool", list(GROUPS.keys()))
-        st.markdown('</div>', unsafe_allow_html=True)
+        selected_adm_group = st.selectbox("Verify Target Group Pool", list(GROUPS.keys()))
         
-        for idx, (home, away) in enumerate(MATCH_IDS[adm_group]):
+        for idx, (home, away) in enumerate(MATCH_IDS[selected_adm_group]):
             actual["group"] = render_match_card(
                 home=home,
                 away=away,
                 label=f"Match #{idx + 1} Actual Result",
-                key_prefix=f"{adm_group}_m{idx}",
+                key_prefix=f"{selected_adm_group}_m{idx}",
                 disabled=False,
                 score_mode=True,
                 scores_dict=actual["group"]
             )
-            if st.button("📢 Publish Match Result", key=f"btn_pub_{adm_group}_m{idx}", use_container_width=True):
+            if st.button("📢 Publish Match Result", key=f"btn_pub_{selected_adm_group}_m{idx}", use_container_width=True):
                 st.session_state.actual_results = actual
                 st.success("Standings updated instantly!")
             
