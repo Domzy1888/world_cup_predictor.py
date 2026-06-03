@@ -1,72 +1,80 @@
 import streamlit as st
 import pandas as pd
 
-# --- 1. CONFIGURATION & STYLING ---
+# --- 1. CONFIGURATION & CLEAN DARK THEME STYLING ---
 st.set_page_config(
     page_title="World Cup 2026 Prediction League",
     page_icon="🏆",
     layout="wide"
 )
 
-# Robust CSS: Structured strictly like your working darts app to prevent white-screen crashes
+# Custom CSS: Removed all darts gold formatting. Back to clean whites, grays, and vivid team highlights.
 st.markdown("""
     <style>
-    /* Background Image setup */
+    /* Background Image setup with dark overlay for readability */
     .stApp {
-        background: linear-gradient(rgba(0,0,0,0.65), rgba(0,0,0,0.65)),
+        background: linear-gradient(rgba(15, 23, 42, 0.85), rgba(15, 23, 42, 0.85)),
                     url("https://cdn-media.theathletic.com/cdn-cgi/image/width=1000%2cquality=70%2cformat=auto/https://cdn-media.theathletic.com/vwYC1qZfTwfm_3qmyXkIC5Rja_1440x960.jpg");
         background-size: cover;
         background-position: center;
         background-attachment: fixed;
     }
     
-    /* Global Font Contrast Overrides */
+    /* Global Typography - Crisp white & readable */
     html, body, [class*="st-"] p, label, .stMarkdown, .stText, [data-testid="stWidgetLabel"] p {
-        color: white !important;
+        color: #f8fafc !important;
         font-weight: 500 !important;
     }
     
     h1, h2, h3, h4 {
-        color: #C4B454 !important;
+        color: #ffffff !important;
         text-transform: uppercase;
-        font-weight: 900 !important;
+        font-weight: 800 !important;
+        letter-spacing: 0.5px;
     }
 
-    /* Transparent Global Wrapper Panel */
+    /* Clean Semi-Transparent Content Panels */
     .glass-panel {
-        background: rgba(15, 23, 42, 0.85) !important;
-        border: 1px solid rgba(255, 255, 255, 0.15) !important;
-        border-radius: 16px !important;
+        background: rgba(30, 41, 59, 0.7) !important;
+        border: 1px solid rgba(255, 255, 255, 0.1) !important;
+        border-radius: 12px !important;
         padding: 20px !important;
         margin-bottom: 20px !important;
     }
 
-    /* Dropdown/Selectbox overrides */
+    /* Input Element Styles */
     div[data-baseweb="select"] > div {
-        background-color: rgba(30, 30, 30, 0.9) !important;
+        background-color: rgba(15, 23, 42, 0.9) !important;
         color: white !important;
-        border: 1px solid #C4B454 !important;
+        border: 1px solid rgba(255, 255, 255, 0.2) !important;
     }
     
-    /* Button overrides */
+    /* Button Layouts */
     div.stButton > button {
-        background-color: #C4B454 !important;
-        color: black !important;
+        background-color: #2563eb !important;
+        color: white !important;
         font-weight: 700 !important;
         text-transform: uppercase;
         width: 100% !important;
-        border-radius: 4px;
+        border: none !important;
+        border-radius: 6px !important;
+        padding: 10px !important;
     }
     
+    div.stButton > button:hover {
+        background-color: #1d4ed8 !important;
+    }
+    
+    /* Lock Banner Indicator */
     .lock-badge-banner {
-        background-color: rgba(239, 68, 68, 0.85);
+        background-color: rgba(220, 38, 38, 0.85);
         color: #ffffff !important;
         border: 1px solid #ef4444;
         padding: 12px;
         border-radius: 8px;
         font-weight: bold;
         text-align: center;
-        margin-bottom: 15px;
+        margin-bottom: 20px;
     }
     </style>
 """, unsafe_allow_html=True)
@@ -130,32 +138,28 @@ if "actual_results" not in st.session_state:
 if "current_user" not in st.session_state:
     st.session_state.current_user = None
 
-# --- 5. DARTS-INSPIRED MATCH CARD RENDERER ---
+# --- 5. UNIFIED INTEGRATED MATCH CARD RENDERER ---
 def render_match_card(home, away, label, key_prefix, disabled=False, score_mode=False, scores_dict=None):
     """
-    Replicates the exact, reliable layout logic from your Darts App.
-    The HTML container finishes rendering completely before any interactive 
-    Streamlit widgets are drawn below it.
+    Renders unified match items where inputs and scores are fully enclosed inside 
+    the card structure without any leaking margins or floating wrappers.
     """
     disp1 = fmt_team(home)
     disp2 = fmt_team(away)
     
+    # Outer unified card wrapper container
     st.markdown(f"""
-        <div style="border: 1px solid #C4B454; border-radius: 12px; background: rgba(20, 20, 20, 0.95); padding: 15px; margin-bottom: 10px; margin-top: 15px;">
-            <div style="text-align: center; color: #888; font-size: 0.8rem; margin-bottom: 5px; font-weight: bold;">{label}</div>
-            <div style="display: flex; justify-content: space-around; align-items: center;">
-                <div style="text-align: center; width: 45%;">
-                    <div style="font-weight:900; color: white;">{disp1}</div>
-                </div>
-                <div style="color: #C4B454; font-weight: 900; font-size: 1.2rem;">VS</div>
-                <div style="text-align: center; width: 45%;">
-                    <div style="font-weight:900; color: white;">{disp2}</div>
-                </div>
+        <div style="border: 1px solid rgba(255,255,255,0.15); border-radius: 10px; background: rgba(15, 23, 42, 0.6); padding: 14px; margin-top: 10px; margin-bottom: 2px;">
+            <div style="text-align: center; color: #94a3b8; font-size: 0.8rem; margin-bottom: 8px; font-weight: bold; text-transform: uppercase;">{label}</div>
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
+                <div style="text-align: left; width: 42%; font-weight: 700; color: white; font-size: 0.95rem;">{disp1}</div>
+                <div style="color: #94a3b8; font-weight: 800; font-size: 0.9rem; width: 16%; text-align: center;">VS</div>
+                <div style="text-align: right; width: 42%; font-weight: 700; color: white; font-size: 0.95rem;">{disp2}</div>
             </div>
         </div>
     """, unsafe_allow_html=True)
 
-    # Render inputs directly below the closed HTML block, matching the Darts app configuration
+    # Inputs are nested closely below the label with minimal spacer gaps
     if score_mode and scores_dict is not None:
         kh, ka = f"{key_prefix}_h", f"{key_prefix}_a"
         c1, c2 = st.columns(2)
@@ -168,7 +172,7 @@ def render_match_card(home, away, label, key_prefix, disabled=False, score_mode=
         options = ["Select Winner", home, away]
         curr = scores_dict.get(key_prefix, home) if scores_dict else home
         idx_val = options.index(curr) if curr in options else 0
-        return st.selectbox("Winner", options, index=idx_val, format_func=fmt_team, key=f"sel_{key_prefix}", label_visibility="collapsed", disabled=disabled)
+        return st.selectbox("Winner Selection", options, index=idx_val, format_func=fmt_team, key=f"sel_{key_prefix}", label_visibility="collapsed", disabled=disabled)
 
 # --- 6. COMPUTATION ENGINES ---
 def run_standings_engine(scores_dict):
@@ -258,7 +262,7 @@ if c_user not in st.session_state.locked_groups: st.session_state.locked_groups[
 
 col_nav1, col_nav2 = st.columns([8, 2])
 with col_nav1:
-    st.markdown(f"👥 Account: **{c_user}** " + ("<span style='color:#C4B454;'>(🛠️ Admin)</span>" if st.session_state.users[c_user]["is_admin"] else ""), unsafe_allow_html=True)
+    st.markdown(f"👥 Account User: **{c_user}** " + ("<span style='color:#3b82f6;'>(🛠️ Admin)</span>" if st.session_state.users[c_user]["is_admin"] else ""), unsafe_allow_html=True)
 with col_nav2:
     if st.button("🚪 Log Out", use_container_width=True):
         st.session_state.current_user = None
@@ -274,14 +278,14 @@ user_preds = st.session_state.predictions[c_user]
 # --- 9. LEADERBOARD WORKSPACE ---
 if app_tab == "🏆 Leaderboard":
     st.markdown('<div class="glass-panel">', unsafe_allow_html=True)
-    st.header("🏆 Active Standings Leaderboard")
+    st.header("🏆 Prediction League Leaderboard")
     leaderboard_data = [{"Competitor Name": u, "Current Total Points": calculate_user_points(u)} for u, info in st.session_state.users.items() if not info["is_admin"]]
     df_leaderboard = pd.DataFrame(leaderboard_data)
     if not df_leaderboard.empty:
         df_leaderboard = df_leaderboard.sort_values(by="Current Total Points", ascending=False).reset_index(drop=True)
         df_leaderboard.index += 1
         st.dataframe(df_leaderboard, use_container_width=True)
-    else: st.info("No prediction metrics recorded.")
+    else: st.info("No competitor records found.")
     st.markdown('</div>', unsafe_allow_html=True)
 
 # --- 10. USER PREDICTIONS DESK ---
@@ -292,18 +296,17 @@ elif app_tab == "📝 Submit Predictions":
     with pred_sub_tabs[0]:
         st.markdown('<div class="glass-panel">', unsafe_allow_html=True)
         selected_group = st.selectbox("Choose Group Stage Pool", list(GROUPS.keys()))
-        is_group_locked = selected_group in st.session_state.locked_groups[c_user]
         st.markdown('</div>', unsafe_allow_html=True)
         
         col_input, col_table = st.columns([1, 1])
         with col_input:
+            is_group_locked = selected_group in st.session_state.locked_groups[c_user]
             if is_group_locked:
                 st.markdown(f"<div class='lock-badge-banner'>🔒 {selected_group} Locked In</div>", unsafe_allow_html=True)
             else:
                 st.markdown("<div style='color:#34d399; margin-bottom:15px; font-weight:bold; font-size:1.1rem; text-align:center;'>🔓 Unlocked - Edits Allowed</div>", unsafe_allow_html=True)
                 
             for idx, (home, away) in enumerate(MATCH_IDS[selected_group]):
-                # Call clean layout renderer derived directly from darts app functionality
                 user_preds = render_match_card(
                     home=home, 
                     away=away, 
@@ -315,11 +318,13 @@ elif app_tab == "📝 Submit Predictions":
                 )
             
             if not is_group_locked:
+                st.markdown("<div style='margin-top:15px;'>", unsafe_allow_html=True)
                 if st.button(f"🔒 Lock In {selected_group} Predictions", use_container_width=True):
                     st.session_state.locked_groups[c_user].append(selected_group)
                     st.session_state.predictions[c_user] = user_preds
-                    st.success(f"{selected_group} Predictions Locked!")
+                    st.success(f"{selected_group} Locked Successfully!")
                     st.rerun()
+                st.markdown("</div>", unsafe_allow_html=True)
                 
         with col_table:
             st.markdown(f'<div class="glass-panel">', unsafe_allow_html=True)
@@ -335,6 +340,7 @@ elif app_tab == "📝 Submit Predictions":
         def get_confirmed_1st(g): return u_results[g].iloc[0]["Team"] if g in u_results and not u_results[g].empty else f"1st {g}"
         def get_confirmed_2nd(g): return u_results[g].iloc[1]["Team"] if g in u_results and not u_results[g].empty else f"2nd {g}"
 
+        # FIX: Replaced the broken get_2nd typo with the correct get_confirmed_2nd function call
         o_r32 = {
             "Match 73": (get_confirmed_1st("Group A"), u_wildcards[4]), "Match 74": (get_confirmed_1st("Group E"), u_wildcards[0]),
             "Match 75": (get_confirmed_1st("Group F"), get_confirmed_2nd("Group C")), "Match 76": (get_confirmed_1st("Group C"), get_confirmed_2nd("Group F")),
@@ -343,7 +349,7 @@ elif app_tab == "📝 Submit Predictions":
             "Match 81": (get_confirmed_1st("Group D"), u_wildcards[2]), "Match 82": (get_confirmed_1st("Group G"), u_wildcards[3]),
             "Match 83": (get_confirmed_2nd("Group K"), get_confirmed_2nd("Group L")), "Match 84": (get_confirmed_1st("Group H"), get_confirmed_2nd("Group J")),
             "Match 85": (get_confirmed_2nd("Group A"), get_confirmed_2nd("Group B")), "Match 86": (get_confirmed_1st("Group J"), get_confirmed_2nd("Group H")),
-            "Match 87": (get_confirmed_1st("Group K"), u_wildcards[7]), "Match 88": (get_confirmed_2nd("Group D"), get_2nd("Group G"))
+            "Match 87": (get_confirmed_1st("Group K"), u_wildcards[7]), "Match 88": (get_confirmed_2nd("Group D"), get_confirmed_2nd("Group G"))
         }
         
         ko_tabs = st.tabs(["Round of 32", "Round of 16", "Quarter-Finals", "Finals"])
