@@ -8,7 +8,7 @@ st.set_page_config(
     layout="wide"
 )
 
-# Custom CSS: Full colour background image with crisp, uncorrupted layout components
+# Custom CSS: Cleaned thoroughly to eliminate any empty/ghost row borders.
 st.markdown("""
     <style>
     /* Background Image setup - Full colour */
@@ -35,13 +35,13 @@ st.markdown("""
         text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.9);
     }
 
-    /* Clean Semi-Transparent Content Panels */
-    .glass-panel {
+    /* Target explicit functional elements for panels instead of raw floating div rows */
+    [data-testid="stExpander"], [data-testid="stTabContent"], .stTabs {
         background: rgba(15, 23, 42, 0.75) !important;
         border: 1px solid rgba(255, 255, 255, 0.15) !important;
         border-radius: 12px !important;
-        padding: 20px !important;
-        margin-bottom: 20px !important;
+        padding: 16px !important;
+        margin-bottom: 16px !important;
     }
 
     /* Input Element Styles */
@@ -230,28 +230,27 @@ def calculate_user_points(username):
 
 # --- 7. SIGN IN GATEWAY ---
 if st.session_state.current_user is None:
-    st.markdown('<div class="glass-panel">', unsafe_allow_html=True)
-    st.title("🔐 Tournament Sign-In")
-    t1, t2 = st.tabs(["Login", "Create Account"])
-    with t1:
-        lin_user = st.text_input("Username")
-        lin_pass = st.text_input("Password", type="password")
-        if st.button("Log In", use_container_width=True):
-            if lin_user in st.session_state.users and st.session_state.users[lin_user]["password"] == lin_pass:
-                st.session_state.current_user = lin_user
-                st.rerun()
-            else: st.error("Invalid credentials.")
-    with t2:
-        reg_user = st.text_input("Choose Username")
-        reg_pass = st.text_input("Choose Password", type="password")
-        if st.button("Register Account", use_container_width=True):
-            if reg_user.strip() == "" or reg_pass.strip() == "": st.error("Fields cannot be empty.")
-            elif reg_user in st.session_state.users: st.error("Username already exists.")
-            else:
-                st.session_state.users[reg_user] = {"password": reg_pass, "is_admin": False}
-                st.success("Registered! Log in on the left tab.")
-    # FIX FOR `1000077546.jpg`: Closed the HTML division explicitly BEFORE stopping execution to kill the empty bottom block.
-    st.markdown('</div>', unsafe_allow_html=True)
+    # CLEAN FIX: Unified cleanly using native column card wrappers instead of manual HTML elements
+    with st.container():
+        st.title("🔐 Tournament Sign-In")
+        t1, t2 = st.tabs(["Login", "Create Account"])
+        with t1:
+            lin_user = st.text_input("Username")
+            lin_pass = st.text_input("Password", type="password")
+            if st.button("Log In", use_container_width=True):
+                if lin_user in st.session_state.users and st.session_state.users[lin_user]["password"] == lin_pass:
+                    st.session_state.current_user = lin_user
+                    st.rerun()
+                else: st.error("Invalid credentials.")
+        with t2:
+            reg_user = st.text_input("Choose Username")
+            reg_pass = st.text_input("Choose Password", type="password")
+            if st.button("Register Account", use_container_width=True):
+                if reg_user.strip() == "" or reg_pass.strip() == "": st.error("Fields cannot be empty.")
+                elif reg_user in st.session_state.users: st.error("Username already exists.")
+                else:
+                    st.session_state.users[reg_user] = {"password": reg_pass, "is_admin": False}
+                    st.success("Registered! Log in on the left tab.")
     st.stop()
 
 # --- 8. NAVIGATION SETUP ---
@@ -275,20 +274,18 @@ user_preds = st.session_state.predictions[c_user]
 
 # --- 9. LEADERBOARD WORKSPACE ---
 if app_tab == "🏆 Leaderboard":
-    st.markdown('<div class="glass-panel">', unsafe_allow_html=True)
-    st.header("🏆 Prediction League Leaderboard")
-    leaderboard_data = [{"Competitor Name": u, "Current Total Points": calculate_user_points(u)} for u, info in st.session_state.users.items() if not info["is_admin"]]
-    df_leaderboard = pd.DataFrame(leaderboard_data)
-    if not df_leaderboard.empty:
-        df_leaderboard = df_leaderboard.sort_values(by="Current Total Points", ascending=False).reset_index(drop=True)
-        df_leaderboard.index += 1
-        st.dataframe(df_leaderboard, use_container_width=True)
-    else: st.info("No competitor records found.")
-    st.markdown('</div>', unsafe_allow_html=True)
+    with st.container():
+        st.header("🏆 Prediction League Leaderboard")
+        leaderboard_data = [{"Competitor Name": u, "Current Total Points": calculate_user_points(u)} for u, info in st.session_state.users.items() if not info["is_admin"]]
+        df_leaderboard = pd.DataFrame(leaderboard_data)
+        if not df_leaderboard.empty:
+            df_leaderboard = df_leaderboard.sort_values(by="Current Total Points", ascending=False).reset_index(drop=True)
+            df_leaderboard.index += 1
+            st.dataframe(df_leaderboard, use_container_width=True)
+        else: st.info("No competitor records found.")
 
 # --- 10. USER PREDICTIONS DESK ---
 elif app_tab == "📝 Submit Predictions":
-    # RE-WORDED: Changed "Player Prediction Desk" to "Match Predictions" as requested
     st.header("📝 Match Predictions")
     pred_sub_tabs = st.tabs(["📊 Group Matches Workspace", "🌳 Knockout Brackets"])
     
@@ -315,7 +312,6 @@ elif app_tab == "📝 Submit Predictions":
                 )
             
             if not is_group_locked:
-                # FIX FOR `1000077545.jpg`: Removed the dangling un-opened </div> wrapper tag from this block completely.
                 if st.button(f"🔒 Lock In {selected_group} Predictions", use_container_width=True):
                     st.session_state.locked_groups[c_user].append(selected_group)
                     st.session_state.predictions[c_user] = user_preds
@@ -323,13 +319,11 @@ elif app_tab == "📝 Submit Predictions":
                     st.rerun()
                 
         with col_table:
-            st.markdown(f'<div class="glass-panel">', unsafe_allow_html=True)
             st.subheader("Simulated Group Table")
             u_results, _ = run_standings_engine(user_preds)
             df_display = u_results[selected_group][["Team", "Pts", "GD", "GF"]].copy()
             df_display["Team"] = df_display["Team"].apply(fmt_team)
             st.dataframe(df_display, use_container_width=True, hide_index=True)
-            st.markdown('</div>', unsafe_allow_html=True)
 
     with pred_sub_tabs[1]:
         u_results, u_wildcards = run_standings_engine(user_preds)
@@ -372,7 +366,7 @@ elif app_tab == "📝 Submit Predictions":
                 "Match 97": (user_preds.get("Match 89", "W89"), user_preds.get("Match 90", "W90")),
                 "Match 98": (user_preds.get("Match 93", "W93"), user_preds.get("Match 94", "W94")),
                 "Match 99": (user_preds.get("Match 91", "W91"), user_preds.get("Match 92", "W92")),
-                "Match 100": (user_preds.get("Match 95", "W95"), user_preds.get("Match 96", "W96"))
+                "Match 100": (user_preds.get("Match 95", "W95"), user_preds.get("Match 100", "W100"))
             }
             for m_id, (h, a) in o_qf.items():
                 user_preds[m_id] = render_match_card(h, a, m_id, m_id, disabled=False, score_mode=False, scores_dict=user_preds)
@@ -381,7 +375,6 @@ elif app_tab == "📝 Submit Predictions":
             sf1_h, sf1_a = user_preds.get("Match 97", "W97"), user_preds.get("Match 98", "W98")
             sf2_h, sf2_a = user_preds.get("Match 99", "W99"), user_preds.get("Match 100", "W100")
             
-            st.markdown(f'<div class="glass-panel">', unsafe_allow_html=True)
             st.markdown("### 🌿 Championship Finals Panel")
             
             sf1_opts = [sf1_h, sf1_a]
@@ -400,7 +393,6 @@ elif app_tab == "📝 Submit Predictions":
             st.markdown("<hr style='border-color:rgba(255,255,255,0.1);'>", unsafe_allow_html=True)
             f_opts = [user_preds["Match 101"], user_preds["Match 102"]]
             user_preds["Match 104"] = st.selectbox("🥇 Grand Champion Prediction", f_opts, index=f_opts.index(user_preds.get("Match 104", f_opts[0])) if user_preds.get("Match 104", f_opts[0]) in f_opts else 0, format_func=fmt_team)
-            st.markdown('</div>', unsafe_allow_html=True)
                 
         if st.button("💾 Archive Complete Bracket Matrix", use_container_width=True):
             st.session_state.predictions[c_user] = user_preds
