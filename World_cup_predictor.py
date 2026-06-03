@@ -8,7 +8,6 @@ st.set_page_config(
     layout="wide"
 )
 
-# Custom CSS: Cleaned thoroughly to eliminate any empty/ghost row borders.
 st.markdown("""
     <style>
     /* Background Image setup - Full colour */
@@ -101,7 +100,7 @@ FLAGS = {
 def fmt_team(name):
     return FLAGS.get(name, name.upper())
 
-# --- 3. DATA STRUCTURES ---
+# --- 3. DATA STRUCTURES (GROUPS & CHRONOLOGICAL FIXTURES) ---
 GROUPS = {
     "Group A": ["Mexico", "South Africa", "Rep. of Korea", "Czech Rep."],
     "Group B": ["Canada", "Bosnia/Herzeg.", "Qatar", "Switzerland"],
@@ -117,13 +116,105 @@ GROUPS = {
     "Group L": ["England", "Croatia", "Ghana", "Panama"]
 }
 
-MATCH_IDS = {}
-for g_name, teams in GROUPS.items():
-    MATCH_IDS[g_name] = [
-        (teams[0], teams[1]), (teams[2], teams[3]),
-        (teams[0], teams[2]), (teams[1], teams[3]),
-        (teams[0], teams[3]), (teams[1], teams[2])
+# Real-world chronological mapping with absolute FIFA Match Numbers and home/away designations
+CHRONO_MATCHES = {
+    "Group A": [
+        {"id": 1, "home": "Mexico", "away": "South Africa"},
+        {"id": 2, "home": "Rep. of Korea", "away": "Czech Rep."},
+        {"id": 25, "home": "Czech Rep.", "away": "South Africa"},
+        {"id": 28, "home": "Mexico", "away": "Rep. of Korea"},
+        {"id": 49, "home": "Czech Rep.", "away": "Mexico"},
+        {"id": 50, "home": "South Africa", "away": "Rep. of Korea"}
+    ],
+    "Group B": [
+        {"id": 3, "home": "Canada", "away": "Bosnia/Herzeg."},
+        {"id": 5, "home": "Qatar", "away": "Switzerland"},
+        {"id": 26, "home": "Switzerland", "away": "Bosnia/Herzeg."},
+        {"id": 27, "home": "Canada", "away": "Qatar"},
+        {"id": 51, "home": "Switzerland", "away": "Canada"},
+        {"id": 52, "home": "Bosnia/Herzeg.", "away": "Qatar"}
+    ],
+    "Group C": [
+        {"id": 6, "home": "Brazil", "away": "Morocco"},
+        {"id": 7, "home": "Haiti", "away": "Scotland"},
+        {"id": 30, "home": "Scotland", "away": "Morocco"},
+        {"id": 31, "home": "Brazil", "away": "Haiti"},
+        {"id": 53, "home": "Scotland", "away": "Brazil"},
+        {"id": 54, "home": "Morocco", "away": "Haiti"}
+    ],
+    "Group D": [
+        {"id": 4, "home": "USA", "away": "Paraguay"},
+        {"id": 8, "home": "Australia", "away": "Turkey"},
+        {"id": 29, "home": "USA", "away": "Australia"},
+        {"id": 32, "home": "Turkey", "away": "Paraguay"},
+        {"id": 55, "home": "Turkey", "away": "USA"},
+        {"id": 56, "home": "Paraguay", "away": "Australia"}
+    ],
+    "Group E": [
+        {"id": 9, "home": "Germany", "away": "Curaçao"},
+        {"id": 11, "home": "Ivory Coast", "away": "Ecuador"},
+        {"id": 34, "home": "Germany", "away": "Ivory Coast"},
+        {"id": 35, "home": "Ecuador", "away": "Curaçao"},
+        {"id": 57, "home": "Ecuador", "away": "Germany"},
+        {"id": 58, "home": "Curaçao", "away": "Ivory Coast"}
+    ],
+    "Group F": [
+        {"id": 10, "home": "Netherlands", "away": "Japan"},
+        {"id": 12, "home": "Sweden", "away": "Tunisia"},
+        {"id": 33, "home": "Netherlands", "away": "Sweden"},
+        {"id": 36, "home": "Tunisia", "away": "Japan"},
+        {"id": 59, "home": "Tunisia", "away": "Netherlands"},
+        {"id": 60, "home": "Japan", "away": "Sweden"}
+    ],
+    "Group G": [
+        {"id": 14, "home": "Belgium", "away": "Egypt"},
+        {"id": 16, "home": "IR Iran", "away": "New Zealand"},
+        {"id": 38, "home": "Belgium", "away": "IR Iran"},
+        {"id": 40, "home": "New Zealand", "away": "Egypt"},
+        {"id": 61, "home": "New Zealand", "away": "Belgium"},
+        {"id": 62, "home": "Egypt", "away": "IR Iran"}
+    ],
+    "Group H": [
+        {"id": 13, "home": "Spain", "away": "Cape Verde"},
+        {"id": 15, "home": "Saudi Arabia", "away": "Uruguay"},
+        {"id": 37, "home": "Spain", "away": "Saudi Arabia"},
+        {"id": 39, "home": "Uruguay", "away": "Cape Verde"},
+        {"id": 63, "home": "Uruguay", "away": "Spain"},
+        {"id": 64, "home": "Cape Verde", "away": "Saudi Arabia"}
+    ],
+    "Group I": [
+        {"id": 17, "home": "France", "away": "Senegal"},
+        {"id": 18, "home": "Iraq", "away": "Norway"},
+        {"id": 41, "home": "France", "away": "Iraq"},
+        {"id": 42, "home": "Norway", "away": "Senegal"},
+        {"id": 65, "home": "Norway", "away": "France"},
+        {"id": 66, "home": "Senegal", "away": "Iraq"}
+    ],
+    "Group J": [
+        {"id": 19, "home": "Argentina", "away": "Algeria"},
+        {"id": 20, "home": "Austria", "away": "Jordan"},
+        {"id": 43, "home": "Argentina", "away": "Austria"},
+        {"id": 44, "home": "Jordan", "away": "Algeria"},
+        {"id": 67, "home": "Jordan", "away": "Argentina"},
+        {"id": 68, "home": "Algeria", "away": "Austria"}
+    ],
+    "Group K": [
+        {"id": 21, "home": "Portugal", "away": "DR Congo"},
+        {"id": 24, "home": "Uzbekistan", "away": "Colombia"},
+        {"id": 45, "home": "Portugal", "away": "Uzbekistan"},
+        {"id": 46, "home": "Colombia", "away": "DR Congo"},
+        {"id": 69, "home": "Colombia", "away": "Portugal"},
+        {"id": 70, "home": "DR Congo", "away": "Uzbekistan"}
+    ],
+    "Group L": [
+        {"id": 22, "home": "England", "away": "Croatia"},
+        {"id": 23, "home": "Ghana", "away": "Panama"},
+        {"id": 47, "home": "England", "away": "Ghana"},
+        {"id": 48, "home": "Panama", "away": "Croatia"},
+        {"id": 71, "home": "Panama", "away": "England"},
+        {"id": 72, "home": "Croatia", "away": "Ghana"}
     ]
+}
 
 # --- 4. SESSION INITIALIZATION ---
 if "users" not in st.session_state:
@@ -177,8 +268,11 @@ def run_standings_engine(scores_dict):
     third_place_pool = []
     for g_name, teams in GROUPS.items():
         standings = {t: {"Group": g_name, "Pts": 0, "GD": 0, "GF": 0} for t in teams}
-        for idx, (home, away) in enumerate(MATCH_IDS[g_name]):
-            kh, ka = f"{g_name}_m{idx}_h", f"{g_name}_m{idx}_a"
+        for match in CHRONO_MATCHES[g_name]:
+            m_id = match["id"]
+            home = match["home"]
+            away = match["away"]
+            kh, ka = f"Match_{m_id}_h", f"Match_{m_id}_a"
             h_score = scores_dict.get(kh, 0)
             a_score = scores_dict.get(ka, 0)
             standings[home]["GF"] += h_score
@@ -206,9 +300,10 @@ def calculate_user_points(username):
     user_preds = st.session_state.predictions.get(username, {})
     actual = st.session_state.actual_results
     points = 0
-    for g_name, matches in MATCH_IDS.items():
-        for idx, (home, away) in enumerate(matches):
-            kh, ka = f"{g_name}_m{idx}_h", f"{g_name}_m{idx}_a"
+    for g_name, matches in CHRONO_MATCHES.items():
+        for match in matches:
+            m_id = match["id"]
+            kh, ka = f"Match_{m_id}_h", f"Match_{m_id}_a"
             p_h, p_a = user_preds.get(kh, None), user_preds.get(ka, None)
             a_h, a_a = actual["group"].get(kh, None), actual["group"].get(ka, None)
             if p_h is not None and p_a is not None and a_h is not None and a_a is not None:
@@ -230,7 +325,6 @@ def calculate_user_points(username):
 
 # --- 7. SIGN IN GATEWAY ---
 if st.session_state.current_user is None:
-    # CLEAN FIX: Unified cleanly using native column card wrappers instead of manual HTML elements
     with st.container():
         st.title("🔐 Tournament Sign-In")
         t1, t2 = st.tabs(["Login", "Create Account"])
@@ -300,12 +394,12 @@ elif app_tab == "📝 Submit Predictions":
             else:
                 st.markdown("<div style='color:#34d399; margin-bottom:15px; font-weight:bold; font-size:1.1rem; text-align:center;'>🔓 Unlocked - Edits Allowed</div>", unsafe_allow_html=True)
                 
-            for idx, (home, away) in enumerate(MATCH_IDS[selected_group]):
+            for match in CHRONO_MATCHES[selected_group]:
                 user_preds = render_match_card(
-                    home=home, 
-                    away=away, 
-                    label=f"Match #{idx + 1}", 
-                    key_prefix=f"{selected_group}_m{idx}", 
+                    home=match["home"], 
+                    away=match["away"], 
+                    label=f"Match #{match['id']}", 
+                    key_prefix=f"Match_{match['id']}", 
                     disabled=is_group_locked,
                     score_mode=True,
                     scores_dict=user_preds
@@ -407,17 +501,17 @@ elif app_tab == "🛠️ Admin Dashboard":
     with admin_tabs[0]:
         selected_adm_group = st.selectbox("Verify Target Group Pool", list(GROUPS.keys()))
         
-        for idx, (home, away) in enumerate(MATCH_IDS[selected_adm_group]):
+        for match in CHRONO_MATCHES[selected_adm_group]:
             actual["group"] = render_match_card(
-                home=home,
-                away=away,
-                label=f"Match #{idx + 1} Actual Result",
-                key_prefix=f"{selected_adm_group}_m{idx}",
+                home=match["home"],
+                away=match["away"],
+                label=f"Match #{match['id']} Actual Result",
+                key_prefix=f"Match_{match['id']}",
                 disabled=False,
                 score_mode=True,
                 scores_dict=actual["group"]
             )
-            if st.button("📢 Publish Match Result", key=f"btn_pub_{selected_adm_group}_m{idx}", use_container_width=True):
+            if st.button("📢 Publish Match Result", key=f"btn_pub_Match_{match['id']}", use_container_width=True):
                 st.session_state.actual_results = actual
                 st.success("Standings updated instantly!")
             
