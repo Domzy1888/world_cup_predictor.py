@@ -8,10 +8,10 @@ st.set_page_config(
     layout="wide"
 )
 
-# Custom CSS: Restored full colour background image and removed ghost wrapper footprints
+# Custom CSS: Full colour background image with crisp, uncorrupted layout components
 st.markdown("""
     <style>
-    /* Background Image setup - Full colour restored (Overlay transparency turned down to let original colors show) */
+    /* Background Image setup - Full colour */
     .stApp {
         background: linear-gradient(rgba(15, 23, 42, 0.2), rgba(15, 23, 42, 0.4)),
                     url("https://cdn-media.theathletic.com/cdn-cgi/image/width=1000%2cquality=70%2cformat=auto/https://cdn-media.theathletic.com/vwYC1qZfTwfm_3qmyXkIC5Rja_1440x960.jpg");
@@ -146,7 +146,6 @@ def render_match_card(home, away, label, key_prefix, disabled=False, score_mode=
     disp1 = fmt_team(home)
     disp2 = fmt_team(away)
     
-    # Outer structural card
     st.markdown(f"""
         <div style="border: 1px solid rgba(255,255,255,0.2); border-radius: 10px; background: rgba(15, 23, 42, 0.8); padding: 14px; margin-top: 10px; margin-bottom: 2px;">
             <div style="text-align: center; color: #94a3b8; font-size: 0.8rem; margin-bottom: 8px; font-weight: bold; text-transform: uppercase;">{label}</div>
@@ -251,6 +250,7 @@ if st.session_state.current_user is None:
             else:
                 st.session_state.users[reg_user] = {"password": reg_pass, "is_admin": False}
                 st.success("Registered! Log in on the left tab.")
+    # FIX FOR `1000077546.jpg`: Closed the HTML division explicitly BEFORE stopping execution to kill the empty bottom block.
     st.markdown('</div>', unsafe_allow_html=True)
     st.stop()
 
@@ -288,12 +288,11 @@ if app_tab == "🏆 Leaderboard":
 
 # --- 10. USER PREDICTIONS DESK ---
 elif app_tab == "📝 Submit Predictions":
-    st.header("📝 Player Prediction Desk")
+    # RE-WORDED: Changed "Player Prediction Desk" to "Match Predictions" as requested
+    st.header("📝 Match Predictions")
     pred_sub_tabs = st.tabs(["📊 Group Matches Workspace", "🌳 Knockout Brackets"])
     
     with pred_sub_tabs[0]:
-        # FIX FOR `1000077543.jpg`: Removed the glass-panel markdown wrapper block entirely. 
-        # The dropdown now sits cleanly and directly in the natural flow without ghost layout footprints.
         selected_group = st.selectbox("Choose Group Stage Pool", list(GROUPS.keys()))
         
         col_input, col_table = st.columns([1, 1])
@@ -316,13 +315,12 @@ elif app_tab == "📝 Submit Predictions":
                 )
             
             if not is_group_locked:
-                st.markdown("<div style='margin-top:15px;'>", unsafe_allow_html=True)
+                # FIX FOR `1000077545.jpg`: Removed the dangling un-opened </div> wrapper tag from this block completely.
                 if st.button(f"🔒 Lock In {selected_group} Predictions", use_container_width=True):
                     st.session_state.locked_groups[c_user].append(selected_group)
                     st.session_state.predictions[c_user] = user_preds
                     st.success(f"{selected_group} Locked Successfully!")
                     st.rerun()
-                st.markdown("</div>", unsafe_allow_html=True)
                 
         with col_table:
             st.markdown(f'<div class="glass-panel">', unsafe_allow_html=True)
