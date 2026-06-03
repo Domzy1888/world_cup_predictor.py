@@ -7,10 +7,11 @@ import re
 from supabase import create_client, Client
 
 # --- 1. CONFIGURATION AND CONSTANTS ---
-st.set_page_config(page_title="🏆 Super League Predictor Dashboard", layout="wide", initial_sidebar_state="expanded")
+st.set_page_config(page_title="World Cup 2026 Prediction League", layout="wide", initial_sidebar_state="expanded")
 
-SUPABASE_URL = st.secrets["supabase"]["url"]
-SUPABASE_KEY = st.secrets["supabase"]["key"]
+# Fetching secrets from your updated format
+SUPABASE_URL = st.secrets["connections"]["supabase"]["url"]
+SUPABASE_KEY = st.secrets["connections"]["supabase"]["key"]
 supabase: Client = create_client(SUPABASE_URL, SUPABASE_KEY)
 
 GROUPS = {
@@ -53,7 +54,7 @@ for g_name, teams in GROUPS.items():
             match_id_counter += 1
     CHRONO_MATCHES[g_name] = g_matches
 
-# --- 2. CORE DATABASE UTILITIES ---
+# --- 2. DATABASE UTILITIES ---
 def db_hash_password(pwd: str) -> str:
     return hashlib.sha256(pwd.encode()).hexdigest()
 
@@ -68,38 +69,38 @@ def db_verify_user(username, password):
 def db_register_user(username, password):
     u_clean = username.strip()
     if not u_clean or len(password) < 4:
-        return False, "Invalid validation parameters."
+        return False, "Password must be at least 4 characters long."
     exist = supabase.table("users").select("id").eq("username", u_clean).execute()
     if exist.data and len(exist.data) > 0:
-        return False, "Username matches an active account footprint."
+        return False, "Username already exists."
     try:
         supabase.table("users").insert({"username": u_clean, "password_hash": db_hash_password(password)}).execute()
-        return True, "Registration successful."
+        return True, "Account created successfully!"
     except Exception as e:
-        return False, f"System error writing record: {str(e)}"
+        return False, f"Error saving user: {str(e)}"
 
 def db_create_league(name, passcode, owner_id):
     n_clean = name.strip()
     p_clean = passcode.strip()
     if not n_clean or not p_clean:
-        return False, "League parameters cannot be empty entries."
+        return False, "League name and passcode cannot be empty."
     try:
         res = supabase.table("leagues").insert({"name": n_clean, "passcode": p_clean, "creator_id": owner_id}).execute()
         if res.data and len(res.data) > 0:
             l_id = res.data[0]["id"]
             supabase.table("league_members").insert({"league_id": l_id, "user_id": owner_id}).execute()
             return True, l_id
-        return False, "Failed creation instance sequence."
+        return False, "Failed to create league."
     except Exception as e:
         return False, str(e)
 
 def db_join_league(name, passcode, user_id):
     res = supabase.table("leagues").select("id, passcode").eq("name", name.strip()).execute()
     if not res.data:
-        return False, "League definition not uncovered in records."
+        return False, "League not found."
     rec = res.data[0]
     if rec["passcode"] != passcode.strip():
-        return False, "Passcode misalignment caught."
+        return False, "Incorrect passcode."
     l_id = rec["id"]
     m_check = supabase.table("league_members").select("id").eq("league_id", l_id).eq("user_id", user_id).execute()
     if m_check.data:
@@ -178,10 +179,9 @@ def db_fetch_league_leaderboard(league_id):
         return pd.DataFrame(columns=["User", "Points"])
     return df.sort_values(by="Points", ascending=False)
 
-# --- 3. POINTS AND SCORING ENGINE ---
+# --- 3. SCORING ENGINE ---
 def calculate_user_points(user_preds, master_preds):
     pts = 0
-    # Group stage assessment logic
     for g_name, matches in CHRONO_MATCHES.items():
         for m in matches:
             mid = m["id"]
@@ -205,7 +205,6 @@ def calculate_user_points(user_preds, master_preds):
                 except:
                     pass
                     
-    # Knockout structures checks
     ko_keys = [f"Match {i}" for i in range(73, 105)]
     for kok in ko_keys:
         u_v = user_preds.get(kok)
@@ -214,7 +213,7 @@ def calculate_user_points(user_preds, master_preds):
             pts += 5
     return pts
 
-# --- 4. TOURNAMENT SIMULATION ENGINE ---
+# --- 4. TOURNAMENT SIMULATION ---
 def run_standings_engine(preds_dict):
     results = {}
     third_places = []
@@ -267,69 +266,155 @@ def run_standings_engine(preds_dict):
         
     return results, wildcards
 
-# --- 5. INTERFACE DESIGN SYSTEM (CSS) ---
+# --- 5. STYLING & BACKGROUND IMAGE ---
 st.markdown("""
     <style>
     html, body, [data-testid="stAppViewContainer"] {
-        background: linear-gradient(135deg, #0f172a 0%, #1e1b4b 100%) !important;
-        color: #f8fafc !important;
-        font-family: 'Inter', system-ui, -apple-system, sans-serif;
+        background-image: url("https://images.unsplash.com/photo-1508098682722-e99c43a406b2?auto=format&fit=crop&w=1920&q=80") !important;
+        background-size: cover !important;
+        background-position: center !important;
+        background-attachment: fixed !important;
+        color: #ffffff !important;
     }
     [data-testid="stSidebar"] {
-        background-color: #1e293b !important;
-        border-right: 1px solid rgba(255,255,255,0.1);
+        background-color: rgba(20, 30, 50, 0.95) !important;
+        border-right: 1px solid rgba(255, 255, 255, 0.1);
     }
     div.stButton > button {
-        background: linear-gradient(90deg, #4f46e5 0%, #7c3aed 100%) !important;
+        background-color: #1d4ed8 !important;
         color: white !important;
-        border: none !important;
-        padding: 10px 22px !important;
-        font-weight: 600 !important;
-        border-radius: 8px !important;
-        transition: all 0.25s ease;
-        box-shadow: 0 4px 12px rgba(79, 70, 229, 0.3);
+        border-radius: 6px !important;
+        font-weight: bold !important;
+        padding: 8px 20px !important;
     }
-    div.stButton > button:hover {
-        transform: translateY(-2px);
-        box-shadow: 0 6px 20px rgba(79, 70, 229, 0.5);
-    }
-    .lock-badge-banner {
-        background: rgba(239, 68, 68, 0.15);
-        border: 1px solid #ef4444;
+    .lock-banner {
+        background: rgba(220, 38, 38, 0.2);
+        border: 1px solid #dc2626;
         color: #fca5a5;
-        padding: 10px;
-        border-radius: 8px;
+        padding: 8px;
+        border-radius: 6px;
         text-align: center;
         font-weight: bold;
-        margin-bottom: 15px;
+        margin-bottom: 12px;
     }
     </style>
 """, unsafe_allow_html=True)
 
-# --- 6. GLOBAL FORMATTING ROUTINES ---
 def fmt_team(name):
     if not name:
         return "TBD"
     return f"{TEAM_FLAGS.get(name, '🏳️')} {name}"
 
-# --- 7. SESSION MANAGEMENT STATE CREATION ---
+# --- 6. SESSION STATE ---
 if "user_id" not in st.session_state: st.session_state.user_id = None
 if "username" not in st.session_state: st.session_state.username = None
 if "active_league_id" not in st.session_state: st.session_state.active_league_id = None
 if "active_league_name" not in st.session_state: st.session_state.active_league_name = None
 
-# --- 8. UNIFIED INTEGRATED MATCH CARD RENDERER ---
+# --- 7. SIDEBAR PANELS ---
+with st.sidebar:
+    st.markdown("<h2 style='text-align:center;'>Dashboard</h2>", unsafe_allow_html=True)
+    if st.session_state.user_id:
+        st.markdown(f"<p style='text-align:center;'>Logged in as: <b>{st.session_state.username}</b></p>", unsafe_allow_html=True)
+        leagues = db_get_user_leagues(st.session_state.user_id)
+        
+        if leagues:
+            l_names = [lg["name"] for lg in leagues]
+            if st.session_state.active_league_name in l_names:
+                sel_idx = l_names.index(st.session_state.active_league_name)
+            else:
+                sel_idx = 0
+                st.session_state.active_league_id = leagues[0]["id"]
+                st.session_state.active_league_name = leagues[0]["name"]
+                
+            chosen_l_name = st.selectbox("Active League", l_names, index=sel_idx)
+            for lg in leagues:
+                if lg["name"] == chosen_l_name:
+                    st.session_state.active_league_id = lg["id"]
+                    st.session_state.active_league_name = lg["name"]
+        
+        if st.button("Log Out", use_container_width=True):
+            st.session_state.user_id = None
+            st.session_state.username = None
+            st.session_state.active_league_id = None
+            st.session_state.active_league_name = None
+            st.rerun()
+
+# --- 8. ORIGINAL LOGIN / CREATE ACCOUNT SIGN-IN MATRIX ---
+if not st.session_state.user_id:
+    st.title("🏆 World Cup 2026 Prediction League")
+    
+    auth_tabs = st.tabs(["Login", "Create Account"])
+    
+    with auth_tabs[0]:
+        with st.form("login_form"):
+            li_user = st.text_input("Username").strip()
+            li_pass = st.text_input("Password", type="password")
+            if st.form_submit_button("Login"):
+                uid = db_verify_user(li_user, li_pass)
+                if uid:
+                    st.session_state.user_id = uid
+                    st.session_state.username = li_user
+                    st.rerun()
+                else:
+                    st.error("Invalid username or password.")
+                    
+    with auth_tabs[1]:
+        with st.form("reg_form"):
+            rg_user = st.text_input("Username").strip()
+            rg_pass = st.text_input("Password", type="password")
+            if st.form_submit_button("Create Account"):
+                ok, msg = db_register_user(rg_user, rg_pass)
+                if ok: st.success(msg)
+                else: st.error(msg)
+    st.stop()
+
+# --- 9. LEAGUE SETUP FRAMEWORK ---
+if not st.session_state.active_league_id:
+    st.title("Leagues")
+    st.markdown("Please create or join a league to continue.")
+    
+    l_tabs = st.tabs(["Create League", "Join League"])
+    
+    with l_tabs[0]:
+        with st.form("create_l_form"):
+            nl_name = st.text_input("League Name")
+            nl_pass = st.text_input("League Passcode", type="password")
+            if st.form_submit_button("Create"):
+                ok, res = db_create_league(nl_name, nl_pass, st.session_state.user_id)
+                if ok:
+                    st.session_state.active_league_id = res
+                    st.session_state.active_league_name = nl_name.strip()
+                    st.rerun()
+                else:
+                    st.error(f"Error creating league: {res}")
+                    
+    with l_tabs[1]:
+        with st.form("join_l_form"):
+            jl_name = st.text_input("League Name")
+            jl_pass = st.text_input("League Passcode", type="password")
+            if st.form_submit_button("Join"):
+                ok, res = db_join_league(jl_name, jl_pass, st.session_state.user_id)
+                if ok:
+                    st.session_state.active_league_id = res
+                    st.session_state.active_league_name = jl_name.strip()
+                    st.rerun()
+                else:
+                    st.error(f"Error joining league: {res}")
+    st.stop()
+
+# --- 10. UNIFIED MATCH CARD RENDERING ROUTINE ---
 def render_match_card(home, away, label, key_prefix, disabled=False, score_mode=False, scores_dict=None):
     disp1 = fmt_team(name=home)
     disp2 = fmt_team(name=away)
     
     st.markdown(f"""
-        <div style="border: 1px solid rgba(255,255,255,0.2); border-radius: 10px; background: rgba(15, 23, 42, 0.8); padding: 14px; margin-top: 10px; margin-bottom: 2px;">
-            <div style="text-align: center; color: #94a3b8; font-size: 0.8rem; margin-bottom: 8px; font-weight: bold; text-transform: uppercase;">{label}</div>
-            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
-                <div style="text-align: left; width: 42%; font-weight: 700; color: white; font-size: 0.95rem;">{disp1}</div>
-                <div style="color: #94a3b8; font-weight: 800; font-size: 0.9rem; width: 16%; text-align: center;">VS</div>
-                <div style="text-align: right; width: 42%; font-weight: 700; color: white; font-size: 0.95rem;">{disp2}</div>
+        <div style="border: 1px solid rgba(255,255,255,0.1); border-radius: 8px; background: rgba(15, 23, 42, 0.6); padding: 12px; margin-top: 8px; margin-bottom: 2px;">
+            <div style="text-align: center; color: #cbd5e1; font-size: 0.85rem; margin-bottom: 6px; font-weight: bold;">{label}</div>
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px;">
+                <div style="text-align: left; width: 45%; font-weight: bold; color: white;">{disp1}</div>
+                <div style="color: #94a3b8; font-weight: bold; width: 10%; text-align: center;">VS</div>
+                <div style="text-align: right; width: 45%; font-weight: bold; color: white;">{disp2}</div>
             </div>
         </div>
     """, unsafe_allow_html=True)
@@ -349,148 +434,41 @@ def render_match_card(home, away, label, key_prefix, disabled=False, score_mode=
     else:
         options = ["Select Winner", home, away]
         curr = scores_dict.get(key_prefix, "Select Winner") if scores_dict else "Select Winner"
-        
-        if curr not in options:
-            idx_val = 0
-        else:
-            idx_val = options.index(curr)
-            
-        val_select = st.selectbox("Winner Selection", options, index=idx_val, format_func=fmt_team, key=f"sel_{key_prefix}", label_visibility="collapsed", disabled=disabled)
+        idx_val = options.index(curr) if curr in options else 0
+        val_select = st.selectbox("Winner", options, index=idx_val, format_func=fmt_team, key=f"sel_{key_prefix}", label_visibility="collapsed", disabled=disabled)
         if scores_dict is not None:
             scores_dict[key_prefix] = val_select
         return val_select
 
-# --- 9. SIDEBAR WORKSPACE AND USER STATES ---
-with st.sidebar:
-    st.markdown("<h2 style='text-align:center; color:#818cf8;'>🏟️ Stadium Control</h2>", unsafe_allow_html=True)
-    if st.session_state.user_id:
-        st.markdown(f"<div style='text-align:center; margin-bottom:15px;'>Logged in as: <b>{st.session_state.username}</b></div>", unsafe_allow_html=True)
-        leagues = db_get_user_leagues(st.session_state.user_id)
-        
-        if leagues:
-            l_names = [lg["name"] for lg in leagues]
-            if st.session_state.active_league_name in l_names:
-                sel_idx = l_names.index(st.session_state.active_league_name)
-            else:
-                sel_idx = 0
-                st.session_state.active_league_id = leagues[0]["id"]
-                st.session_state.active_league_name = leagues[0]["name"]
-                
-            chosen_l_name = st.selectbox("Active League Workspace", l_names, index=sel_idx)
-            for lg in leagues:
-                if lg["name"] == chosen_l_name:
-                    st.session_state.active_league_id = lg["id"]
-                    st.session_state.active_league_name = lg["name"]
-        else:
-            st.warning("You aren't associated with a league system.")
-            
-        if st.button("🚪 Leave Session", use_container_width=True):
-            st.session_state.user_id = None
-            st.session_state.username = None
-            st.session_state.active_league_id = None
-            st.session_state.active_league_name = None
-            st.grid()
-            st.rerun()
-    else:
-        st.info("Authentication demanded on sidebar matrix layout.")
-
-# --- 10. AUTHENTICATION HUB ROUTINE ---
-if not st.session_state.user_id:
-    st.title("🏆 Super League Predictor Suite")
-    st.subheader("System Secure Matrix Validation")
-    
-    auth_tabs = st.tabs(["🔐 Secure Login Portal", "🎟️ Account Provisioning"])
-    
-    with auth_tabs[0]:
-        with st.form("login_form"):
-            li_user = st.text_input("Username").strip()
-            li_pass = st.text_input("Password", type="password")
-            submitted = st.form_submit_button("Enter Predictor System")
-            if submitted:
-                uid = db_verify_user(li_user, li_pass)
-                if uid:
-                    st.session_state.user_id = uid
-                    st.session_state.username = li_user
-                    st.success(f"Welcome back, operator {li_user}!")
-                    st.rerun()
-                else:
-                    st.error("Invalid account signatures or keys provided.")
-                    
-    with auth_tabs[1]:
-        with st.form("reg_form"):
-            rg_user = st.text_input("Desired Username").strip()
-            rg_pass = st.text_input("Secure Passkey Profile", type="password")
-            submitted = st.form_submit_button("Deploy Profile Credentials")
-            if submitted:
-                ok, msg = db_register_user(rg_user, rg_pass)
-                if ok: st.success(msg)
-                else: st.error(msg)
-    st.stop()
-
-# --- 11. LEAGUE MANAGEMENT PANEL ROUTINES ---
-if not st.session_state.active_league_id:
-    st.title("🛡️ League Generation Framework")
-    st.markdown("Your login is confirmed, but an operational room binding is required to proceed.")
-    
-    l_tabs = st.tabs(["✨ Generate New League", "🔑 Bind Pre-Existing League Key"])
-    
-    with l_tabs[0]:
-        with st.form("create_l_form"):
-            nl_name = st.text_input("League Nomenclature Signature")
-            nl_pass = st.text_input("Access Security Token", type="password")
-            if st.form_submit_button("Instantiate League Ecosystem"):
-                ok, res = db_create_league(nl_name, nl_pass, st.session_state.user_id)
-                if ok:
-                    st.session_state.active_league_id = res
-                    st.session_state.active_league_name = nl_name.strip()
-                    st.success("Ecosystem bound completely.")
-                    st.rerun()
-                else:
-                    st.error(f"Ecosystem setup fault detected: {res}")
-                    
-    with l_tabs[1]:
-        with st.form("join_l_form"):
-            jl_name = st.text_input("Target League Nomenclature Signature")
-            jl_pass = st.text_input("Access Token Validation Profile", type="password")
-            if st.form_submit_button("Synchronize Binding"):
-                ok, res = db_join_league(jl_name, jl_pass, st.session_state.user_id)
-                if ok:
-                    st.session_state.active_league_id = res
-                    st.session_state.active_league_name = jl_name.strip()
-                    st.success("Binding verified safely.")
-                    st.rerun()
-                else:
-                    st.error(f"Ecosystem mismatch mapping error: {res}")
-    st.stop()
-
-# --- 12. DESKTOP WORKSPACE LAYOUT SECTIONS ---
+# --- 11. MAIN WORKSPACE APP INTERFACE ---
 c_uid = st.session_state.user_id
 active_league_id = st.session_state.active_league_id
 selected_league_name = st.session_state.active_league_name
 
 app_tab = st.radio(
-    "Ecosystem Navigation Array",
-    ["📊 League Arena Leaderboard", "📝 Submit Predictions", "⚙️ Admin Controls Engine"],
+    "Navigation",
+    ["Leaderboard", "Match Predictions Matrix", "Admin Controls"],
     horizontal=True, label_visibility="collapsed"
 )
 
-# --- 13. MASTER LEAGUE ARENA LEADERS PANEL ---
-if app_tab == "📊 League Arena Leaderboard":
-    st.header(f"📊 Live Standings Arena — {selected_league_name}")
+# --- TAB 1: LEADERBOARD ---
+if app_tab == "Leaderboard":
+    st.header(f"Leaderboard — {selected_league_name}")
     ld_df = db_fetch_league_leaderboard(active_league_id)
     if not ld_df.empty:
         st.dataframe(ld_df, use_container_width=True, hide_index=True)
     else:
-        st.info("No active matrix metrics compiled for this league group yet.")
+        st.info("No prediction data recorded yet.")
 
-# --- 16. USER PREDICTIONS DESK (FORM BATCHING GENERATION) ---
-elif app_tab == "📝 Submit Predictions":
-    st.header(f"📝 Match Setup — {selected_league_name}")
+# --- TAB 2: MATCH PREDICTIONS MATRIX (FORM BATCH SAVING ACTIVE) ---
+elif app_tab == "Match Predictions Matrix":
+    st.header("📝 MATCH PREDICTIONS MATRIX")
+    st.markdown(f"**Active Submission Context League:** {selected_league_name}")
     
     user_preds = db_fetch_user_predictions(c_uid, active_league_id)
     locked_keys_set = db_fetch_locked_status(c_uid, active_league_id)
     
-    pred_sub_tabs = st.tabs(["📊 Group Matches Workspace", "🌳 Knockout Brackets"])
+    pred_sub_tabs = st.tabs(["Group Matches Workspace", "Knockout Brackets"])
     
     with pred_sub_tabs[0]:
         selected_group = st.selectbox("Choose Group Stage Pool", list(GROUPS.keys()))
@@ -501,18 +479,15 @@ elif app_tab == "📝 Submit Predictions":
         col_input, col_table = st.columns([1, 1])
         with col_input:
             if is_group_locked:
-                st.markdown(f"<div class='lock-badge-banner'>🔒 {selected_group} Locked In</div>", unsafe_allow_html=True)
-                
-                # Render cards read-only without form wrapper if group is locked
+                st.markdown(f"<div class='lock-banner'>🔒 {selected_group} Locked</div>", unsafe_allow_html=True)
                 for match in CHRONO_MATCHES[selected_group]:
                     user_preds = render_match_card(
                         home=match["home"], away=match["away"], label=f"Match #{match['id']}", 
                         key_prefix=f"Match_{match['id']}", disabled=True, score_mode=True, scores_dict=user_preds
                     )
             else:
-                st.markdown("<div style='color:#34d399; margin-bottom:15px; font-weight:bold; font-size:1.1rem; text-align:center;'>🔓 Changes Active (Batch Saving Mode)</div>", unsafe_allow_html=True)
+                st.markdown("<div style='color:#10b981; font-weight:bold; margin-bottom:10px;'>🔓 Unlocked - Sync Saving Active</div>", unsafe_allow_html=True)
                 
-                # Isolate input changes within a form to prevent live reruns on every single tap
                 with st.form(key=f"form_{selected_group}"):
                     for match in CHRONO_MATCHES[selected_group]:
                         user_preds = render_match_card(
@@ -520,27 +495,22 @@ elif app_tab == "📝 Submit Predictions":
                             key_prefix=f"Match_{match['id']}", disabled=False, score_mode=True, scores_dict=user_preds
                         )
                     
-                    st.markdown("<div style='margin-top: 15px;'></div>", unsafe_allow_html=True)
-                    submit_scores = st.form_submit_button("💾 Save & Sync Group Scores")
-                    
+                    submit_scores = st.form_submit_button("Save Group Predictions")
                     if submit_scores:
-                        # Securely batch save all scores to Supabase at once
                         for match in CHRONO_MATCHES[selected_group]:
                             db_save_prediction(c_uid, active_league_id, f"Match_{match['id']}_h", user_preds[f"Match_{match['id']}_h"])
                             db_save_prediction(c_uid, active_league_id, f"Match_{match['id']}_a", user_preds[f"Match_{match['id']}_a"])
-                        st.success("Group scores securely synchronized into league cloud data!")
+                        st.success("Group predictions saved successfully!")
                         st.rerun()
             
-            # Lock button is outside the form container to avoid mixing state submissions
             if not is_group_locked:
-                st.markdown("<hr style='border-color:rgba(255,255,255,0.1); margin: 20px 0;'>", unsafe_allow_html=True)
-                if st.button(f"🔒 Finalize & Permanently Lock {selected_group}", use_container_width=True):
+                if st.button(f"Lock {selected_group} Predictions", use_container_width=True):
                     db_lock_group_predictions(c_uid, active_league_id, group_keys)
-                    st.success(f"{selected_group} predictions locked securely!")
+                    st.success(f"{selected_group} locked successfully!")
                     st.rerun()
                 
         with col_table:
-            st.subheader("Simulated Group Table")
+            st.subheader("Simulated Standings")
             u_results, _ = run_standings_engine(user_preds)
             df_display = u_results[selected_group][["Team", "Pts", "GD", "GF"]].copy()
             df_display["Team"] = df_display["Team"].apply(fmt_team)
@@ -564,15 +534,14 @@ elif app_tab == "📝 Submit Predictions":
         ko_tabs = st.tabs(["Round of 32", "Round of 16", "Quarter-Finals", "Finals"])
         
         with ko_tabs[0]:
-            st.subheader("Round of 32 Predictions")
+            st.subheader("Round of 32")
             for m_id, (h, a) in o_r32.items():
                 chosen = render_match_card(h, a, m_id, m_id, disabled=False, score_mode=False, scores_dict=user_preds)
-                # Ensure placeholder strings are ignored so they don't hit the database
                 if chosen and chosen != "Select Winner" and not chosen.startswith("1st ") and not chosen.startswith("2nd ") and not chosen.startswith("Wildcard "):
                     db_save_prediction(c_uid, active_league_id, m_id, chosen)
 
         with ko_tabs[1]:
-            st.subheader("Round of 16 Predictions")
+            st.subheader("Round of 16")
             o_r16 = {
                 "Match 89": (user_preds.get("Match 74", "W74"), user_preds.get("Match 77", "W77")), 
                 "Match 90": (user_preds.get("Match 73", "W73"), user_preds.get("Match 75", "W75")),
@@ -589,7 +558,7 @@ elif app_tab == "📝 Submit Predictions":
                     db_save_prediction(c_uid, active_league_id, m_id, chosen)
 
         with ko_tabs[2]:
-            st.subheader("Quarter-Finals Predictions")
+            st.subheader("Quarter-Finals")
             o_qf = {
                 "Match 97": (user_preds.get("Match 89", "W89"), user_preds.get("Match 90", "W90")), 
                 "Match 98": (user_preds.get("Match 93", "W93"), user_preds.get("Match 94", "W94")),
@@ -602,7 +571,7 @@ elif app_tab == "📝 Submit Predictions":
                     db_save_prediction(c_uid, active_league_id, m_id, chosen)
 
         with ko_tabs[3]:
-            st.subheader("Finals Predictions")
+            st.subheader("Finals")
             sf1_h, sf1_a = user_preds.get("Match 97", "W97"), user_preds.get("Match 98", "W98")
             sf2_h, sf2_a = user_preds.get("Match 99", "W99"), user_preds.get("Match 100", "W100")
             
@@ -628,7 +597,7 @@ elif app_tab == "📝 Submit Predictions":
             p3_opts = ["Select Winner", sf1_l, sf2_l]
             curr_p3 = user_preds.get("Match 103", "Select Winner")
             idx_p3 = p3_opts.index(curr_p3) if curr_p3 in p3_opts else 0
-            p3_winner = st.selectbox("🥉 3rd Place Winner Selection", p3_opts, index=idx_p3, format_func=fmt_team, key="sel_m103")
+            p3_winner = st.selectbox("3rd Place Winner", p3_opts, index=idx_p3, format_func=fmt_team, key="sel_m103")
             if p3_winner != "Select Winner" and not p3_winner.startswith("W"):
                 db_save_prediction(c_uid, active_league_id, "Match 103", p3_winner)
                 user_preds["Match 103"] = p3_winner
@@ -636,14 +605,14 @@ elif app_tab == "📝 Submit Predictions":
             f_opts = ["Select Winner", user_preds.get("Match 101", "W101"), user_preds.get("Match 102", "W102")]
             curr_f = user_preds.get("Match 104", "Select Winner")
             idx_f = f_opts.index(curr_f) if curr_f in f_opts else 0
-            f_winner = st.selectbox("🥇 Grand Champion Prediction", f_opts, index=idx_f, format_func=fmt_team, key="sel_m104")
+            f_winner = st.selectbox("Grand Champion Prediction", f_opts, index=idx_f, format_func=fmt_team, key="sel_m104")
             if f_winner != "Select Winner" and not f_winner.startswith("W"):
                 db_save_prediction(c_uid, active_league_id, "Match 104", f_winner)
                 user_preds["Match 104"] = f_winner
 
-# --- 17. ADMIN ENGINE HUB SYSTEM PANEL ---
-elif app_tab == "⚙️ Admin Controls Engine":
-    st.header("⚙️ System Administration Hub")
+# --- TAB 3: ADMIN CONTROLS ---
+elif app_tab == "Admin Controls":
+    st.header("Admin Controls")
     
     is_admin = False
     chk = supabase.table("leagues").select("creator_id").eq("id", active_league_id).execute()
@@ -651,33 +620,30 @@ elif app_tab == "⚙️ Admin Controls Engine":
         is_admin = True
         
     if not is_admin:
-        st.error("Access restriction. Admin keys not assigned to current terminal context.")
+        st.error("Access denied. You are not the creator of this league.")
     else:
-        st.markdown(f"Authorized deployment session active for <b>{st.session_state.username}</b>.", unsafe_allow_html=True)
-        
         adm_user_preds = db_fetch_user_predictions("00000000-0000-0000-0000-000000000000", "00000000-0000-0000-0000-000000000000")
-        
-        ad_tabs = st.tabs(["📊 Group Results Board", "🌳 Knockout Matches Sync"])
+        ad_tabs = st.tabs(["Group Results", "Knockout Results"])
         
         with ad_tabs[0]:
-            ad_group = st.selectbox("Select Target Admin Pool", list(GROUPS.keys()), key="adm_g_sel")
+            ad_group = st.selectbox("Select Group", list(GROUPS.keys()), key="adm_g_sel")
             
             with st.form(key=f"adm_form_{ad_group}"):
                 for match in CHRONO_MATCHES[ad_group]:
                     adm_user_preds = render_match_card(
-                        home=match["home"], away=match["away"], label=f"Official Match #{match['id']}", 
+                        home=match["home"], away=match["away"], label=f"Match #{match['id']}", 
                         key_prefix=f"Match_{match['id']}", disabled=False, score_mode=True, scores_dict=adm_user_preds
                     )
                 
-                if st.form_submit_button("📢 Publish Official Group Results"):
+                if st.form_submit_button("Save Official Group Results"):
                     for match in CHRONO_MATCHES[ad_group]:
                         db_save_prediction("00000000-0000-0000-0000-000000000000", "00000000-0000-0000-0000-000000000000", f"Match_{match['id']}_h", adm_user_preds[f"Match_{match['id']}_h"])
                         db_save_prediction("00000000-0000-0000-0000-000000000000", "00000000-0000-0000-0000-000000000000", f"Match_{match['id']}_a", adm_user_preds[f"Match_{match['id']}_a"])
-                    st.success("Official Master scores saved safely!")
+                    st.success("Official scores saved!")
                     st.rerun()
                     
         with ad_tabs[1]:
-            st.subheader("Official Master Knockout Progression Assignment")
+            st.subheader("Official Knockout Winners")
             a_results, a_wildcards = run_standings_engine(adm_user_preds)
             
             def get_adm_1st(g): return a_results[g].iloc[0]["Team"] if g in a_results and not a_results[g].empty else f"1st {g}"
@@ -756,7 +722,7 @@ elif app_tab == "⚙️ Admin Controls Engine":
                 ap3_opts = ["Select Winner", asf1_l, asf2_l]
                 acurr_p3 = adm_user_preds.get("Match 103", "Select Winner")
                 aidx_p3 = ap3_opts.index(acurr_p3) if acurr_p3 in ap3_opts else 0
-                ap3_winner = st.selectbox("Official 3rd Place Winner Selection", ap3_opts, index=aidx_p3, format_func=fmt_team, key="adm_sel_m103")
+                ap3_winner = st.selectbox("Official 3rd Place Winner", ap3_opts, index=aidx_p3, format_func=fmt_team, key="adm_sel_m103")
                 if ap3_winner != "Select Winner" and not ap3_winner.startswith("W"):
                     db_save_prediction("00000000-0000-0000-0000-000000000000", "00000000-0000-0000-0000-000000000000", "Match 103", ap3_winner)
                     adm_user_preds["Match 103"] = ap3_winner
@@ -764,7 +730,7 @@ elif app_tab == "⚙️ Admin Controls Engine":
                 af_opts = ["Select Winner", adm_user_preds.get("Match 101", "W101"), adm_user_preds.get("Match 102", "W102")]
                 acurr_f = adm_user_preds.get("Match 104", "Select Winner")
                 aidx_f = af_opts.index(acurr_f) if acurr_f in af_opts else 0
-                af_winner = st.selectbox("Official Grand Champion Prediction", af_opts, index=aidx_f, format_func=fmt_team, key="adm_sel_m104")
+                af_winner = st.selectbox("Official Grand Champion", af_opts, index=aidx_f, format_func=fmt_team, key="adm_sel_m104")
                 if af_winner != "Select Winner" and not af_winner.startswith("W"):
                     db_save_prediction("00000000-0000-0000-0000-000000000000", "00000000-0000-0000-0000-000000000000", "Match 104", af_winner)
                     adm_user_preds["Match 104"] = af_winner
