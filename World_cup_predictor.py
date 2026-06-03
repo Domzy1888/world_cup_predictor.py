@@ -8,7 +8,7 @@ st.set_page_config(
     layout="wide"
 )
 
-# Clean, Strict Glassmorphism Injection
+# Clean, Fixed Glassmorphism Wrapper Style
 st.markdown("""
     <style>
     /* Full screen background image styling */
@@ -31,21 +31,21 @@ st.markdown("""
         box-shadow: 0 8px 32px rgba(0, 0, 0, 0.4) !important;
     }
 
-    /* THE FIX: Targets only the absolute next sibling block after our custom anchor */
-    div.match-card-marker + div[data-testid="stVerticalBlock"] {
-        background: rgba(15, 23, 42, 0.7) !important;
+    /* THE FIX: Transform the element container to be a strict isolated match wrapper card */
+    div[data-testid="stElementContainer"]:has(div.match-card-wrapper) {
+        background: rgba(15, 23, 42, 0.75) !important;
         backdrop-filter: blur(20px) saturate(160%) !important;
         -webkit-backdrop-filter: blur(20px) saturate(160%) !important;
         border: 1px solid rgba(255, 255, 255, 0.18) !important;
         border-radius: 16px !important;
         padding: 22px !important;
-        margin-top: 10px !important;
+        margin-top: 15px !important;
         margin-bottom: 25px !important;
         box-shadow: 0 12px 32px rgba(0, 0, 0, 0.5) !important;
     }
     
-    /* Ensure child blocks inside the card don't get double backgrounds */
-    div.match-card-marker + div[data-testid="stVerticalBlock"] div[data-testid="stVerticalBlock"] {
+    /* Prevent any deep structural containers inside the card from generating duplicate backgrounds */
+    div[data-testid="stElementContainer"]:has(div.match-card-wrapper) div[data-testid="stVerticalBlock"] {
         background: transparent !important;
         border: none !important;
         box-shadow: none !important;
@@ -293,9 +293,9 @@ elif app_tab == "📝 Submit Predictions":
             for idx, (home, away) in enumerate(MATCH_IDS[selected_group]):
                 kh, ka = f"{selected_group}_m{idx}_h", f"{selected_group}_m{idx}_a"
                 
-                # Single match marker injection
-                st.markdown('<div class="match-card-marker"></div>', unsafe_allow_html=True)
+                # Enforce exactly one clean visual card using a modern container wrapper approach
                 with st.container():
+                    st.markdown('<div class="match-card-wrapper"></div>', unsafe_allow_html=True)
                     st.markdown(f"<div class='team-header-text'>{fmt_team(home)}</div>", unsafe_allow_html=True)
                     user_preds[kh] = st.number_input("Home Score", min_value=0, max_value=15, value=user_preds.get(kh, 0), step=1, key=f"p_{kh}", disabled=is_group_locked)
                     st.markdown("<div class='vs-text'>— VERSUS —</div>", unsafe_allow_html=True)
@@ -310,8 +310,8 @@ elif app_tab == "📝 Submit Predictions":
                     st.rerun()
                 
         with col_table:
-            st.markdown('<div class="match-card-marker"></div>', unsafe_allow_html=True)
             with st.container():
+                st.markdown('<div class="match-card-wrapper"></div>', unsafe_allow_html=True)
                 st.subheader("Simulated Group Table")
                 u_results, _ = run_standings_engine(user_preds)
                 df_display = u_results[selected_group][["Team", "Pts", "GD", "GF"]].copy()
@@ -329,17 +329,17 @@ elif app_tab == "📝 Submit Predictions":
             "Match 77": (get_confirmed_1st("Group I"), u_wildcards[1]), "Match 78": (get_confirmed_2nd("Group E"), get_confirmed_2nd("Group I")),
             "Match 79": (get_confirmed_1st("Group B"), u_wildcards[6]), "Match 80": (get_confirmed_1st("Group L"), u_wildcards[5]),
             "Match 81": (get_confirmed_1st("Group D"), u_wildcards[2]), "Match 82": (get_confirmed_1st("Group G"), u_wildcards[3]),
-            "Match 83": (get_2nd("Group K"), get_2nd("Group L")), "Match 84": (get_1st("Group H"), get_2nd("Group J")),
-            "Match 85": (get_2nd("Group A"), get_2nd("Group B")), "Match 86": (get_1st("Group J"), get_2nd("Group H")),
-            "Match 87": (get_1st("Group K"), u_wildcards[7]), "Match 88": (get_2nd("Group D"), get_2nd("Group G"))
+            "Match 83": (get_confirmed_2nd("Group K"), get_confirmed_2nd("Group L")), "Match 84": (get_confirmed_1st("Group H"), get_confirmed_2nd("Group J")),
+            "Match 85": (get_confirmed_2nd("Group A"), get_confirmed_2nd("Group B")), "Match 86": (get_confirmed_1st("Group J"), get_confirmed_2nd("Group H")),
+            "Match 87": (get_confirmed_1st("Group K"), u_wildcards[7]), "Match 88": (get_confirmed_2nd("Group D"), get_confirmed_2nd("Group G"))
         }
         
         ko_tabs = st.tabs(["Round of 32", "Round of 16", "Quarter-Finals", "Finals"])
         
         with ko_tabs[0]:
             for m_id, (h, a) in o_r32.items():
-                st.markdown('<div class="match-card-marker"></div>', unsafe_allow_html=True)
                 with st.container():
+                    st.markdown('<div class="match-card-wrapper"></div>', unsafe_allow_html=True)
                     st.markdown(f"<b>⚽ {m_id}</b><br><small style='color:#cbd5e1;'>Fixture: {fmt_team(h)} vs {fmt_team(a)}</small>", unsafe_allow_html=True)
                     options = [h, a]
                     curr = user_preds.get(m_id, h)
@@ -357,8 +357,8 @@ elif app_tab == "📝 Submit Predictions":
                 "Match 96": (user_preds.get("Match 85", "W85"), user_preds.get("Match 87", "W87"))
             }
             for m_id, (h, a) in o_r16.items():
-                st.markdown('<div class="match-card-marker"></div>', unsafe_allow_html=True)
                 with st.container():
+                    st.markdown('<div class="match-card-wrapper"></div>', unsafe_allow_html=True)
                     st.markdown(f"<b>📋 {m_id}</b><br><small style='color:#cbd5e1;'>Fixture: {fmt_team(h)} vs {fmt_team(a)}</small>", unsafe_allow_html=True)
                     options = [h, a]
                     curr = user_preds.get(m_id, h)
@@ -372,8 +372,8 @@ elif app_tab == "📝 Submit Predictions":
                 "Match 100": (user_preds.get("Match 95", "W95"), user_preds.get("Match 96", "W96"))
             }
             for m_id, (h, a) in o_qf.items():
-                st.markdown('<div class="match-card-marker"></div>', unsafe_allow_html=True)
                 with st.container():
+                    st.markdown('<div class="match-card-wrapper"></div>', unsafe_allow_html=True)
                     st.markdown(f"<b>⭐ {m_id}</b><br><small style='color:#cbd5e1;'>Fixture: {fmt_team(h)} vs {fmt_team(a)}</small>", unsafe_allow_html=True)
                     options = [h, a]
                     curr = user_preds.get(m_id, h)
@@ -383,8 +383,8 @@ elif app_tab == "📝 Submit Predictions":
             sf1_h, sf1_a = user_preds.get("Match 97", "W97"), user_preds.get("Match 98", "W98")
             sf2_h, sf2_a = user_preds.get("Match 99", "W99"), user_preds.get("Match 100", "W100")
             
-            st.markdown('<div class="match-card-marker"></div>', unsafe_allow_html=True)
             with st.container():
+                st.markdown('<div class="match-card-wrapper"></div>', unsafe_allow_html=True)
                 st.markdown("### 🌿 Championship Finals Panel")
                 
                 sf1_opts = [sf1_h, sf1_a]
@@ -421,8 +421,8 @@ elif app_tab == "🛠️ Admin Dashboard":
         
         for idx, (home, away) in enumerate(MATCH_IDS[adm_group]):
             kh, ka = f"{adm_group}_m{idx}_h", f"{adm_group}_m{idx}_a"
-            st.markdown('<div class="match-card-marker"></div>', unsafe_allow_html=True)
             with st.container():
+                st.markdown('<div class="match-card-wrapper"></div>', unsafe_allow_html=True)
                 val_h = st.number_input(f"{fmt_team(home)} Score", min_value=0, max_value=15, value=actual["group"].get(kh, 0), step=1, key=f"a_{kh}")
                 val_a = st.number_input(f"{fmt_team(away)} Score", min_value=0, max_value=15, value=actual["group"].get(ka, 0), step=1, key=f"a_{ka}")
                 if st.button("📢 Publish Match Result", key=f"btn_pub_{kh}", use_container_width=True):
@@ -448,8 +448,8 @@ elif app_tab == "🛠️ Admin Dashboard":
         }
         
         for m_id, (h, a) in adm_r32_pairings.items():
-            st.markdown('<div class="match-card-marker"></div>', unsafe_allow_html=True)
             with st.container():
+                st.markdown('<div class="match-card-wrapper"></div>', unsafe_allow_html=True)
                 options = [h, a]
                 curr_w = actual["ko_winners"].get(m_id, h)
                 sel_w = st.selectbox(f"Winner: {m_id}", options, index=options.index(curr_w) if curr_w in options else 0, format_func=fmt_team, key=f"adm_w_{m_id}")
