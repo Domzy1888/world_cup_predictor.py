@@ -9,9 +9,9 @@ from supabase import create_client, Client
 # --- 1. CONFIGURATION AND CONSTANTS ---
 st.set_page_config(page_title="World Cup 2026 Prediction League", layout="wide", initial_sidebar_state="expanded")
 
-# Fetching secrets from your updated format
-SUPABASE_URL = st.secrets["connections"]["supabase"]["url"]
-SUPABASE_KEY = st.secrets["connections"]["supabase"]["key"]
+# Fixed secret fetching lines to match your secrets layout perfectly
+SUPABASE_URL = st.secrets["supabase"]["url"]
+SUPABASE_KEY = st.secrets["supabase"]["key"]
 supabase: Client = create_client(SUPABASE_URL, SUPABASE_KEY)
 
 GROUPS = {
@@ -664,73 +664,4 @@ elif app_tab == "Admin Controls":
             
             with adm_ko_tabs[0]:
                 for m_id, (h, a) in adm_o_r32.items():
-                    chosen = render_match_card(h, a, m_id, m_id, disabled=False, score_mode=False, scores_dict=adm_user_preds)
-                    if chosen and chosen != "Select Winner" and not chosen.startswith("1st ") and not chosen.startswith("2nd ") and not chosen.startswith("Wildcard "):
-                        db_save_prediction("00000000-0000-0000-0000-000000000000", "00000000-0000-0000-0000-000000000000", m_id, chosen)
-
-            with adm_ko_tabs[1]:
-                adm_o_r16 = {
-                    "Match 89": (adm_user_preds.get("Match 74", "W74"), adm_user_preds.get("Match 77", "W77")), 
-                    "Match 90": (adm_user_preds.get("Match 73", "W73"), adm_user_preds.get("Match 75", "W75")),
-                    "Match 93": (adm_user_preds.get("Match 83", "W83"), adm_user_preds.get("Match 84", "W84")), 
-                    "Match 94": (adm_user_preds.get("Match 81", "W81"), adm_user_preds.get("Match 82", "W82")),
-                    "Match 91": (adm_user_preds.get("Match 76", "W76"), adm_user_preds.get("Match 78", "W78")), 
-                    "Match 92": (adm_user_preds.get("Match 79", "W79"), adm_user_preds.get("Match 80", "W80")),
-                    "Match 95": (adm_user_preds.get("Match 86", "W86"), adm_user_preds.get("Match 88", "W88")), 
-                    "Match 96": (adm_user_preds.get("Match 85", "W85"), adm_user_preds.get("Match 87", "W87"))
-                }
-                for m_id, (h, a) in adm_o_r16.items():
-                    chosen = render_match_card(h, a, m_id, m_id, disabled=False, score_mode=False, scores_dict=adm_user_preds)
-                    if chosen and chosen != "Select Winner" and not chosen.startswith("W"):
-                        db_save_prediction("00000000-0000-0000-0000-000000000000", "00000000-0000-0000-0000-000000000000", m_id, chosen)
-
-            with adm_ko_tabs[2]:
-                adm_o_qf = {
-                    "Match 97": (adm_user_preds.get("Match 89", "W89"), adm_user_preds.get("Match 90", "W90")), 
-                    "Match 98": (adm_user_preds.get("Match 93", "W93"), adm_user_preds.get("Match 94", "W94")),
-                    "Match 99": (adm_user_preds.get("Match 91", "W91"), adm_user_preds.get("Match 92", "W92")), 
-                    "Match 100": (adm_user_preds.get("Match 95", "W95"), adm_user_preds.get("Match 96", "W96"))
-                }
-                for m_id, (h, a) in adm_o_qf.items():
-                    chosen = render_match_card(h, a, m_id, m_id, disabled=False, score_mode=False, scores_dict=adm_user_preds)
-                    if chosen and chosen != "Select Winner" and not chosen.startswith("W"):
-                        db_save_prediction("00000000-0000-0000-0000-000000000000", "00000000-0000-0000-0000-000000000000", m_id, chosen)
-
-            with adm_ko_tabs[3]:
-                asf1_h, asf1_a = adm_user_preds.get("Match 97", "W97"), adm_user_preds.get("Match 98", "W98")
-                asf2_h, asf2_a = adm_user_preds.get("Match 99", "W99"), adm_user_preds.get("Match 100", "W100")
-                
-                asf1_opts = ["Select Winner", asf1_h, asf1_a]
-                acurr_sf1 = adm_user_preds.get("Match 101", "Select Winner")
-                aidx_sf1 = asf1_opts.index(acurr_sf1) if acurr_sf1 in asf1_opts else 0
-                asf1_winner = st.selectbox("Official Semi Final 1 Winner", asf1_opts, index=aidx_sf1, format_func=fmt_team, key="adm_sel_m101")
-                if asf1_winner != "Select Winner" and not asf1_winner.startswith("W"):
-                    db_save_prediction("00000000-0000-0000-0000-000000000000", "00000000-0000-0000-0000-000000000000", "Match 101", asf1_winner)
-                    adm_user_preds["Match 101"] = asf1_winner
-                
-                asf2_opts = ["Select Winner", asf2_h, asf2_a]
-                acurr_sf2 = adm_user_preds.get("Match 102", "Select Winner")
-                aidx_sf2 = asf2_opts.index(acurr_sf2) if acurr_sf2 in asf2_opts else 0
-                asf2_winner = st.selectbox("Official Semi Final 2 Winner", asf2_opts, index=aidx_sf2, format_func=fmt_team, key="adm_sel_m102")
-                if asf2_winner != "Select Winner" and not asf2_winner.startswith("W"):
-                    db_save_prediction("00000000-0000-0000-0000-000000000000", "00000000-0000-0000-0000-000000000000", "Match 102", asf2_winner)
-                    adm_user_preds["Match 102"] = asf2_winner
-                
-                asf1_l = asf1_a if adm_user_preds.get("Match 101") == asf1_h else asf1_h
-                asf2_l = asf2_a if adm_user_preds.get("Match 102") == asf2_h else asf2_h
-                
-                ap3_opts = ["Select Winner", asf1_l, asf2_l]
-                acurr_p3 = adm_user_preds.get("Match 103", "Select Winner")
-                aidx_p3 = ap3_opts.index(acurr_p3) if acurr_p3 in ap3_opts else 0
-                ap3_winner = st.selectbox("Official 3rd Place Winner", ap3_opts, index=aidx_p3, format_func=fmt_team, key="adm_sel_m103")
-                if ap3_winner != "Select Winner" and not ap3_winner.startswith("W"):
-                    db_save_prediction("00000000-0000-0000-0000-000000000000", "00000000-0000-0000-0000-000000000000", "Match 103", ap3_winner)
-                    adm_user_preds["Match 103"] = ap3_winner
-                
-                af_opts = ["Select Winner", adm_user_preds.get("Match 101", "W101"), adm_user_preds.get("Match 102", "W102")]
-                acurr_f = adm_user_preds.get("Match 104", "Select Winner")
-                aidx_f = af_opts.index(acurr_f) if acurr_f in af_opts else 0
-                af_winner = st.selectbox("Official Grand Champion", af_opts, index=aidx_f, format_func=fmt_team, key="adm_sel_m104")
-                if af_winner != "Select Winner" and not af_winner.startswith("W"):
-                    db_save_prediction("00000000-0000-0000-0000-000000000000", "00000000-0000-0000-0000-000000000000", "Match 104", af_winner)
-                    adm_user_preds["Match 104"] = af_winner
+                    chosen = render_match_card(h, a, m_id, m_id, disabled=False, score_mode=False, scores_dict=adm_user
