@@ -1,5 +1,7 @@
 import streamlit as st
 import pandas as pd
+import hashlib
+from st_supabase_connection import SupabaseConnection
 
 # --- 1. CONFIGURATION & FULL COLOUR DARK THEME STYLING ---
 st.set_page_config(
@@ -91,7 +93,18 @@ st.markdown("""
     </style>
 """, unsafe_allow_html=True)
 
-# --- 2. GLOBAL TEAMS & FLAGS MAP ---
+# --- 2. SECURITY HELPER ---
+def hash_password(password):
+    return hashlib.sha256(password.encode()).hexdigest()
+
+# --- 3. GLOBAL SUPABASE CONNECTION INIT ---
+try:
+    supabase = st.connection("supabase", type=SupabaseConnection)
+except Exception as e:
+    st.error("Could not establish a connection to your Supabase database. Please double check your `.streamlit/secrets.toml` parameters.")
+    st.stop()
+
+# --- 4. GLOBAL TEAMS & FLAGS MAP ---
 FLAGS = {
     "Mexico": "🇲🇽 MEXICO", "South Africa": "🇿🇦 SOUTH AFRICA", "Rep. of Korea": "🇰🇷 REP. OF KOREA", "Czech Rep.": "🇨🇿 CZECH REP.",
     "Canada": "🇨🇦 CANADA", "Bosnia/Herzeg.": "🇧🇦 BOSNIA/HERZEG.", "Qatar": "🇶🇦 QATAR", "Switzerland": "🇨🇭 SWITZERLAND",
@@ -110,7 +123,7 @@ FLAGS = {
 def fmt_team(name):
     return FLAGS.get(name, name.upper())
 
-# --- 3. DATA STRUCTURES (GROUPS & CHRONOLOGICAL FIXTURES) ---
+# --- 5. DATA STRUCTURES (GROUPS & CHRONOLOGICAL FIXTURES) ---
 GROUPS = {
     "Group A": ["Mexico", "South Africa", "Rep. of Korea", "Czech Rep."],
     "Group B": ["Canada", "Bosnia/Herzeg.", "Qatar", "Switzerland"],
@@ -225,25 +238,59 @@ CHRONO_MATCHES = {
     ]
 }
 
-# --- 4. SESSION INITIALIZATION ---
-if "users" not in st.session_state:
-    st.session_state.users = {
-        "admin": {"password": "admin123", "is_admin": True, "tour_completed": True},
-        "Player_1": {"password": "password123", "is_admin": False, "tour_completed": False},
-        "Player_2": {"password": "password123", "is_admin": False, "tour_completed": False},
-    }
-if "predictions" not in st.session_state:
-    st.session_state.predictions = {}
-if "locked_groups" not in st.session_state:
-    st.session_state.locked_groups = {} 
-if "actual_results" not in st.session_state:
-    st.session_state.actual_results = {"group": {}, "ko_winners": {}, "third_place": "", "finalists": []}
-if "current_user" not in st.session_state:
-    st.session_state.current_user = None
+# --- 6. DATABASE HELPER WRAPPERS ---
+def db_fetch_user_predictions(user_id, league_id):
+    res = supabase.table("predictions").select("match_key, score_value").eq("user_id", user_id).eq("league_id", league_id).execute()
+    preds = {}
+    if res.data:
+        for row in res.data:
+            preds[row["match_key"]] = row["score_value"]
+    return preds
+
+def db_save_prediction(user_id, league_id, match_key, value):
+    # Upsert pattern ensures records sync seamlessly without duplication
+    supabase.table("predictions").upsert({
+        "user_id": user_id,
+        "league_id": league_id,
+        "match_key": match_key,
+        "score_value": value
+    }, on_conflict="user_id,league_id,match_key").execute()
+
+def db_fetch_locked_status(user_id, league_id):
+    res = supabase.table("predictions").select("match_key, is_locked").eq("user_id", user_id).eq("league_id", league_id).execute()
+    locked_keys = set()
+    if res.data:
+        for row in res.data:
+            if row["is_locked"]:
+                locked_keys.add(row["match_key"])
+    return locked_keys
+
+def db_lock_group_predictions(user_id, league_id, match_keys_list):
+    for key in match_keys_list:
+        supabase.table("predictions").update({"is_locked": True}).eq("user_id", user_id).eq("league_id", league_id).eq("match_key", key).execute()
+
+def db_fetch_user_leagues(user_id):
+    res = supabase.table("league_members").select("leagues(id, name)").eq("user_id", user_id).execute()
+    leagues_map = {}
+    if res.data:
+        for row in res.data:
+            if row.get("leagues"):
+                leagues_map[row["leagues"]["name"]] = row["leagues"]["id"]
+    return leagues_map
+
+# --- 7. SESSION INITIALIZATION ---
+if "current_user_id" not in st.session_state:
+    st.session_state.current_user_id = None
+if "current_username" not in st.session_state:
+    st.session_state.current_username = None
+if "is_admin" not in st.session_state:
+    st.session_state.is_admin = False
 if "tour_step" not in st.session_state:
     st.session_state.tour_step = 0
+if "actual_results" not in st.session_state:
+    st.session_state.actual_results = {"group": {}, "ko_winners": {}, "third_place": "", "finalists": []}
 
-# --- 5. UNIFIED INTEGRATED MATCH CARD RENDERER ---
+# --- 8. UNIFIED INTEGRATED MATCH CARD RENDERER ---
 def render_match_card(home, away, label, key_prefix, disabled=False, score_mode=False, scores_dict=None):
     disp1 = fmt_team(name=home)
     disp2 = fmt_team(name=away)
@@ -263,17 +310,24 @@ def render_match_card(home, away, label, key_prefix, disabled=False, score_mode=
         kh, ka = f"{key_prefix}_h", f"{key_prefix}_a"
         c1, c2 = st.columns(2)
         with c1:
-            scores_dict[kh] = st.number_input("Home Score", min_value=0, max_value=15, value=scores_dict.get(kh, 0), step=1, key=f"inp_{kh}", disabled=disabled)
+            val_h = scores_dict.get(kh, 0)
+            if isinstance(val_h, str): val_h = 0
+            scores_dict[kh] = st.number_input("Home Score", min_value=0, max_value=15, value=int(val_h), step=1, key=f"inp_{kh}", disabled=disabled)
         with c2:
-            scores_dict[ka] = st.number_input("Away Score", min_value=0, max_value=15, value=scores_dict.get(ka, 0), step=1, key=f"inp_{ka}", disabled=disabled)
+            val_a = scores_dict.get(ka, 0)
+            if isinstance(val_a, str): val_a = 0
+            scores_dict[ka] = st.number_input("Away Score", min_value=0, max_value=15, value=int(val_a), step=1, key=f"inp_{ka}", disabled=disabled)
         return scores_dict
     else:
         options = ["Select Winner", home, away]
         curr = scores_dict.get(key_prefix, home) if scores_dict else home
         idx_val = options.index(curr) if curr in options else 0
-        return st.selectbox("Winner Selection", options, index=idx_val, format_func=fmt_team, key=f"sel_{key_prefix}", label_visibility="collapsed", disabled=disabled)
+        val_select = st.selectbox("Winner Selection", options, index=idx_val, format_func=fmt_team, key=f"sel_{key_prefix}", label_visibility="collapsed", disabled=disabled)
+        if scores_dict is not None:
+            scores_dict[key_prefix] = val_select
+        return val_select
 
-# --- 6. COMPUTATION ENGINES ---
+# --- 9. COMPUTATION ENGINES ---
 def run_standings_engine(scores_dict):
     all_group_results = {}
     third_place_pool = []
@@ -284,8 +338,15 @@ def run_standings_engine(scores_dict):
             home = match["home"]
             away = match["away"]
             kh, ka = f"Match_{m_id}_h", f"Match_{m_id}_a"
+            
             h_score = scores_dict.get(kh, 0)
             a_score = scores_dict.get(ka, 0)
+            try:
+                h_score = int(h_score)
+                a_score = int(a_score)
+            except:
+                h_score, a_score = 0, 0
+                
             standings[home]["GF"] += h_score
             standings[away]["GF"] += a_score
             standings[home]["GD"] += (h_score - a_score)
@@ -307,8 +368,8 @@ def run_standings_engine(scores_dict):
     while len(adv_wildcards) < 8: adv_wildcards.append(f"Wildcard Slot {len(adv_wildcards)+1}")
     return all_group_results, adv_wildcards
 
-def calculate_user_points(username):
-    user_preds = st.session_state.predictions.get(username, {})
+def calculate_user_points(user_id, league_id):
+    user_preds = db_fetch_user_predictions(user_id, league_id)
     actual = st.session_state.actual_results
     points = 0
     for g_name, matches in CHRONO_MATCHES.items():
@@ -318,8 +379,8 @@ def calculate_user_points(username):
             p_h, p_a = user_preds.get(kh, None), user_preds.get(ka, None)
             a_h, a_a = actual["group"].get(kh, None), actual["group"].get(ka, None)
             if p_h is not None and p_a is not None and a_h is not None and a_a is not None:
-                if p_h == a_h and p_a == a_a: points += 3  
-                elif (p_h > p_a and a_h > a_a) or (p_a > p_h and a_a > a_h) or (p_h == p_a and a_h == a_a): points += 1  
+                if int(p_h) == int(a_h) and int(p_a) == int(a_a): points += 3  
+                elif (int(p_h) > int(p_a) and int(a_h) > int(a_a)) or (int(p_a) > int(p_h) and int(a_a) > int(a_h)) or (int(p_h) == int(p_a) and int(a_h) == int(a_a)): points += 1  
     for m in [f"Match {i}" for i in range(73, 89)]:
         if user_preds.get(m) == actual["ko_winners"].get(m): points += 3
     for m in [f"Match {i}" for i in range(89, 97)]:
@@ -334,8 +395,8 @@ def calculate_user_points(username):
     if user_preds.get("Match 104") == actual["ko_winners"].get("Match 104"): points += 25
     return points
 
-# --- 7. SIGN IN GATEWAY ---
-if st.session_state.current_user is None:
+# --- 10. SIGN IN GATEWAY ---
+if st.session_state.current_user_id is None:
     with st.container():
         st.title("🔐 Tournament Sign-In")
         t1, t2 = st.tabs(["Login", "Create Account"])
@@ -343,8 +404,12 @@ if st.session_state.current_user is None:
             lin_user = st.text_input("Username")
             lin_pass = st.text_input("Password", type="password")
             if st.button("Log In", use_container_width=True):
-                if lin_user in st.session_state.users and st.session_state.users[lin_user]["password"] == lin_pass:
-                    st.session_state.current_user = lin_user
+                hashed_p = hash_password(lin_pass)
+                res = supabase.table("users").select("*").eq("username", lin_user).execute()
+                if res.data and res.data[0]["password_hash"] == hashed_p:
+                    st.session_state.current_user_id = res.data[0]["id"]
+                    st.session_state.current_username = res.data[0]["username"]
+                    st.session_state.is_admin = res.data[0]["is_admin"]
                     st.session_state.tour_step = 0
                     st.rerun()
                 else: st.error("Invalid credentials.")
@@ -353,22 +418,29 @@ if st.session_state.current_user is None:
             reg_pass = st.text_input("Choose Password", type="password")
             if st.button("Register Account", use_container_width=True):
                 if reg_user.strip() == "" or reg_pass.strip() == "": st.error("Fields cannot be empty.")
-                elif reg_user in st.session_state.users: st.error("Username already exists.")
                 else:
-                    st.session_state.users[reg_user] = {"password": reg_pass, "is_admin": False, "tour_completed": False}
-                    st.success("Registered! Log in on the left tab.")
+                    # Check duplication
+                    dup_check = supabase.table("users").select("id").eq("username", reg_user).execute()
+                    if dup_check.data:
+                        st.error("Username already exists.")
+                    else:
+                        hashed_p = hash_password(reg_pass)
+                        supabase.table("users").insert({"username": reg_user, "password_hash": hashed_p}).execute()
+                        st.success("Registered successfully! Proceed to log in via the left tab.")
     st.stop()
 
-# --- 8. NAVIGATION SETUP ---
-c_user = st.session_state.current_user
-if c_user not in st.session_state.locked_groups: st.session_state.locked_groups[c_user] = []
+# --- 11. ACCOUNT SYNC & CACHE INJECTIONS ---
+c_uid = st.session_state.current_user_id
+c_user = st.session_state.current_username
 
-# --- 8.5 ONE-TIME INTERACTIVE TOUR ENGINE ---
-if not st.session_state.users[c_user].get("tour_completed", False):
+user_meta = supabase.table("users").select("tour_completed").eq("id", c_uid).execute().data[0]
+
+# --- 11.5 ONE-TIME INTERACTIVE TOUR ENGINE ---
+if not user_meta.get("tour_completed", False):
     tour_content = [
         {
             "title": "🧭 Welcome to the Tour! Step 1: Main Menu Navigation",
-            "body": "Look over at the **Left Sidebar**. This is your command center! You can switch between viewing the global live standings on the **🏆 Leaderboard** and filling out your fixtures inside **📝 Submit Predictions**."
+            "body": "Look over at the **Left Sidebar**. This is your command center! You can switch between viewing your active standalone spaces on **🏆 Leaderboards**, creating or joining custom hubs under **🛡️ Standalone Leagues**, and entering score matrices inside **📝 Submit Predictions**."
         },
         {
             "title": "⚽ Step 2: Selecting Scores & Simulated Standings",
@@ -376,7 +448,7 @@ if not st.session_state.users[c_user].get("tour_completed", False):
         },
         {
             "title": "🔒 Step 3: Locking In Your Results",
-            "body": "Once you are completely happy with a group's predictions, click the **Lock In Predictions** button at the bottom of the match list. This submits your baseline data and protects it from accidental changes."
+            "body": "Once you are completely happy with a group's predictions, click the **Lock In Predictions** button at the bottom of the match list. This submits your baseline data securely to the cloud database and protects it from accidental changes."
         },
         {
             "title": "🌳 Step 4: Accessing the Knockout Brackets",
@@ -405,157 +477,252 @@ if not st.session_state.users[c_user].get("tour_completed", False):
                 st.rerun()
         else:
             if st.button("🎉 Complete Tour", use_container_width=True):
-                st.session_state.users[c_user]["tour_completed"] = True
+                supabase.table("users").update({"tour_completed": True}).eq("id", c_uid).execute()
                 st.rerun()
     with btn_col2:
         if st.button("❌ Dismiss Guide", use_container_width=True):
-            st.session_state.users[c_user]["tour_completed"] = True
+            supabase.table("users").update({"tour_completed": True}).eq("id", c_uid).execute()
             st.rerun()
     st.markdown("<hr style='border-color:rgba(255,255,255,0.15); margin-bottom:20px;'>", unsafe_allow_html=True)
 
-
 col_nav1, col_nav2 = st.columns([8, 2])
 with col_nav1:
-    st.markdown(f"👥 Account User: **{c_user}** " + ("<span style='color:#3b82f6;'>(🛠️ Admin)</span>" if st.session_state.users[c_user]["is_admin"] else ""), unsafe_allow_html=True)
+    st.markdown(f"👥 Account User: **{c_user}** " + ("<span style='color:#3b82f6;'>(🛠️ Admin)</span>" if st.session_state.is_admin else ""), unsafe_allow_html=True)
 with col_nav2:
     if st.button("🚪 Log Out", use_container_width=True):
-        st.session_state.current_user = None
+        st.session_state.current_user_id = None
+        st.session_state.current_username = None
+        st.session_state.is_admin = False
         st.rerun()
 
-main_tabs = ["🏆 Leaderboard", "📝 Submit Predictions"]
-if st.session_state.users[c_user]["is_admin"]: main_tabs.append("🛠️ Admin Dashboard")
+main_tabs = ["🏆 Leaderboards", "🛡️ Standalone Leagues", "📝 Submit Predictions"]
+if st.session_state.is_admin: main_tabs.append("🛠️ Admin Dashboard")
 app_tab = st.sidebar.radio("Main Menu Navigation", main_tabs)
 
-if c_user not in st.session_state.predictions: st.session_state.predictions[c_user] = {}
-user_preds = st.session_state.predictions[c_user]
+# Fetch user's registered leagues maps
+user_leagues_dict = db_fetch_user_leagues(c_uid)
 
-# --- 9. LEADERBOARD WORKSPACE ---
-if app_tab == "🏆 Leaderboard":
-    with st.container():
-        st.header("🏆 Prediction League Leaderboard")
-        leaderboard_data = [{"Competitor Name": u, "Current Total Points": calculate_user_points(u)} for u, info in st.session_state.users.items() if not info["is_admin"]]
+# --- 12. LEADERBOARD WORKSPACE ---
+if app_tab == "🏆 Leaderboards":
+    st.header("🏆 Standalone League Leaderboards")
+    if not user_leagues_dict:
+        st.info("You are not currently registered in any active prediction leagues. Head over to the '🛡️ Standalone Leagues' tab to create or join one.")
+    else:
+        chosen_view_league = st.selectbox("Select Active Standalone League Pool", list(user_leagues_dict.keys()))
+        target_league_id = user_leagues_dict[chosen_view_league]
+        
+        # Pull all user members belonging to this isolated pool
+        members_res = supabase.table("league_members").select("users(id, username)").eq("league_id", target_league_id).execute()
+        
+        leaderboard_data = []
+        if members_res.data:
+            for row in members_res.data:
+                if row.get("users"):
+                    m_id = row["users"]["id"]
+                    m_name = row["users"]["username"]
+                    leaderboard_data.append({
+                        "Competitor Name": m_name, 
+                        "Current Total Points": calculate_user_points(m_id, target_league_id)
+                    })
+                    
         df_leaderboard = pd.DataFrame(leaderboard_data)
         if not df_leaderboard.empty:
             df_leaderboard = df_leaderboard.sort_values(by="Current Total Points", ascending=False).reset_index(drop=True)
             df_leaderboard.index += 1
             st.dataframe(df_leaderboard, use_container_width=True)
-        else: st.info("No competitor records found.")
+        else:
+            st.info("No competitor records found.")
 
-# --- 10. USER PREDICTIONS DESK ---
-elif app_tab == "📝 Submit Predictions":
-    st.header("📝 Match Predictions")
-    pred_sub_tabs = st.tabs(["📊 Group Matches Workspace", "🌳 Knockout Brackets"])
+# --- 13. STANDALONE LEAGUE HUB MANAGEMENT ---
+elif app_tab == "🛡️ Standalone Leagues":
+    st.header("🛡️ Manage Standalone Leagues")
+    st.markdown("All leagues built here are fully isolated with zero cross-over interaction paths.")
     
-    with pred_sub_tabs[0]:
-        selected_group = st.selectbox("Choose Group Stage Pool", list(GROUPS.keys()))
-        
-        col_input, col_table = st.columns([1, 1])
-        with col_input:
-            is_group_locked = selected_group in st.session_state.locked_groups[c_user]
-            if is_group_locked:
-                st.markdown(f"<div class='lock-badge-banner'>🔒 {selected_group} Locked In</div>", unsafe_allow_html=True)
+    c1, c2 = st.columns(2)
+    with c1:
+        st.subheader("Create an Isolated League")
+        new_lg_name = st.text_input("New League Name")
+        new_lg_code = st.text_input("Unique Invite Code Entry")
+        if st.button("✨ Establish Standalone League", use_container_width=True):
+            if new_lg_name.strip() == "" or new_lg_code.strip() == "":
+                st.error("Fields cannot be left blank.")
             else:
-                st.markdown("<div style='color:#34d399; margin-bottom:15px; font-weight:bold; font-size:1.1rem; text-align:center;'>🔓 Unlocked - Edits Allowed</div>", unsafe_allow_html=True)
-                
-            for match in CHRONO_MATCHES[selected_group]:
-                user_preds = render_match_card(
-                    home=match["home"], 
-                    away=match["away"], 
-                    label=f"Match #{match['id']}", 
-                    key_prefix=f"Match_{match['id']}", 
-                    disabled=is_group_locked,
-                    score_mode=True,
-                    scores_dict=user_preds
-                )
-            
-            if not is_group_locked:
-                if st.button(f"🔒 Lock In {selected_group} Predictions", use_container_width=True):
-                    st.session_state.locked_groups[c_user].append(selected_group)
-                    st.session_state.predictions[c_user] = user_preds
-                    st.success(f"{selected_group} Locked Successfully!")
-                    st.rerun()
-                
-        with col_table:
-            st.subheader("Simulated Group Table")
-            u_results, _ = run_standings_engine(user_preds)
-            df_display = u_results[selected_group][["Team", "Pts", "GD", "GF"]].copy()
-            df_display["Team"] = df_display["Team"].apply(fmt_team)
-            st.dataframe(df_display, use_container_width=True, hide_index=True)
-
-    with pred_sub_tabs[1]:
-        u_results, u_wildcards = run_standings_engine(user_preds)
-        def get_confirmed_1st(g): return u_results[g].iloc[0]["Team"] if g in u_results and not u_results[g].empty else f"1st {g}"
-        def get_confirmed_2nd(g): return u_results[g].iloc[1]["Team"] if g in u_results and not u_results[g].empty else f"2nd {g}"
-
-        o_r32 = {
-            "Match 73": (get_confirmed_1st("Group A"), u_wildcards[4]), "Match 74": (get_confirmed_1st("Group E"), u_wildcards[0]),
-            "Match 75": (get_confirmed_1st("Group F"), get_confirmed_2nd("Group C")), "Match 76": (get_confirmed_1st("Group C"), get_confirmed_2nd("Group F")),
-            "Match 77": (get_confirmed_1st("Group I"), u_wildcards[1]), "Match 78": (get_confirmed_2nd("Group E"), get_confirmed_2nd("Group I")),
-            "Match 79": (get_confirmed_1st("Group B"), u_wildcards[6]), "Match 80": (get_confirmed_1st("Group L"), u_wildcards[5]),
-            "Match 81": (get_confirmed_1st("Group D"), u_wildcards[2]), "Match 82": (get_confirmed_1st("Group G"), u_wildcards[3]),
-            "Match 83": (get_confirmed_2nd("Group K"), get_confirmed_2nd("Group L")), "Match 84": (get_confirmed_1st("Group H"), get_confirmed_2nd("Group J")),
-            "Match 85": (get_confirmed_2nd("Group A"), get_confirmed_2nd("Group B")), "Match 86": (get_confirmed_1st("Group J"), get_confirmed_2nd("Group H")),
-            "Match 87": (get_confirmed_1st("Group K"), u_wildcards[7]), "Match 88": (get_confirmed_2nd("Group D"), get_confirmed_2nd("Group G"))
-        }
-        
-        ko_tabs = st.tabs(["Round of 32", "Round of 16", "Quarter-Finals", "Finals"])
-        
-        with ko_tabs[0]:
-            for m_id, (h, a) in o_r32.items():
-                user_preds[m_id] = render_match_card(h, a, m_id, m_id, disabled=False, score_mode=False, scores_dict=user_preds)
-                        
-        with ko_tabs[1]:
-            o_r16 = {
-                "Match 89": (user_preds.get("Match 74", "W74"), user_preds.get("Match 77", "W77")),
-                "Match 90": (user_preds.get("Match 73", "W73"), user_preds.get("Match 75", "W75")),
-                "Match 93": (user_preds.get("Match 83", "W83"), user_preds.get("Match 84", "W84")),
-                "Match 94": (user_preds.get("Match 81", "W81"), user_preds.get("Match 82", "W82")),
-                "Match 91": (user_preds.get("Match 76", "W76"), user_preds.get("Match 78", "W78")),
-                "Match 92": (user_preds.get("Match 79", "W79"), user_preds.get("Match 80", "W80")),
-                "Match 95": (user_preds.get("Match 86", "W86"), user_preds.get("Match 88", "W88")),
-                "Match 96": (user_preds.get("Match 85", "W85"), user_preds.get("Match 87", "W87"))
-            }
-            for m_id, (h, a) in o_r16.items():
-                user_preds[m_id] = render_match_card(h, a, m_id, m_id, disabled=False, score_mode=False, scores_dict=user_preds)
-                        
-        with ko_tabs[2]:
-            o_qf = {
-                "Match 97": (user_preds.get("Match 89", "W89"), user_preds.get("Match 90", "W90")),
-                "Match 98": (user_preds.get("Match 93", "W93"), user_preds.get("Match 94", "W94")),
-                "Match 99": (user_preds.get("Match 91", "W91"), user_preds.get("Match 92", "W92")),
-                "Match 100": (user_preds.get("Match 95", "W95"), user_preds.get("Match 100", "W100"))
-            }
-            for m_id, (h, a) in o_qf.items():
-                user_preds[m_id] = render_match_card(h, a, m_id, m_id, disabled=False, score_mode=False, scores_dict=user_preds)
+                # Test unique key logic
+                name_check = supabase.table("leagues").select("id").eq("name", new_lg_name).execute()
+                code_check = supabase.table("leagues").select("id").eq("invite_code", new_lg_code).execute()
+                if name_check.data or code_check.data:
+                    st.error("League name or invite code has already been claimed.")
+                else:
+                    ins_res = supabase.table("leagues").insert({"name": new_lg_name, "invite_code": new_lg_code}).execute()
+                    if ins_res.data:
+                        new_id = ins_res.data[0]["id"]
+                        supabase.table("league_members").insert({"user_id": c_uid, "league_id": new_id}).execute()
+                        st.success(f"Standalone League '{new_lg_name}' successfully created! Share your code to invite your circle.")
+                        st.rerun()
+    with c2:
+        st.subheader("Join via Code Access")
+        join_code_input = st.text_input("Enter Friends Invite Code")
+        if st.button("🔑 Authenticate & Enter Pool", use_container_width=True):
+            if join_code_input.strip() == "":
+                st.error("Please insert a code.")
+            else:
+                code_query = supabase.table("leagues").select("id, name").eq("invite_code", join_code_input).execute()
+                if not code_query.data:
+                    st.error("Invite code not verified in system matrix.")
+                else:
+                    target_l_id = code_query.data[0]["id"]
+                    target_l_name = code_query.data[0]["name"]
                     
-        with ko_tabs[3]:
-            sf1_h, sf1_a = user_preds.get("Match 97", "W97"), user_preds.get("Match 98", "W98")
-            sf2_h, sf2_a = user_preds.get("Match 99", "W99"), user_preds.get("Match 100", "W100")
-            
-            st.markdown("### 🌿 Championship Finals Panel")
-            
-            sf1_opts = [sf1_h, sf1_a]
-            user_preds["Match 101"] = st.selectbox("Semi Final 1 Winner", sf1_opts, index=sf1_opts.index(user_preds.get("Match 101", sf1_h)) if user_preds.get("Match 101", sf1_h) in sf1_opts else 0, format_func=fmt_team)
-            
-            sf2_opts = [sf2_h, sf2_a]
-            user_preds["Match 102"] = st.selectbox("Semi Final 2 Winner", sf2_opts, index=sf2_opts.index(user_preds.get("Match 102", sf2_h)) if user_preds.get("Match 102", sf2_h) in sf2_opts else 0, format_func=fmt_team)
-            
-            sf1_l = sf1_a if user_preds["Match 101"] == sf1_h else sf1_h
-            sf2_l = sf2_a if user_preds["Match 102"] == sf2_h else sf2_h
-            
-            st.markdown("<hr style='border-color:rgba(255,255,255,0.1);'>", unsafe_allow_html=True)
-            p3_opts = [sf1_l, sf2_l]
-            user_preds["Match 103"] = st.selectbox("🥉 3rd Place Winner Selection", p3_opts, index=p3_opts.index(user_preds.get("Match 103", sf1_l)) if user_preds.get("Match 103", sf1_l) in p3_opts else 0, format_func=fmt_team)
-            
-            st.markdown("<hr style='border-color:rgba(255,255,255,0.1);'>", unsafe_allow_html=True)
-            f_opts = [user_preds["Match 101"], user_preds["Match 102"]]
-            user_preds["Match 104"] = st.selectbox("🥇 Grand Champion Prediction", f_opts, index=f_opts.index(user_preds.get("Match 104", f_opts[0])) if user_preds.get("Match 104", f_opts[0]) in f_opts else 0, format_func=fmt_team)
-                
-        if st.button("💾 Archive Complete Bracket Matrix", use_container_width=True):
-            st.session_state.predictions[c_user] = user_preds
-            st.success("Bracket pathways updated safely!")
+                    # Ensure duplication check
+                    member_check = supabase.table("league_members").select("id").eq("user_id", c_uid).eq("league_id", target_l_id).execute()
+                    if member_check.data:
+                        st.warning(f"You are already a registered member of the '{target_l_name}' pool.")
+                    else:
+                        supabase.table("league_members").insert({"user_id": c_uid, "league_id": target_l_id}).execute()
+                        st.success(f"Success! Added to '{target_l_name}' environment.")
+                        st.rerun()
 
-# --- 11. ADMINISTRATIVE CONTROL PANEL ---
+# --- 14. USER PREDICTIONS DESK ---
+elif app_tab == "📝 Submit Predictions":
+    st.header("📝 Match Predictions Matrix")
+    
+    if not user_leagues_dict:
+        st.warning("You must be a member of at least one league to predict scores. Create or join an isolated environment in the '🛡️ Standalone Leagues' tab.")
+    else:
+        selected_league_context = st.selectbox("Active Submission Context League:", list(user_leagues_dict.keys()))
+        active_league_id = user_leagues_dict[selected_league_context]
+        
+        # Pull live context predictions dict from database
+        user_preds = db_fetch_user_predictions(c_uid, active_league_id)
+        locked_keys_set = db_fetch_locked_status(c_uid, active_league_id)
+        
+        pred_sub_tabs = st.tabs(["📊 Group Matches Workspace", "🌳 Knockout Brackets"])
+        
+        with pred_sub_tabs[0]:
+            selected_group = st.selectbox("Choose Group Stage Pool", list(GROUPS.keys()))
+            
+            # Check if group keys are locked
+            group_match_ids = [m["id"] for m in CHRONO_MATCHES[selected_group]]
+            group_keys = [f"Match_{mid}_h" for mid in group_match_ids] + [f"Match_{mid}_a" for mid in group_match_ids]
+            
+            is_group_locked = any(k in locked_keys_set for k in group_keys)
+            
+            col_input, col_table = st.columns([1, 1])
+            with col_input:
+                if is_group_locked:
+                    st.markdown(f"<div class='lock-badge-banner'>🔒 {selected_group} Locked In</div>", unsafe_allow_html=True)
+                else:
+                    st.markdown("<div style='color:#34d399; margin-bottom:15px; font-weight:bold; font-size:1.1rem; text-align:center;'>🔓 Unlocked - Sync Saving Active</div>", unsafe_allow_html=True)
+                    
+                for match in CHRONO_MATCHES[selected_group]:
+                    user_preds = render_match_card(
+                        home=match["home"], 
+                        away=match["away"], 
+                        label=f"Match #{match['id']}", 
+                        key_prefix=f"Match_{match['id']}", 
+                        disabled=is_group_locked,
+                        score_mode=True,
+                        scores_dict=user_preds
+                    )
+                    
+                    # Dynamically save intermediate values to cloud db if unlocked
+                    if not is_group_locked:
+                        db_save_prediction(c_uid, active_league_id, f"Match_{match['id']}_h", user_preds[f"Match_{match['id']}_h"])
+                        db_save_prediction(c_uid, active_league_id, f"Match_{match['id']}_a", user_preds[f"Match_{match['id']}_a"])
+                
+                if not is_group_locked:
+                    if st.button(f"🔒 Finalize & Lock {selected_group} Predictions", use_container_width=True):
+                        db_lock_group_predictions(c_uid, active_league_id, group_keys)
+                        st.success(f"{selected_group} locked and stored completely!")
+                        st.rerun()
+                    
+            with col_table:
+                st.subheader("Simulated Group Table")
+                u_results, _ = run_standings_engine(user_preds)
+                df_display = u_results[selected_group][["Team", "Pts", "GD", "GF"]].copy()
+                df_display["Team"] = df_display["Team"].apply(fmt_team)
+                st.dataframe(df_display, use_container_width=True, hide_index=True)
+
+        with pred_sub_tabs[1]:
+            u_results, u_wildcards = run_standings_engine(user_preds)
+            def get_confirmed_1st(g): return u_results[g].iloc[0]["Team"] if g in u_results and not u_results[g].empty else f"1st {g}"
+            def get_confirmed_2nd(g): return u_results[g].iloc[1]["Team"] if g in u_results and not u_results[g].empty else f"2nd {g}"
+
+            o_r32 = {
+                "Match 73": (get_confirmed_1st("Group A"), u_wildcards[4]), "Match 74": (get_confirmed_1st("Group E"), u_wildcards[0]),
+                "Match 75": (get_confirmed_1st("Group F"), get_confirmed_2nd("Group C")), "Match 76": (get_confirmed_1st("Group C"), get_confirmed_2nd("Group F")),
+                "Match 77": (get_confirmed_1st("Group I"), u_wildcards[1]), "Match 78": (get_confirmed_2nd("Group E"), get_confirmed_2nd("Group I")),
+                "Match 79": (get_confirmed_1st("Group B"), u_wildcards[6]), "Match 80": (get_confirmed_1st("Group L"), u_wildcards[5]),
+                "Match 81": (get_confirmed_1st("Group D"), u_wildcards[2]), "Match 82": (get_confirmed_1st("Group G"), u_wildcards[3]),
+                "Match 83": (get_confirmed_2nd("Group K"), get_confirmed_2nd("Group L")), "Match 84": (get_confirmed_1st("Group H"), get_confirmed_2nd("Group J")),
+                "Match 85": (get_confirmed_2nd("Group A"), get_confirmed_2nd("Group B")), "Match 86": (get_confirmed_1st("Group J"), get_confirmed_2nd("Group H")),
+                "Match 87": (get_confirmed_1st("Group K"), u_wildcards[7]), "Match 88": (get_confirmed_2nd("Group D"), get_confirmed_2nd("Group G"))
+            }
+            
+            ko_tabs = st.tabs(["Round of 32", "Round of 16", "Quarter-Finals", "Finals"])
+            
+            with ko_tabs[0]:
+                for m_id, (h, a) in o_r32.items():
+                    user_preds[m_id] = render_match_card(h, a, m_id, m_id, disabled=False, score_mode=False, scores_dict=user_preds)
+                    db_save_prediction(c_uid, active_league_id, m_id, user_preds[m_id])
+                            
+            with ko_tabs[1]:
+                o_r16 = {
+                    "Match 89": (user_preds.get("Match 74", "W74"), user_preds.get("Match 77", "W77")),
+                    "Match 90": (user_preds.get("Match 73", "W73"), user_preds.get("Match 75", "W75")),
+                    "Match 93": (user_preds.get("Match 83", "W83"), user_preds.get("Match 84", "W84")),
+                    "Match 94": (user_preds.get("Match 81", "W81"), user_preds.get("Match 82", "W82")),
+                    "Match 91": (user_preds.get("Match 76", "W76"), user_preds.get("Match 78", "W78")),
+                    "Match 92": (user_preds.get("Match 79", "W79"), user_preds.get("Match 80", "W80")),
+                    "Match 95": (user_preds.get("Match 86", "W86"), user_preds.get("Match 88", "W88")),
+                    "Match 96": (user_preds.get("Match 85", "W85"), user_preds.get("Match 87", "W87"))
+                }
+                for m_id, (h, a) in o_r16.items():
+                    user_preds[m_id] = render_match_card(h, a, m_id, m_id, disabled=False, score_mode=False, scores_dict=user_preds)
+                    db_save_prediction(c_uid, active_league_id, m_id, user_preds[m_id])
+                            
+            with ko_tabs[2]:
+                o_qf = {
+                    "Match 97": (user_preds.get("Match 89", "W89"), user_preds.get("Match 90", "W90")),
+                    "Match 98": (user_preds.get("Match 93", "W93"), user_preds.get("Match 94", "W94")),
+                    "Match 99": (user_preds.get("Match 91", "W91"), user_preds.get("Match 92", "W92")),
+                    "Match 100": (user_preds.get("Match 95", "W95"), user_preds.get("Match 100", "W100"))
+                }
+                for m_id, (h, a) in o_qf.items():
+                    user_preds[m_id] = render_match_card(h, a, m_id, m_id, disabled=False, score_mode=False, scores_dict=user_preds)
+                    db_save_prediction(c_uid, active_league_id, m_id, user_preds[m_id])
+                        
+            with ko_tabs[3]:
+                sf1_h, sf1_a = user_preds.get("Match 97", "W97"), user_preds.get("Match 98", "W98")
+                sf2_h, sf2_a = user_preds.get("Match 99", "W99"), user_preds.get("Match 100", "W100")
+                
+                st.markdown("### 🌿 Championship Finals Panel")
+                
+                sf1_opts = [sf1_h, sf1_a]
+                user_preds["Match 101"] = st.selectbox("Semi Final 1 Winner", sf1_opts, index=sf1_opts.index(user_preds.get("Match 101", sf1_h)) if user_preds.get("Match 101", sf1_h) in sf1_opts else 0, format_func=fmt_team)
+                db_save_prediction(c_uid, active_league_id, "Match 101", user_preds["Match 101"])
+                
+                sf2_opts = [sf2_h, sf2_a]
+                user_preds["Match 102"] = st.selectbox("Semi Final 2 Winner", sf2_opts, index=sf2_opts.index(user_preds.get("Match 102", sf2_h)) if user_preds.get("Match 102", sf2_h) in sf2_opts else 0, format_func=fmt_team)
+                db_save_prediction(c_uid, active_league_id, "Match 102", user_preds["Match 102"])
+                
+                sf1_l = sf1_a if user_preds["Match 101"] == sf1_h else sf1_h
+                sf2_l = sf2_a if user_preds["Match 102"] == sf2_h else sf2_h
+                
+                st.markdown("<hr style='border-color:rgba(255,255,255,0.1);'>", unsafe_allow_html=True)
+                p3_opts = [sf1_l, sf2_l]
+                user_preds["Match 103"] = st.selectbox("🥉 3rd Place Winner Selection", p3_opts, index=p3_opts.index(user_preds.get("Match 103", sf1_l)) if user_preds.get("Match 103", sf1_l) in p3_opts else 0, format_func=fmt_team)
+                db_save_prediction(c_uid, active_league_id, "Match 103", user_preds["Match 103"])
+                
+                st.markdown("<hr style='border-color:rgba(255,255,255,0.1);'>", unsafe_allow_html=True)
+                f_opts = [user_preds["Match 101"], user_preds["Match 102"]]
+                user_preds["Match 104"] = st.selectbox("🥇 Grand Champion Prediction", f_opts, index=f_opts.index(user_preds.get("Match 104", f_opts[0])) if user_preds.get("Match 104", f_opts[0]) in f_opts else 0, format_func=fmt_team)
+                db_save_prediction(c_uid, active_league_id, "Match 104", user_preds["Match 104"])
+                    
+            if st.button("💾 Archive Complete Bracket Matrix", use_container_width=True):
+                st.success("Bracket pathways updated safely to your custom cloud database!")
+
+# --- 15. ADMINISTRATIVE CONTROL PANEL ---
 elif app_tab == "🛠️ Admin Dashboard":
     st.header("🛠️ Admin Scoresheet Panel")
     admin_tabs = st.tabs(["Group Stage Results", "Knockout Progress Matches"])
