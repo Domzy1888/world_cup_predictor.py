@@ -43,6 +43,16 @@ st.markdown("""
         margin-bottom: 16px !important;
     }
 
+    /* Interactive Guided Tour Box Custom Styling */
+    .tour-box {
+        background: linear-gradient(135deg, #1e3a8a, #0f172a) !important;
+        border: 2px solid #3b82f6 !important;
+        border-radius: 12px !important;
+        padding: 20px !important;
+        margin-bottom: 25px !important;
+        box-shadow: 0 10px 25px rgba(0, 0, 0, 0.5);
+    }
+
     /* Input Element Styles */
     div[data-baseweb="select"] > div {
         background-color: rgba(15, 23, 42, 0.95) !important;
@@ -116,7 +126,6 @@ GROUPS = {
     "Group L": ["England", "Croatia", "Ghana", "Panama"]
 }
 
-# Real-world chronological mapping with absolute FIFA Match Numbers and home/away designations
 CHRONO_MATCHES = {
     "Group A": [
         {"id": 1, "home": "Mexico", "away": "South Africa"},
@@ -219,9 +228,9 @@ CHRONO_MATCHES = {
 # --- 4. SESSION INITIALIZATION ---
 if "users" not in st.session_state:
     st.session_state.users = {
-        "admin": {"password": "admin123", "is_admin": True},
-        "Player_1": {"password": "password123", "is_admin": False},
-        "Player_2": {"password": "password123", "is_admin": False},
+        "admin": {"password": "admin123", "is_admin": True, "tour_completed": True},
+        "Player_1": {"password": "password123", "is_admin": False, "tour_completed": False},
+        "Player_2": {"password": "password123", "is_admin": False, "tour_completed": False},
     }
 if "predictions" not in st.session_state:
     st.session_state.predictions = {}
@@ -231,11 +240,13 @@ if "actual_results" not in st.session_state:
     st.session_state.actual_results = {"group": {}, "ko_winners": {}, "third_place": "", "finalists": []}
 if "current_user" not in st.session_state:
     st.session_state.current_user = None
+if "tour_step" not in st.session_state:
+    st.session_state.tour_step = 0
 
 # --- 5. UNIFIED INTEGRATED MATCH CARD RENDERER ---
 def render_match_card(home, away, label, key_prefix, disabled=False, score_mode=False, scores_dict=None):
-    disp1 = fmt_team(home)
-    disp2 = fmt_team(away)
+    disp1 = fmt_team(name=home)
+    disp2 = fmt_team(name=away)
     
     st.markdown(f"""
         <div style="border: 1px solid rgba(255,255,255,0.2); border-radius: 10px; background: rgba(15, 23, 42, 0.8); padding: 14px; margin-top: 10px; margin-bottom: 2px;">
@@ -334,6 +345,7 @@ if st.session_state.current_user is None:
             if st.button("Log In", use_container_width=True):
                 if lin_user in st.session_state.users and st.session_state.users[lin_user]["password"] == lin_pass:
                     st.session_state.current_user = lin_user
+                    st.session_state.tour_step = 0
                     st.rerun()
                 else: st.error("Invalid credentials.")
         with t2:
@@ -343,13 +355,64 @@ if st.session_state.current_user is None:
                 if reg_user.strip() == "" or reg_pass.strip() == "": st.error("Fields cannot be empty.")
                 elif reg_user in st.session_state.users: st.error("Username already exists.")
                 else:
-                    st.session_state.users[reg_user] = {"password": reg_pass, "is_admin": False}
+                    st.session_state.users[reg_user] = {"password": reg_pass, "is_admin": False, "tour_completed": False}
                     st.success("Registered! Log in on the left tab.")
     st.stop()
 
 # --- 8. NAVIGATION SETUP ---
 c_user = st.session_state.current_user
 if c_user not in st.session_state.locked_groups: st.session_state.locked_groups[c_user] = []
+
+# --- 8.5 ONE-TIME INTERACTIVE TOUR ENGINE ---
+if not st.session_state.users[c_user].get("tour_completed", False):
+    tour_content = [
+        {
+            "title": "🧭 Welcome to the Tour! Step 1: Main Menu Navigation",
+            "body": "Look over at the **Left Sidebar**. This is your command center! You can switch between viewing the global live standings on the **🏆 Leaderboard** and filling out your fixtures inside **📝 Submit Predictions**."
+        },
+        {
+            "title": "⚽ Step 2: Selecting Scores & Simulated Standings",
+            "body": "Inside the Predictions workspace, use the plus/minus counters to enter your scores. As you alter numbers, the **Simulated Group Table** on the right side will automatically compute your standings in real-time!"
+        },
+        {
+            "title": "🔒 Step 3: Locking In Your Results",
+            "body": "Once you are completely happy with a group's predictions, click the **Lock In Predictions** button at the bottom of the match list. This submits your baseline data and protects it from accidental changes."
+        },
+        {
+            "title": "🌳 Step 4: Accessing the Knockout Brackets",
+            "body": "Once group scores are tracked, click the **Knockout Brackets sub-tab** next to the group workspace. The tournament pathways automatically carry over your dynamic qualifiers all the way to the Grand Finals!"
+        },
+        {
+            "title": "💎 Step 5: Score Matrix & Total Available Points",
+            "body": "Earn points as real matches play out: **3 pts** for exact scores (Group Stage), **1 pt** for correct match results. Knockout correct predictions yield: **3 pts** (R32), **5 pts** (R16), **10 pts** (QF), **15 pts** (SF), and a massive **25 pts** for predicting the absolute Champion!"
+        }
+    ]
+    
+    current_step = st.session_state.tour_step
+    
+    st.markdown(f"""
+        <div class="tour-box">
+            <h3 style="margin-top:0px; color:#60a5fa !important;">{tour_content[current_step]['title']}</h3>
+            <p style="font-size:1.05rem; line-height:1.5;">{tour_content[current_step]['body']}</p>
+        </div>
+    """, unsafe_allow_html=True)
+    
+    btn_col1, btn_col2 = st.columns([8, 2])
+    with btn_col1:
+        if current_step < len(tour_content) - 1:
+            if st.button("👉 Next Tip", use_container_width=True):
+                st.session_state.tour_step += 1
+                st.rerun()
+        else:
+            if st.button("🎉 Complete Tour", use_container_width=True):
+                st.session_state.users[c_user]["tour_completed"] = True
+                st.rerun()
+    with btn_col2:
+        if st.button("❌ Dismiss Guide", use_container_width=True):
+            st.session_state.users[c_user]["tour_completed"] = True
+            st.rerun()
+    st.markdown("<hr style='border-color:rgba(255,255,255,0.15); margin-bottom:20px;'>", unsafe_allow_html=True)
+
 
 col_nav1, col_nav2 = st.columns([8, 2])
 with col_nav1:
