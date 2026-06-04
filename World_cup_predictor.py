@@ -236,13 +236,23 @@ def db_fetch_user_predictions(user_id, league_id):
     return preds
 
 def db_save_prediction(user_id, league_id, match_key, value):
-    if value is None or str(value).strip() == "" or str(value).startswith("Select") or str(value).startswith("W") or str(value).startswith("1st") or str(value).startswith("2nd"):
+    if value is None:
         return
+    val_str = str(value).strip()
+    # Aggressively prevent unselected brackets or placeholder logic strings from reaching Supabase
+    if (val_str == "" or 
+        val_str.startswith("Select") or 
+        val_str.startswith("W") or 
+        val_str.startswith("1st") or 
+        val_str.startswith("2nd") or 
+        "Winner" in val_str):
+        return
+        
     supabase.table("predictions").upsert({
         "user_id": user_id,
         "league_id": league_id,
         "match_key": match_key,
-        "score_value": str(value)
+        "score_value": val_str
     }, on_conflict="user_id,league_id,match_key").execute()
 
 def db_fetch_locked_status(user_id, league_id):
