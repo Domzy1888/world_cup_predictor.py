@@ -1,7 +1,7 @@
 import streamlit as st
 import pandas as pd
 import hashlib
-from st_supabase_connection import SupabaseConnection
+from supabase import create_client, Client
 
 # --- 1. CONFIGURATION & FULL COLOUR DARK THEME STYLING ---
 st.set_page_config(
@@ -95,7 +95,10 @@ def hash_password(password):
 
 # --- 3. GLOBAL SUPABASE CONNECTION INIT ---
 try:
-    supabase = st.connection("supabase", type=SupabaseConnection)
+    # Direct extraction matching your exact secrets structure perfectly
+    SUPABASE_URL = st.secrets["connections"]["supabase"]["url"]
+    SUPABASE_KEY = st.secrets["connections"]["supabase"]["key"]
+    supabase: Client = create_client(SUPABASE_URL, SUPABASE_KEY)
 except Exception as e:
     st.error("Could not establish a connection to your Supabase database. Please double check your secrets parameters.")
     st.stop()
@@ -196,7 +199,7 @@ CHRONO_MATCHES = {
         {"id": 13, "home": "Spain", "away": "Cape Verde"},
         {"id": 15, "home": "Saudi Arabia", "away": "Uruguay"},
         {"id": 37, "home": "Spain", "away": "Saudi Arabia"},
-        {"id": 39, "home": "Uruguay", "away": "Cape Verde"},
+        {"id": 39, "weight": 2, "home": "Uruguay", "away": "Cape Verde"},
         {"id": 63, "home": "Uruguay", "away": "Spain"},
         {"id": 64, "home": "Cape Verde", "away": "Saudi Arabia"}
     ],
