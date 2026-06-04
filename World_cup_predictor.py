@@ -51,7 +51,6 @@ st.markdown(
     """,
     unsafe_allow_html=True
 )
-# ==============================================================================
 
 st.markdown("""
     <style>
@@ -103,248 +102,32 @@ st.markdown("""
         border: 1px solid rgba(255, 255, 255, 0.25) !important;
     }
     
-    /* Standard interactive buttons */
-    div.stButton > button {
+    /* GLOBAL BUTTON RULE: Unified targets for standalone buttons, form submit buttons, and disabled layouts */
+    div.stButton > button,
+    div.stFormSubmitButton > button,
+    div.stButton > button:disabled,
+    div.stFormSubmitButton > button:disabled {
         background-color: #2563eb !important;
         color: white !important;
         font-weight: 700 !important;
         text-transform: uppercase;
         width: 100% !important;
-        border: none !important;
+        border: 1px solid rgba(255, 255, 255, 0.1) !important;
         border-radius: 6px !important;
         padding: 10px !important;
-        box-shadow: 0 4px 6px rgba(0,0,0,0.3);
+        box-shadow: 0 4px 6px rgba(0,0,0,0.3) !important;
     }
     
-    div.stButton > button:hover {
-        background-color: #1d4ed8 !important;
+    /* Maintains a clear blue backdrop context if elements get toggled to unclickable states */
+    div.stButton > button:disabled,
+    div.stFormSubmitButton > button:disabled {
+        opacity: 0.75 !important;
+        cursor: not-allowed !important;
     }
     
-    .lock-badge-banner {
-        background-color: rgba(220, 38, 38, 0.9);
-        color: #ffffff !important;
-        border: 1px solid #ef4444;
-        padding: 12px;
-        border-radius: 8px;
-        font-weight: bold;
-        text-align: center;
-        margin-bottom: 20px;
-    }
-    </style>
-""", unsafe_allow_html=True)
-
-# ==============================================================================
-
-st.markdown("""
-    <style>
-    /* Background Image setup */
-    .stApp {
-        background: linear-gradient(rgba(15, 23, 42, 0.2), rgba(15, 23, 42, 0.4)),
-                    url("https://cdn-media.theathletic.com/cdn-cgi/image/width=1000%2cquality=70%2cformat=auto/https://cdn-media.theathletic.com/vwYC1qZfTwfm_3qmyXkIC5Rja_1440x960.jpg");
-        background-size: cover;
-        background-position: center;
-        background-attachment: fixed;
-    }
-    
-    /* Main body typography - Explicitly isolated only to the main content panel */
-    [data-testid="stMain"] p, 
-    [data-testid="stMain"] label, 
-    [data-testid="stMain"] .stMarkdown, 
-    [data-testid="stMain"] .stText, 
-    [data-testid="stMain"] [data-testid="stWidgetLabel"] p {
-        color: #f8fafc !important;
-        font-weight: 500 !important;
-        text-shadow: 1px 1px 3px rgba(0, 0, 0, 0.8);
-    }
-    
-    /* Main header styling rules */
-    [data-testid="stMain"] h1, 
-    [data-testid="stMain"] h2, 
-    [data-testid="stMain"] h3, 
-    [data-testid="stMain"] h4 {
-        color: #ffffff !important;
-        text-transform: uppercase;
-        font-weight: 800 !important;
-        letter-spacing: 0.5px;
-        text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.9);
-    }
-
-    /* Container blocks for content panels */
-    [data-testid="stExpander"], [data-testid="stTabContent"], .stTabs {
-        background: rgba(15, 23, 42, 0.75) !important;
-        border: 1px solid rgba(255, 255, 255, 0.15) !important;
-        border-radius: 12px !important;
-        padding: 16px !important;
-        margin-bottom: 16px !important;
-    }
-
-    /* Select boxes styling */
-    div[data-baseweb="select"] > div {
-        background-color: rgba(15, 23, 42, 0.95) !important;
-        color: white !important;
-        border: 1px solid rgba(255, 255, 255, 0.25) !important;
-    }
-    
-    /* Standard interactive buttons */
-    div.stButton > button {
-        background-color: #2563eb !important;
-        color: white !important;
-        font-weight: 700 !important;
-        text-transform: uppercase;
-        width: 100% !important;
-        border: none !important;
-        border-radius: 6px !important;
-        padding: 10px !important;
-        box-shadow: 0 4px 6px rgba(0,0,0,0.3);
-    }
-    
-    div.stButton > button:hover {
-        background-color: #1d4ed8 !important;
-    }
-    
-    .lock-badge-banner {
-        background-color: rgba(220, 38, 38, 0.9);
-        color: #ffffff !important;
-        border: 1px solid #ef4444;
-        padding: 12px;
-        border-radius: 8px;
-        font-weight: bold;
-        text-align: center;
-        margin-bottom: 20px;
-    }
-    </style>
-""", unsafe_allow_html=True)
-
-# ==============================================================================
-
-st.markdown("""
-    <style>
-    /* Background Image setup */
-    .stApp {
-        background: linear-gradient(rgba(15, 23, 42, 0.2), rgba(15, 23, 42, 0.4)),
-                    url("https://cdn-media.theathletic.com/cdn-cgi/image/width=1000%2cquality=70%2cformat=auto/https://cdn-media.theathletic.com/vwYC1qZfTwfm_3qmyXkIC5Rja_1440x960.jpg");
-        background-size: cover;
-        background-position: center;
-        background-attachment: fixed;
-    }
-    
-    /* Global Typography - Specifically constrained away from the sidebar elements */
-    [data-testid="stMain"] p, 
-    [data-testid="stMain"] label, 
-    [data-testid="stMain"] .stMarkdown, 
-    [data-testid="stMain"] .stText, 
-    [data-testid="stMain"] [data-testid="stWidgetLabel"] p {
-        color: #f8fafc !important;
-        font-weight: 500 !important;
-        text-shadow: 1px 1px 3px rgba(0, 0, 0, 0.8);
-    }
-    
-    h1, h2, h3, h4 {
-        color: #ffffff !important;
-        text-transform: uppercase;
-        font-weight: 800 !important;
-        letter-spacing: 0.5px;
-        text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.9);
-    }
-
-    [data-testid="stExpander"], [data-testid="stTabContent"], .stTabs {
-        background: rgba(15, 23, 42, 0.75) !important;
-        border: 1px solid rgba(255, 255, 255, 0.15) !important;
-        border-radius: 12px !important;
-        padding: 16px !important;
-        margin-bottom: 16px !important;
-    }
-
-    div[data-baseweb="select"] > div {
-        background-color: rgba(15, 23, 42, 0.95) !important;
-        color: white !important;
-        border: 1px solid rgba(255, 255, 255, 0.25) !important;
-    }
-    
-    div.stButton > button {
-        background-color: #2563eb !important;
-        color: white !important;
-        font-weight: 700 !important;
-        text-transform: uppercase;
-        width: 100% !important;
-        border: none !important;
-        border-radius: 6px !important;
-        padding: 10px !important;
-        box-shadow: 0 4px 6px rgba(0,0,0,0.3);
-    }
-    
-    div.stButton > button:hover {
-        background-color: #1d4ed8 !important;
-    }
-    
-    .lock-badge-banner {
-        background-color: rgba(220, 38, 38, 0.9);
-        color: #ffffff !important;
-        border: 1px solid #ef4444;
-        padding: 12px;
-        border-radius: 8px;
-        font-weight: bold;
-        text-align: center;
-        margin-bottom: 20px;
-    }
-    </style>
-""", unsafe_allow_html=True)
-
-# ==============================================================================
-
-st.markdown("""
-    <style>
-    /* Background Image setup */
-    .stApp {
-        background: linear-gradient(rgba(15, 23, 42, 0.2), rgba(15, 23, 42, 0.4)),
-                    url("https://cdn-media.theathletic.com/cdn-cgi/image/width=1000%2cquality=70%2cformat=auto/https://cdn-media.theathletic.com/vwYC1qZfTwfm_3qmyXkIC5Rja_1440x960.jpg");
-        background-size: cover;
-        background-position: center;
-        background-attachment: fixed;
-    }
-    
-    /* Global Typography */
-    html, body, [class*="st-"] p, label, .stMarkdown, .stText, [data-testid="stWidgetLabel"] p {
-        color: #f8fafc !important;
-        font-weight: 500 !important;
-        text-shadow: 1px 1px 3px rgba(0, 0, 0, 0.8);
-    }
-    
-    h1, h2, h3, h4 {
-        color: #ffffff !important;
-        text-transform: uppercase;
-        font-weight: 800 !important;
-        letter-spacing: 0.5px;
-        text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.9);
-    }
-
-    [data-testid="stExpander"], [data-testid="stTabContent"], .stTabs {
-        background: rgba(15, 23, 42, 0.75) !important;
-        border: 1px solid rgba(255, 255, 255, 0.15) !important;
-        border-radius: 12px !important;
-        padding: 16px !important;
-        margin-bottom: 16px !important;
-    }
-
-    div[data-baseweb="select"] > div {
-        background-color: rgba(15, 23, 42, 0.95) !important;
-        color: white !important;
-        border: 1px solid rgba(255, 255, 255, 0.25) !important;
-    }
-    
-    div.stButton > button {
-        background-color: #2563eb !important;
-        color: white !important;
-        font-weight: 700 !important;
-        text-transform: uppercase;
-        width: 100% !important;
-        border: none !important;
-        border-radius: 6px !important;
-        padding: 10px !important;
-        box-shadow: 0 4px 6px rgba(0,0,0,0.3);
-    }
-    
-    div.stButton > button:hover {
+    /* Interactive states configuration rule mapping */
+    div.stButton > button:hover:not(:disabled),
+    div.stFormSubmitButton > button:hover:not(:disabled) {
         background-color: #1d4ed8 !important;
     }
     
@@ -695,10 +478,6 @@ def run_standings_engine(scores_dict):
     return all_group_results, adv_wildcards
 
 def resolve_bracket_teams(scores_dict, target_is_actual=False, actual_results_obj=None):
-    """
-    Simulates or extracts the teams that populate each tier of the tournament 
-    dynamically based on scores, ensuring flexible cross-referencing per round.
-    """
     if target_is_actual and actual_results_obj is not None:
         g_scores = actual_results_obj["group"]
         ko_choices = actual_results_obj["ko_winners"]
@@ -812,7 +591,7 @@ def calculate_user_points(user_id, league_id):
                 elif (int(p_h) > int(p_a) and int(a_h) > int(a_a)) or (int(p_a) > int(p_h) and int(a_a) > int(a_a)) or (int(p_h) == int(p_a) and int(a_h) == int(a_a)): 
                     points += 1  
 
-    # 2. Team-Based Progression Check (Cross-referencing round qualification groups globally)
+    # 2. Team-Based Progression Check
     user_bracket = resolve_bracket_teams(user_preds, target_is_actual=False)
     actual_bracket = resolve_bracket_teams(None, target_is_actual=True, actual_results_obj=actual)
 
@@ -1222,7 +1001,6 @@ elif app_tab == "🛠️ Admin Dashboard" and is_league_admin:
             for m_id, (h, a) in adm_r32_pairings.items():
                 is_ko_saved = (m_id in actual["ko_winners"])
                 
-                # Dynamic translation check: ensures choice selections are accurately linked across the component map
                 saved_winner = actual["ko_winners"].get(m_id)
                 if str(saved_winner) == "1":
                     actual["ko_winners"][m_id] = h
@@ -1256,7 +1034,6 @@ elif app_tab == "🛠️ Admin Dashboard" and is_league_admin:
                 val = actual["ko_winners"].get(m_key)
                 if str(val) == "1": return actual_calc_bracket["r32_pairings"].get(m_key, ("",""))[0]
                 if str(val) == "2": return actual_calc_bracket["r32_pairings"].get(m_key, ("",""))[1]
-                # Fallback check if it was translated to a literal country name string
                 if val and not (str(val).startswith("W") and "_" not in str(val)): return str(val)
                 return f"W{m_key.split('_')[1]}"
 
