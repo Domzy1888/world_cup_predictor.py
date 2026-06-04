@@ -585,7 +585,7 @@ if app_tab == "🏆 Leaderboards":
     if not df_leaderboard.empty:
         df_leaderboard = df_leaderboard.sort_values(by="Current Total Points", ascending=False).reset_index(drop=True)
         df_leaderboard.index += 1
-        st.dataframe(df_leaderboard, use_container_width=True)
+        st.dataframe(df_leaderboard, use_container_width=True, hide_index=True)
     else:
         st.info("No competitor records found.")
 
@@ -636,7 +636,7 @@ elif app_tab == "📝 Submit Predictions":
     
     pred_sub_tabs = st.tabs(["📊 Group Matches Workspace", "🌳 Knockout Brackets"])
     
-        with pred_sub_tabs[0]:
+    with pred_sub_tabs[0]:
         selected_group = st.selectbox("Choose Group Stage Pool", list(GROUPS.keys()))
         group_match_ids = [m["id"] for m in CHRONO_MATCHES[selected_group]]
         group_keys = [f"Match_{mid}_h" for mid in group_match_ids] + [f"Match_{mid}_a" for mid in group_match_ids]
@@ -670,13 +670,6 @@ elif app_tab == "📝 Submit Predictions":
                         db_lock_group_predictions(c_uid, active_league_id, group_keys)
                         st.success(f"{selected_group} locked successfully!")
                         st.rerun()
-                
-        with col_table:
-            st.subheader("Simulated Group Table")
-            u_results, _ = run_standings_engine(user_preds)
-            df_display = u_results[selected_group][["Team", "Pts", "GD", "GF"]].copy()
-            df_display["Team"] = df_display["Team"].apply(fmt_team)
-            st.dataframe(df_display, use_container_width=True, hide_index=True)
                 
         with col_table:
             st.subheader("Simulated Group Table")
