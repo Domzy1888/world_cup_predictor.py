@@ -659,3 +659,31 @@ elif app_tab == "🛠️ Admin Dashboard" and is_league_admin:
         selected_adm_group = st.selectbox("Verify Target Group Pool", list(GROUPS.keys()))
         for match in CHRONO_MATCHES[selected_adm_group]:
             actual["group"] = render_match_card(
+                home=match["home"], away=match["away"], label=f"Match #{match['id']} Official Score",
+                key_prefix=f"Match_{match['id']}", disabled=False, score_mode=True, scores_dict=actual["group"]
+            )
+            if st.button("📢 Save Match Score", key=f"btn_pub_Match_{match['id']}", use_container_width=True):
+                db_save_league_actual_result(active_league_id, f"Match_{match['id']}_h", actual["group"][f"Match_{match['id']}_h"])
+                db_save_league_actual_result(active_league_id, f"Match_{match['id']}_a", actual["group"][f"Match_{match['id']}_a"])
+                st.success("Score updated inside league storage data!")
+            
+    with admin_tabs[1]:
+        adm_group_res, adm_wildcards = run_standings_engine(actual["group"])
+        def get_1st(g): return adm_group_res[g].iloc[0]["Team"] if not adm_group_res[g].empty else f"1st {g}"
+        def get_2nd(g): return adm_group_res[g].iloc[1]["Team"] if not adm_group_res[g].empty else f"2nd {g}"
+        
+        adm_r32_pairings = {
+            "Match_73": (get_1st("Group A"), adm_wildcards[4]), "Match_74": (get_1st("Group E"), adm_wildcards[0]),
+            "Match_75": (get_1st("Group F"), get_2nd("Group C")), "Match_76": (get_1st("Group C"), get_2nd("Group F")),
+            "Match_77": (get_1st("Group I"), adm_wildcards[1]), "Match_78": (get_2nd("Group E"), get_2nd("Group I")),
+            "Match_79": (get_1st("Group B"), adm_wildcards[6]), "Match_80": (get_1st("Group L"), adm_wildcards[5]),
+            "Match_81": (get_1st("Group D"), adm_wildcards[2]), "Match_82": (get_1st("Group G"), adm_wildcards[3]),
+            "Match_83": (get_2nd("Group K"), get_2nd("Group L")), "Match_84": (get_1st("Group H"), get_2nd("Group J")),
+            "Match_85": (get_2nd("Group A"), get_2nd("Group B")), "Match_86": (get_1st("Group J"), get_2nd("Group H")),
+            "Match_87": (get_1st("Group K"), adm_wildcards[7]), "Match_88": (get_2nd("Group D"), get_2nd("Group G"))
+        }
+        for m_id, (h, a) in adm_r32_pairings.items():
+            actual["ko_winners"][m_id] = render_match_card(h, a, f"Winner: {m_id.replace('_', ' ')}", m_id, disabled=False, score_mode=False, scores_dict=actual["ko_winners"])
+            if st.button("📢 Lock Knockout Winner", key=f"btn_ko_{m_id}", use_container_width=True):
+                db_save_league_actual_result(active_league_id, m_id, actual["ko_winners"][m_id])
+                st.success(f"{m_id.replace('_', ' ')} progression locked!")
