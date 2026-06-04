@@ -1127,4 +1127,9 @@ elif app_tab == "🛠️ Admin Dashboard" and is_league_admin:
             c_sf2_1, c_sf2_2 = st.columns(2)
             with c_sf2_1:
                 if not is_102_saved and st.button("📢 Lock SF 2 Winner", key="btn_adm_102", use_container_width=True):
-                    f_v = 1 if actual["ko_winners"]["Match_102"] == sf2_h else (
+                    f_v = 1 if actual["ko_winners"]["Match_102"] == sf2_h else (2 if actual["ko_winners"]["Match_102"] == sf2_a else 0)
+                    if f_v > 0: db_save_league_actual_result(active_league_id, "Match_102", f_v); st.rerun()
+                elif is_102_saved: st.markdown("<div style='color: #22c55e; font-weight: bold;'>✅ Locked</div>", unsafe_allow_html=True)
+            with c_sf2_2:
+                if is_102_saved and st.button("🔓 Reset SF 2", key="unl_adm_102", use_container_width=True):
+                    db_delete_league_actual_result(active_league_id, "Match_102"); st.rerun()
