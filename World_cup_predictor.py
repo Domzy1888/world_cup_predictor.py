@@ -174,7 +174,7 @@ CHRONO_MATCHES = {
         {"id": 35, "home": "Netherlands", "away": "Sweden"},
         {"id": 36, "home": "Tunisia", "away": "Japan"},
         {"id": 58, "home": "Tunisia", "away": "Netherlands"},
-        {"id": 67, "home": "Japan", "away": "Sweden"}
+        {"id": 57, "home": "Japan", "away": "Sweden"}
     ],
     "Group G": [
         {"id": 16, "home": "Belgium", "away": "Egypt"},
