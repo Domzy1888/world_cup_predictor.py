@@ -95,7 +95,6 @@ def hash_password(password):
 
 # --- 3. GLOBAL SUPABASE CONNECTION INIT ---
 try:
-    # Direct extraction matching your exact secrets structure perfectly
     SUPABASE_URL = st.secrets["connections"]["supabase"]["url"]
     SUPABASE_KEY = st.secrets["connections"]["supabase"]["key"]
     supabase: Client = create_client(SUPABASE_URL, SUPABASE_KEY)
@@ -136,105 +135,6 @@ GROUPS = {
     "Group J": ["Argentina", "Algeria", "Austria", "Jordan"],
     "Group K": ["Portugal", "DR Congo", "Uzbekistan", "Colombia"],
     "Group L": ["England", "Croatia", "Ghana", "Panama"]
-}
-
-CHRONO_MATCHES = {
-    "Group A": [
-        {"id": 1, "home": "Mexico", "away": "South Africa"},
-        {"id": 2, "home": "Rep. of Korea", "away": "Czech Rep."},
-        {"id": 25, "home": "Czech Rep.", "away": "South Africa"},
-        {"id": 28, "home": "Mexico", "away": "Rep. of Korea"},
-        {"id": 49, "home": "Czech Rep.", "away": "Mexico"},
-        {"id": 50, "home": "South Africa", "away": "Rep. of Korea"}
-    ],
-    "Group B": [
-        {"id": 3, "home": "Canada", "away": "Bosnia/Herzeg."},
-        {"id": 5, "home": "Qatar", "away": "Switzerland"},
-        {"id": 26, "home": "Switzerland", "away": "Bosnia/Herzeg."},
-        {"id": 27, "home": "Canada", "away": "Qatar"},
-        {"id": 51, "home": "Switzerland", "away": "Canada"},
-        {"id": 52, "home": "Bosnia/Herzeg.", "away": "Qatar"}
-    ],
-    "Group C": [
-        {"id": 6, "home": "Brazil", "away": "Morocco"},
-        {"id": 7, "home": "Haiti", "away": "Scotland"},
-        {"id": 30, "home": "Scotland", "away": "Morocco"},
-        {"id": 31, "home": "Brazil", "away": "Haiti"},
-        {"id": 53, "home": "Scotland", "away": "Brazil"},
-        {"id": 54, "home": "Morocco", "away": "Haiti"}
-    ],
-    "Group D": [
-        {"id": 4, "home": "USA", "away": "Paraguay"},
-        {"id": 8, "home": "Australia", "away": "Turkey"},
-        {"id": 29, "home": "USA", "away": "Australia"},
-        {"id": 32, "home": "Turkey", "away": "Paraguay"},
-        {"id": 55, "home": "Turkey", "away": "USA"},
-        {"id": 56, "home": "Paraguay", "away": "Australia"}
-    ],
-    "Group E": [
-        {"id": 9, "home": "Germany", "away": "Curaçao"},
-        {"id": 11, "home": "Ivory Coast", "away": "Ecuador"},
-        {"id": 34, "home": "Germany", "away": "Ivory Coast"},
-        {"id": 35, "home": "Ecuador", "away": "Curaçao"},
-        {"id": 57, "home": "Ecuador", "away": "Germany"},
-        {"id": 58, "home": "Curaçao", "away": "Ivory Coast"}
-    ],
-    "Group F": [
-        {"id": 10, "home": "Netherlands", "away": "Japan"},
-        {"id": 12, "home": "Sweden", "away": "Tunisia"},
-        {"id": 33, "home": "Netherlands", "away": "Sweden"},
-        {"id": 36, "home": "Tunisia", "away": "Japan"},
-        {"id": 59, "home": "Tunisia", "away": "Netherlands"},
-        {"id": 60, "home": "Japan", "away": "Sweden"}
-    ],
-    "Group G": [
-        {"id": 14, "home": "Belgium", "away": "Egypt"},
-        {"id": 16, "home": "IR Iran", "away": "New Zealand"},
-        {"id": 38, "home": "Belgium", "away": "IR Iran"},
-        {"id": 40, "home": "New Zealand", "away": "Egypt"},
-        {"id": 61, "home": "New Zealand", "away": "Belgium"},
-        {"id": 62, "home": "Egypt", "away": "IR Iran"}
-    ],
-    "Group H": [
-        {"id": 13, "home": "Spain", "away": "Cape Verde"},
-        {"id": 15, "home": "Saudi Arabia", "away": "Uruguay"},
-        {"id": 37, "home": "Spain", "away": "Saudi Arabia"},
-        {"id": 39, "weight": 2, "home": "Uruguay", "away": "Cape Verde"},
-        {"id": 63, "home": "Uruguay", "away": "Spain"},
-        {"id": 64, "home": "Cape Verde", "away": "Saudi Arabia"}
-    ],
-    "Group I": [
-        {"id": 17, "home": "France", "away": "Senegal"},
-        {"id": 18, "home": "Iraq", "away": "Norway"},
-        {"id": 41, "home": "France", "away": "Iraq"},
-        {"id": 42, "home": "Norway", "away": "Senegal"},
-        {"id": 65, "home": "Norway", "away": "France"},
-        {"id": 66, "home": "Senegal", "away": "Iraq"}
-    ],
-    "Group J": [
-        {"id": 19, "home": "Argentina", "away": "Algeria"},
-        {"id": 20, "home": "Austria", "away": "Jordan"},
-        {"id": 43, "home": "Argentina", "away": "Austria"},
-        {"id": 44, "home": "Jordan", "away": "Algeria"},
-        {"id": 67, "home": "Jordan", "away": "Argentina"},
-        {"id": 68, "home": "Algeria", "away": "Austria"}
-    ],
-    "Group K": [
-        {"id": 21, "home": "Portugal", "away": "DR Congo"},
-        {"id": 24, "home": "Uzbekistan", "away": "Colombia"},
-        {"id": 45, "home": "Portugal", "away": "Uzbekistan"},
-        {"id": 46, "home": "Colombia", "away": "DR Congo"},
-        {"id": 69, "home": "Colombia", "away": "Portugal"},
-        {"id": 70, "home": "DR Congo", "away": "Uzbekistan"}
-    ],
-    "Group L": [
-        {"id": 22, "home": "England", "away": "Croatia"},
-        {"id": 23, "home": "Ghana", "away": "Panama"},
-        {"id": 47, "home": "England", "away": "Ghana"},
-        {"id": 48, "home": "Panama", "away": "Croatia"},
-        {"id": 71, "home": "Panama", "away": "England"},
-        {"id": 72, "home": "Croatia", "away": "Ghana"}
-    ]
 }
 
 CHRONO_MATCHES = {
@@ -346,7 +246,6 @@ def db_fetch_user_predictions(user_id, league_id):
     return preds
 
 def db_save_prediction(user_id, league_id, match_key, value):
-    # Security block: Protect against invalid text, selections, or structural placeholders hitting the database
     if value is None or str(value).strip() == "" or str(value).startswith("Select") or str(value).startswith("W") or str(value).startswith("1st") or str(value).startswith("2nd"):
         return
     supabase.table("predictions").upsert({
@@ -517,7 +416,7 @@ def calculate_user_points(user_id, league_id):
     if user_preds.get("Match 104") == actual["ko_winners"].get("Match 104"): points += 25
     return points
 
-# --- 10. SIGN IN GATEWAY ---
+# --- 7. SIGN IN GATEWAY ---
 if st.session_state.current_user_id is None:
     with st.container():
         st.title("🔐 Tournament Sign-In")
@@ -554,7 +453,7 @@ c_user = st.session_state.current_username
 
 user_meta = supabase.table("users").select("tour_completed").eq("id", c_uid).execute().data[0]
 
-# --- 11. ONE-TIME INTERACTIVE TOUR ENGINE (UPDATED FOR RESTRICTED LEAGUE LOGIC) ---
+# --- 11. ONE-TIME INTERACTIVE TOUR ENGINE ---
 if not user_meta.get("tour_completed", False):
     tour_content = [
         {
@@ -597,7 +496,6 @@ if not user_meta.get("tour_completed", False):
             st.rerun()
     st.markdown("<hr style='border-color:rgba(255,255,255,0.15); margin-bottom:20px;'>", unsafe_allow_html=True)
 
-# Fetch user's registered leagues maps
 user_leagues_list = db_fetch_user_leagues(c_uid)
 
 # --- 12. STRICT LEAGUE LOCK CHECK ---
@@ -644,7 +542,6 @@ if not user_leagues_list:
                         st.rerun()
     st.stop()
 
-# --- 13. APP NAVIGATION PANELS ---
 col_nav1, col_nav2 = st.columns([8, 2])
 with col_nav1:
     st.markdown(f"👥 Active Profile: **{c_user}**", unsafe_allow_html=True)
@@ -654,14 +551,12 @@ with col_nav2:
         st.session_state.current_username = None
         st.rerun()
 
-# Clean up league mappings
 leagues_dropdown_options = {lg["name"]: lg for lg in user_leagues_list}
 selected_league_name = st.sidebar.selectbox("Current League Environment:", list(leagues_dropdown_options.keys()))
 active_league_meta = leagues_dropdown_options[selected_league_name]
 active_league_id = active_league_meta["id"]
 is_league_admin = (active_league_meta["creator_id"] == c_uid)
 
-# Navigation paths
 main_tabs = ["🏆 Leaderboards", "📝 Submit Predictions", "🛡️ Create/Join a League"]
 if is_league_admin: 
     main_tabs.append("🛠️ Admin Dashboard")
@@ -756,7 +651,6 @@ elif app_tab == "📝 Submit Predictions":
             else:
                 st.markdown("<div style='color:#34d399; margin-bottom:15px; font-weight:bold; font-size:1.1rem; text-align:center;'>🔓 Changes Active</div>", unsafe_allow_html=True)
                 
-                # Wrap input cards inside an isolated form container to prevent auto-refreshing
                 with st.form(key=f"form_{selected_group}", clear_on_submit=False):
                     for match in CHRONO_MATCHES[selected_group]:
                         user_preds = render_match_card(
@@ -764,7 +658,6 @@ elif app_tab == "📝 Submit Predictions":
                             key_prefix=f"Match_{match['id']}", disabled=is_group_locked, score_mode=True, scores_dict=user_preds
                         )
                     
-                    # The single submission button handles database batching and locking simultaneously
                     if st.form_submit_button(f"🔒 Finalize & Lock {selected_group} Predictions", use_container_width=True):
                         for match in CHRONO_MATCHES[selected_group]:
                             db_save_prediction(c_uid, active_league_id, f"Match_{match['id']}_h", user_preds[f"Match_{match['id']}_h"])
@@ -791,12 +684,11 @@ elif app_tab == "📝 Submit Predictions":
             "Match 77": (get_confirmed_1st("Group I"), u_wildcards[1]), "Match 78": (get_confirmed_2nd("Group E"), get_confirmed_2nd("Group I")),
             "Match 79": (get_confirmed_1st("Group B"), u_wildcards[6]), "Match 80": (get_confirmed_1st("Group L"), u_wildcards[5]),
             "Match 81": (get_confirmed_1st("Group D"), u_wildcards[2]), "Match 82": (get_confirmed_1st("Group G"), u_wildcards[3]),
-            "Match 83": (get_2nd("Group K"), get_2nd("Group L")), "Match 84": (get_1st("Group H"), get_2nd("Group J")),
-            "Match 85": (get_2nd("Group A"), get_2nd("Group B")), "Match 86": (get_1st("Group J"), get_2nd("Group H")),
-            "Match 87": (get_1st("Group K"), u_wildcards[7]), "Match 88": (get_2nd("Group D"), get_2nd("Group G"))
+            "Match 83": (get_confirmed_2nd("Group K"), get_confirmed_2nd("Group L")), "Match 84": (get_confirmed_1st("Group H"), get_confirmed_2nd("Group J")),
+            "Match 85": (get_confirmed_2nd("Group A"), get_confirmed_2nd("Group B")), "Match 86": (get_confirmed_1st("Group J"), get_confirmed_2nd("Group H")),
+            "Match 87": (get_confirmed_1st("Group K"), u_wildcards[7]), "Match 88": (get_confirmed_2nd("Group D"), get_confirmed_2nd("Group G"))
         }
         
-        # Wrapped the knockout tabs under a single Submit form setup to entirely clear up auto-refresh crashes
         with st.form(key="knockout_bracket_form", clear_on_submit=False):
             ko_tabs = st.tabs(["Round of 32", "Round of 16", "Quarter-Finals", "Finals"])
             
@@ -838,7 +730,6 @@ elif app_tab == "📝 Submit Predictions":
                 f_opts = [user_preds["Match 101"], user_preds["Match 102"]]
                 user_preds["Match 104"] = st.selectbox("🥇 Grand Champion Prediction", f_opts, index=f_opts.index(user_preds.get("Match 104", f_opts[0])) if user_preds.get("Match 104", f_opts[0]) in f_opts else 0, format_func=fmt_team)
 
-            # Single secure action button to batch save all knockout changes cleanly
             if st.form_submit_button("💾 Save All Knockout Brackets Predictions", use_container_width=True):
                 all_ko_ids = [f"Match {i}" for i in range(73, 105)]
                 for m_key in all_ko_ids:
