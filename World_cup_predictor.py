@@ -119,7 +119,7 @@ FLAGS = {
 }
 
 def fmt_team(name):
-    return FLAGS.get(name, name.upper())
+    return FLAGS.get(name, str(name).upper())
 
 # --- 5. DATA STRUCTURES (GROUPS & CHRONOLOGICAL FIXTURES) ---
 GROUPS = {
@@ -343,7 +343,7 @@ def render_match_card(home, away, label, key_prefix, disabled=False, score_mode=
         return scores_dict
     else:
         options = ["Select Winner", home, away]
-        curr = scores_dict.get(key_prefix, home) if scores_dict else home
+        curr = scores_dict.get(key_prefix, "Select Winner") if scores_dict else "Select Winner"
         idx_val = options.index(curr) if curr in options else 0
         val_select = st.selectbox("Winner Selection", options, index=idx_val, format_func=fmt_team, key=f"sel_{key_prefix}", label_visibility="collapsed", disabled=disabled)
         if scores_dict is not None:
@@ -685,58 +685,66 @@ elif app_tab == "📝 Submit Predictions":
             "Match_79": (get_confirmed_1st("Group B"), u_wildcards[6]), "Match_80": (get_confirmed_1st("Group L"), u_wildcards[5]),
             "Match_81": (get_confirmed_1st("Group D"), u_wildcards[2]), "Match_82": (get_confirmed_1st("Group G"), u_wildcards[3]),
             "Match_83": (get_confirmed_2nd("Group K"), get_confirmed_2nd("Group L")), "Match_84": (get_confirmed_1st("Group H"), get_confirmed_2nd("Group J")),
-            "Match_85": (get_confirmed_2nd("Group A"), get_confirmed_2nd("Group B")), "Match_86": (get_confirmed_1st("Group J"), get_confirmed_2nd("Group H")),
-            "Match_87": (get_confirmed_1st("Group K"), u_wildcards[7]), "Match_88": (get_confirmed_2nd("Group D"), get_confirmed_2nd("Group G"))
+            "Match_85": (get_2nd("Group A"), get_2nd("Group B")), "Match_86": (get_1st("Group J"), get_2nd("Group H")),
+            "Match_87": (get_1st("Group K"), u_wildcards[7]), "Match_88": (get_2nd("Group D"), get_2nd("Group G"))
         }
         
-        with st.form(key="knockout_bracket_form", clear_on_submit=False):
-            ko_tabs = st.tabs(["Round of 32", "Round of 16", "Quarter-Finals", "Finals"])
+        ko_tabs = st.tabs(["Round of 32", "Round of 16", "Quarter-Finals", "Finals"])
+        
+        with ko_tabs[0]:
+            for m_id, (h, a) in o_r32.items():
+                user_preds[m_id] = render_match_card(h, a, m_id.replace("_", " "), m_id, disabled=False, score_mode=False, scores_dict=user_preds)
+        with ko_tabs[1]:
+            o_r16 = {
+                "Match_89": (user_preds.get("Match_74", "W74"), user_preds.get("Match_77", "W77")), "Match_90": (user_preds.get("Match_73", "W73"), user_preds.get("Match_75", "W75")),
+                "Match_93": (user_preds.get("Match_83", "W83"), user_preds.get("Match_84", "W84")), "Match_94": (user_preds.get("Match_81", "W81"), user_preds.get("Match_82", "W82")),
+                "Match_91": (user_preds.get("Match_76", "W76"), user_preds.get("Match_78", "W78")), "Match_92": (user_preds.get("Match_79", "W79"), user_preds.get("Match_80", "W80")),
+                "Match_95": (user_preds.get("Match_86", "W86"), user_preds.get("Match_88", "W88")), "Match_96": (user_preds.get("Match_85", "W85"), user_preds.get("Match_87", "W87"))
+            }
+            for m_id, (h, a) in o_r16.items():
+                user_preds[m_id] = render_match_card(h, a, m_id.replace("_", " "), m_id, disabled=False, score_mode=False, scores_dict=user_preds)
+        with ko_tabs[2]:
+            o_qf = {
+                "Match_97": (user_preds.get("Match_89", "W89"), user_preds.get("Match_90", "W90")), "Match_98": (user_preds.get("Match_93", "W93"), user_preds.get("Match_94", "W94")),
+                "Match_99": (user_preds.get("Match_91", "W91"), user_preds.get("Match_92", "W92")), "Match_100": (user_preds.get("Match_95", "W95"), user_preds.get("Match_96", "W96"))
+            }
+            for m_id, (h, a) in o_qf.items():
+                user_preds[m_id] = render_match_card(h, a, m_id.replace("_", " "), m_id, disabled=False, score_mode=False, scores_dict=user_preds)
+        with ko_tabs[3]:
+            sf1_h, sf1_a = user_preds.get("Match_97", "W97"), user_preds.get("Match_98", "W98")
+            sf2_h, sf2_a = user_preds.get("Match_99", "W99"), user_preds.get("Match_100", "W100")
             
-            with ko_tabs[0]:
-                for m_id, (h, a) in o_r32.items():
-                    user_preds[m_id] = render_match_card(h, a, m_id.replace("_", " "), m_id, disabled=False, score_mode=False, scores_dict=user_preds)
-            with ko_tabs[1]:
-                o_r16 = {
-                    "Match_89": (user_preds.get("Match_74", "W74"), user_preds.get("Match_77", "W77")), "Match_90": (user_preds.get("Match_73", "W73"), user_preds.get("Match_75", "W75")),
-                    "Match_93": (user_preds.get("Match_83", "W83"), user_preds.get("Match_84", "W84")), "Match_94": (user_preds.get("Match_81", "W81"), user_preds.get("Match_82", "W82")),
-                    "Match_91": (user_preds.get("Match_76", "W76"), user_preds.get("Match_78", "W78")), "Match_92": (user_preds.get("Match_79", "W79"), user_preds.get("Match_80", "W80")),
-                    "Match_95": (user_preds.get("Match_86", "W86"), user_preds.get("Match_88", "W88")), "Match_96": (user_preds.get("Match_85", "W85"), user_preds.get("Match_87", "W87"))
-                }
-                for m_id, (h, a) in o_r16.items():
-                    user_preds[m_id] = render_match_card(h, a, m_id.replace("_", " "), m_id, disabled=False, score_mode=False, scores_dict=user_preds)
-            with ko_tabs[2]:
-                o_qf = {
-                    "Match_97": (user_preds.get("Match_89", "W89"), user_preds.get("Match_90", "W90")), "Match_98": (user_preds.get("Match_93", "W93"), user_preds.get("Match_94", "W94")),
-                    "Match_99": (user_preds.get("Match_91", "W91"), user_preds.get("Match_92", "W92")), "Match_100": (user_preds.get("Match_95", "W95"), user_preds.get("Match_96", "W96"))
-                }
-                for m_id, (h, a) in o_qf.items():
-                    user_preds[m_id] = render_match_card(h, a, m_id.replace("_", " "), m_id, disabled=False, score_mode=False, scores_dict=user_preds)
-            with ko_tabs[3]:
-                sf1_h, sf1_a = user_preds.get("Match_97", "W97"), user_preds.get("Match_98", "W98")
-                sf2_h, sf2_a = user_preds.get("Match_99", "W99"), user_preds.get("Match_100", "W100")
-                
-                sf1_opts = [sf1_h, sf1_a]
-                user_preds["Match_101"] = st.selectbox("Semi Final 1 Winner", sf1_opts, index=sf1_opts.index(user_preds.get("Match_101", sf1_h)) if user_preds.get("Match_101", sf1_h) in sf1_opts else 0, format_func=fmt_team)
-                
-                sf2_opts = [sf2_h, sf2_a]
-                user_preds["Match_102"] = st.selectbox("Semi Final 2 Winner", sf2_opts, index=sf2_opts.index(user_preds.get("Match_102", sf2_h)) if user_preds.get("Match_102", sf2_h) in sf2_opts else 0, format_func=fmt_team)
-                
-                sf1_l = sf1_a if user_preds["Match_101"] == sf1_h else sf1_h
-                sf2_l = sf2_a if user_preds["Match_102"] == sf2_h else sf2_h
-                
-                p3_opts = [sf1_l, sf2_l]
-                user_preds["Match_103"] = st.selectbox("🥉 3rd Place Winner Selection", p3_opts, index=p3_opts.index(user_preds.get("Match_103", sf1_l)) if user_preds.get("Match_103", sf1_l) in p3_opts else 0, format_func=fmt_team)
-                
-                f_opts = [user_preds["Match_101"], user_preds["Match_102"]]
-                user_preds["Match_104"] = st.selectbox("🥇 Grand Champion Prediction", f_opts, index=f_opts.index(user_preds.get("Match_104", f_opts[0])) if user_preds.get("Match_104", f_opts[0]) in f_opts else 0, format_func=fmt_team)
+            sf1_opts = ["Select Winner", sf1_h, sf1_a]
+            curr_sf1 = user_preds.get("Match_101", "Select Winner")
+            idx_sf1 = sf1_opts.index(curr_sf1) if curr_sf1 in sf1_opts else 0
+            user_preds["Match_101"] = st.selectbox("Semi Final 1 Winner", sf1_opts, index=idx_sf1, format_func=fmt_team, key="final_sf1_sel")
+            
+            sf2_opts = ["Select Winner", sf2_h, sf2_a]
+            curr_sf2 = user_preds.get("Match_102", "Select Winner")
+            idx_sf2 = sf2_opts.index(curr_sf2) if curr_sf2 in sf2_opts else 0
+            user_preds["Match_102"] = st.selectbox("Semi Final 2 Winner", sf2_opts, index=idx_sf2, format_func=fmt_team, key="final_sf2_sel")
+            
+            sf1_l = sf1_a if user_preds["Match_101"] == sf1_h else sf1_h
+            sf2_l = sf2_a if user_preds["Match_102"] == sf2_h else sf2_h
+            
+            p3_opts = ["Select Winner", sf1_l, sf2_l]
+            curr_p3 = user_preds.get("Match_103", "Select Winner")
+            idx_p3 = p3_opts.index(curr_p3) if curr_p3 in p3_opts else 0
+            user_preds["Match_103"] = st.selectbox("🥉 3rd Place Winner Selection", p3_opts, index=idx_p3, format_func=fmt_team, key="final_p3_sel")
+            
+            f_opts = ["Select Winner", user_preds["Match_101"], user_preds["Match_102"]]
+            curr_f = user_preds.get("Match_104", "Select Winner")
+            idx_f = f_opts.index(curr_f) if curr_f in f_opts else 0
+            user_preds["Match_104"] = st.selectbox("🥇 Grand Champion Prediction", f_opts, index=idx_f, format_func=fmt_team, key="final_champ_sel")
 
-            if st.form_submit_button("💾 Save All Knockout Brackets Predictions", use_container_width=True):
-                all_ko_ids = [f"Match_{i}" for i in range(73, 105)]
-                for m_key in all_ko_ids:
-                    if m_key in user_preds:
-                        db_save_prediction(c_uid, active_league_id, m_key, user_preds[m_key])
-                st.success("Knockout bracket selections successfully saved!")
-                st.rerun()
+        st.markdown("<div style='margin-top:20px;'></div>", unsafe_allow_html=True)
+        if st.button("💾 Save All Knockout Brackets Predictions", use_container_width=True, key="save_ko_bracket_global_btn"):
+            all_ko_ids = [f"Match_{i}" for i in range(73, 105)]
+            for m_key in all_ko_ids:
+                if m_key in user_preds:
+                    db_save_prediction(c_uid, active_league_id, m_key, user_preds[m_key])
+            st.success("Knockout bracket selections successfully saved!")
+            st.rerun()
 
 # --- 17. ADMINISTRATIVE CONTROL PANEL (ISOLATED BY LEAGUE OWNER) ---
 elif app_tab == "🛠️ Admin Dashboard" and is_league_admin:
