@@ -12,7 +12,7 @@ st.set_page_config(
 
 st.markdown("""
     <style>
-    /* Background Image setup - Full colour */
+    /* Background Image setup */
     .stApp {
         background: linear-gradient(rgba(15, 23, 42, 0.2), rgba(15, 23, 42, 0.4)),
                     url("https://cdn-media.theathletic.com/cdn-cgi/image/width=1000%2cquality=70%2cformat=auto/https://cdn-media.theathletic.com/vwYC1qZfTwfm_3qmyXkIC5Rja_1440x960.jpg");
@@ -21,7 +21,7 @@ st.markdown("""
         background-attachment: fixed;
     }
     
-    /* Global Typography - Crisp white & readable */
+    /* Global Typography */
     html, body, [class*="st-"] p, label, .stMarkdown, .stText, [data-testid="stWidgetLabel"] p {
         color: #f8fafc !important;
         font-weight: 500 !important;
@@ -42,16 +42,6 @@ st.markdown("""
         border-radius: 12px !important;
         padding: 16px !important;
         margin-bottom: 16px !important;
-    }
-
-    /* Interactive Guided Tour Box Custom Styling */
-    .tour-box {
-        background: linear-gradient(135deg, #1e3a8a, #0f172a) !important;
-        border: 2px solid #3b82f6 !important;
-        border-radius: 12px !important;
-        padding: 20px !important;
-        margin-bottom: 25px !important;
-        box-shadow: 0 10px 25px rgba(0, 0, 0, 0.5);
     }
 
     div[data-baseweb="select"] > div {
@@ -292,8 +282,6 @@ def db_fetch_league_actual_results(league_id):
                 results["group"][key] = val
             elif key == "Match_103_winner":
                 results["third_place"] = val
-            elif key == "Match_finalists":
-                pass
             else:
                 results["ko_winners"][key] = val
     return results
@@ -310,10 +298,8 @@ if "current_user_id" not in st.session_state:
     st.session_state.current_user_id = None
 if "current_username" not in st.session_state:
     st.session_state.current_username = None
-if "tour_step" not in st.session_state:
-    st.session_state.tour_step = 0
 
-# --- 8. UNIFIED INTEGRATED MATCH CARD RENDERER ---
+# --- 8. UNIFIED MATCH CARD RENDERER ---
 def render_match_card(home, away, label, key_prefix, disabled=False, score_mode=False, scores_dict=None):
     disp1 = fmt_team(name=home)
     disp2 = fmt_team(name=away)
@@ -430,7 +416,6 @@ if st.session_state.current_user_id is None:
                 if res.data and res.data[0]["password_hash"] == hashed_p:
                     st.session_state.current_user_id = res.data[0]["id"]
                     st.session_state.current_username = res.data[0]["username"]
-                    st.session_state.tour_step = 0
                     st.rerun()
                 else: st.error("Invalid credentials.")
         with t2:
@@ -440,8 +425,7 @@ if st.session_state.current_user_id is None:
                 if reg_user.strip() == "" or reg_pass.strip() == "": st.error("Fields cannot be empty.")
                 else:
                     dup_check = supabase.table("users").select("id").eq("username", reg_user).execute()
-                    if dup_check.data:
-                        st.error("Username already exists.")
+                    if dup_check.data: st.error("Username already exists.")
                     else:
                         hashed_p = hash_password(reg_pass)
                         supabase.table("users").insert({"username": reg_user, "password_hash": hashed_p}).execute()
@@ -451,54 +435,9 @@ if st.session_state.current_user_id is None:
 c_uid = st.session_state.current_user_id
 c_user = st.session_state.current_username
 
-user_meta = supabase.table("users").select("tour_completed").eq("id", c_uid).execute().data[0]
-
-# --- 11. ONE-TIME INTERACTIVE TOUR ENGINE ---
-if not user_meta.get("tour_completed", False):
-    tour_content = [
-        {
-            "title": "🛡️ Welcome! Step 1: Secure League Entry Required",
-            "body": "Before you can see match fixtures or enter scores, you must be part of a league environment. Use the **Onboarding Gate** below to enter an admin invite code, or use a master passcode to build your own local station league!"
-        },
-        {
-            "title": "📝 Step 2: Setting Score Selections",
-            "body": "Once inside your league, navigate to **📝 Submit Predictions**. Use the interactive arrows to save your scores. The simulated group standings table will instantly adjust live on your screen!"
-        },
-        {
-            "title": "🔒 Step 3: Finalizing & Locking Data",
-            "body": "When you are completely happy with a group's scores, click **Finalize & Lock**. This safely saves your figures and prevents accidental edits before the real match kicks off."
-        },
-        {
-            "title": "🏆 Step 4: Standings & Private Admins",
-            "body": "Track your position in **🏆 Leaderboards**. If you created the league, you will also see a **🛠️ Admin Dashboard** tab. Saving real match outcomes there calculates scores *exclusively* for your league mates!"
-        }
-    ]
-    current_step = st.session_state.tour_step
-    st.markdown(f"""
-        <div class="tour-box">
-            <h3 style="margin-top:0px; color:#60a5fa !important;">{tour_content[current_step]['title']}</h3>
-            <p style="font-size:1.05rem; line-height:1.5;">{tour_content[current_step]['body']}</p>
-        </div>
-    """, unsafe_allow_html=True)
-    btn_col1, btn_col2 = st.columns([8, 2])
-    with btn_col1:
-        if current_step < len(tour_content) - 1:
-            if st.button("👉 Next Tip", use_container_width=True):
-                st.session_state.tour_step += 1
-                st.rerun()
-        else:
-            if st.button("🎉 Complete Tour", use_container_width=True):
-                supabase.table("users").update({"tour_completed": True}).eq("id", c_uid).execute()
-                st.rerun()
-    with btn_col2:
-        if st.button("❌ Dismiss Guide", use_container_width=True):
-            supabase.table("users").update({"tour_completed": True}).eq("id", c_uid).execute()
-            st.rerun()
-    st.markdown("<hr style='border-color:rgba(255,255,255,0.15); margin-bottom:20px;'>", unsafe_allow_html=True)
-
 user_leagues_list = db_fetch_user_leagues(c_uid)
 
-# --- 12. STRICT LEAGUE LOCK CHECK ---
+# --- 11. STRICT LEAGUE LOCK CHECK ---
 if not user_leagues_list:
     st.title("🛡️ Secure Onboarding")
     st.warning("Welcome! To proceed into the dashboard, you must first create or join a standalone league environment.")
@@ -518,33 +457,27 @@ if not user_leagues_list:
                 else: st.error("Invite code not verified.")
     with c2:
         st.subheader("Request A New League Setup")
-        st.markdown("To prevent spam, league creation requires an authorized Master Passcode. If you don't have one, request it from your regional lead.")
         master_pass = st.text_input("Enter Master Creation Passcode", type="password")
         new_lg_name = st.text_input("Proposed League Name")
         new_lg_code = st.text_input("Create Custom Invite Code For Friends")
         
         if st.button("✨ Initialize Authorized League", use_container_width=True):
             if master_pass != "FIRE_CHIEF_2026":
-                st.error("Invalid Master Creation Passcode. Unauthorized setup blocked.")
+                st.error("Invalid Master Creation Passcode.")
             elif new_lg_name.strip() == "" or new_lg_code.strip() == "":
                 st.error("Fields cannot be left blank.")
             else:
-                name_check = supabase.table("leagues").select("id").eq("name", new_lg_name).execute()
-                code_check = supabase.table("leagues").select("id").eq("invite_code", new_lg_code).execute()
-                if name_check.data or code_check.data:
-                    st.error("League name or invite code has already been claimed.")
-                else:
-                    ins_res = supabase.table("leagues").insert({"name": new_lg_name, "invite_code": new_lg_code, "creator_id": c_uid}).execute()
-                    if ins_res.data:
-                        new_id = ins_res.data[0]["id"]
-                        supabase.table("league_members").insert({"user_id": c_uid, "league_id": new_id}).execute()
-                        st.success("Authorized League built smoothly! Refreshing space...")
-                        st.rerun()
+                ins_res = supabase.table("leagues").insert({"name": new_lg_name, "invite_code": new_lg_code, "creator_id": c_uid}).execute()
+                if ins_res.data:
+                    new_id = ins_res.data[0]["id"]
+                    supabase.table("league_members").insert({"user_id": c_uid, "league_id": new_id}).execute()
+                    st.rerun()
     st.stop()
 
+# Layout setup
 col_nav1, col_nav2 = st.columns([8, 2])
 with col_nav1:
-    st.markdown(f"👥 Active Profile: **{c_user}**", unsafe_allow_html=True)
+    st.markdown(f"👥 Active Profile: **{c_user}**")
 with col_nav2:
     if st.button("🚪 Log Out", use_container_width=True):
         st.session_state.current_user_id = None
@@ -562,10 +495,9 @@ if is_league_admin:
     main_tabs.append("🛠️ Admin Dashboard")
 app_tab = st.sidebar.radio("Main Menu Navigation", main_tabs)
 
-# --- 14. LEADERBOARD WORKSPACE ---
+# --- 12. LEADERBOARD WORKSPACE ---
 if app_tab == "🏆 Leaderboards":
     st.header(f"🏆 {selected_league_name} Standings")
-    
     members_res = supabase.table("league_members").select("users(id, username)").eq("league_id", active_league_id).execute()
     leaderboard_data = []
     if members_res.data:
@@ -577,16 +509,12 @@ if app_tab == "🏆 Leaderboards":
                     "Competitor Name": m_name, 
                     "Current Total Points": calculate_user_points(m_id, active_league_id)
                 })
-                
     df_leaderboard = pd.DataFrame(leaderboard_data)
     if not df_leaderboard.empty:
         df_leaderboard = df_leaderboard.sort_values(by="Current Total Points", ascending=False).reset_index(drop=True)
-        df_leaderboard.index += 1
-        st.dataframe(df_leaderboard, use_container_width=True, hide_index=True)
-    else:
-        st.info("No competitor records found.")
+        st.dataframe(df_leaderboard, use_container_width=True, hide_index=False)
 
-# --- 15. CREATE / JOIN LEAGUE HUB ---
+# --- 13. CREATE / JOIN LEAGUE HUB ---
 elif app_tab == "🛡️ Create/Join a League":
     st.header("🛡️ League Management Hub")
     c1, c2 = st.columns(2)
@@ -598,33 +526,11 @@ elif app_tab == "🛡️ Create/Join a League":
                 code_query = supabase.table("leagues").select("id, name").eq("invite_code", sec_join_code).execute()
                 if code_query.data:
                     t_id = code_query.data[0]["id"]
-                    member_check = supabase.table("league_members").select("id").eq("user_id", c_uid).eq("league_id", t_id).execute()
-                    if member_check.data:
-                        st.warning("You are already a registered competitor in this league.")
-                    else:
-                        supabase.table("league_members").insert({"user_id": c_uid, "league_id": t_id}).execute()
-                        st.success("Successfully registered into new pool context!")
-                        st.rerun()
-                else: st.error("Code not found.")
-    with c2:
-        st.subheader("Authorized Private League Creation")
-        m_pass2 = st.text_input("Master Gatekeeper Passcode", type="password", key="m_pass2")
-        l_name2 = st.text_input("League Name", key="l_name2")
-        l_code2 = st.text_input("Invite Code Key", key="l_code2")
-        if st.button("✨ Establish Additional Standalone League", use_container_width=True):
-            if m_pass2 != "FIRE_CHIEF_2026":
-                st.error("Unauthorized Master Passcode.")
-            elif l_name2.strip() == "" or l_code2.strip() == "":
-                st.error("Fields cannot be blank.")
-            else:
-                ins_res = supabase.table("leagues").insert({"name": l_name2, "invite_code": l_code2, "creator_id": c_uid}).execute()
-                if ins_res.data:
-                    new_id = ins_res.data[0]["id"]
-                    supabase.table("league_members").insert({"user_id": c_uid, "league_id": new_id}).execute()
-                    st.success("New standalone league provisioned completely!")
+                    supabase.table("league_members").insert({"user_id": c_uid, "league_id": t_id}).execute()
+                    st.success("Successfully registered into new pool context!")
                     st.rerun()
 
-# --- 16. USER PREDICTIONS DESK ---
+# --- 14. USER PREDICTIONS DESK ---
 elif app_tab == "📝 Submit Predictions":
     st.header(f"📝 Match Setup — {selected_league_name}")
     
@@ -649,21 +555,17 @@ elif app_tab == "📝 Submit Predictions":
                         key_prefix=f"Match_{match['id']}", disabled=is_group_locked, score_mode=True, scores_dict=user_preds
                     )
             else:
-                st.markdown("<div style='color:#34d399; margin-bottom:15px; font-weight:bold; font-size:1.1rem; text-align:center;'>🔓 Changes Active</div>", unsafe_allow_html=True)
-                
                 with st.form(key=f"form_{selected_group}", clear_on_submit=False):
                     for match in CHRONO_MATCHES[selected_group]:
                         user_preds = render_match_card(
                             home=match["home"], away=match["away"], label=f"Match #{match['id']}", 
                             key_prefix=f"Match_{match['id']}", disabled=is_group_locked, score_mode=True, scores_dict=user_preds
                         )
-                    
                     if st.form_submit_button(f"🔒 Finalize & Lock {selected_group} Predictions", use_container_width=True):
                         for match in CHRONO_MATCHES[selected_group]:
                             db_save_prediction(c_uid, active_league_id, f"Match_{match['id']}_h", user_preds[f"Match_{match['id']}_h"])
                             db_save_prediction(c_uid, active_league_id, f"Match_{match['id']}_a", user_preds[f"Match_{match['id']}_a"])
                         db_lock_group_predictions(c_uid, active_league_id, group_keys)
-                        st.success(f"{selected_group} locked successfully!")
                         st.rerun()
                 
         with col_table:
@@ -675,6 +577,7 @@ elif app_tab == "📝 Submit Predictions":
 
     with pred_sub_tabs[1]:
         u_results, u_wildcards = run_standings_engine(user_preds)
+        
         def get_confirmed_1st(g): return u_results[g].iloc[0]["Team"] if g in u_results and not u_results[g].empty else f"1st {g}"
         def get_confirmed_2nd(g): return u_results[g].iloc[1]["Team"] if g in u_results and not u_results[g].empty else f"2nd {g}"
 
@@ -685,8 +588,8 @@ elif app_tab == "📝 Submit Predictions":
             "Match_79": (get_confirmed_1st("Group B"), u_wildcards[6]), "Match_80": (get_confirmed_1st("Group L"), u_wildcards[5]),
             "Match_81": (get_confirmed_1st("Group D"), u_wildcards[2]), "Match_82": (get_confirmed_1st("Group G"), u_wildcards[3]),
             "Match_83": (get_confirmed_2nd("Group K"), get_confirmed_2nd("Group L")), "Match_84": (get_confirmed_1st("Group H"), get_confirmed_2nd("Group J")),
-            "Match_85": (get_2nd("Group A"), get_2nd("Group B")), "Match_86": (get_1st("Group J"), get_2nd("Group H")),
-            "Match_87": (get_1st("Group K"), u_wildcards[7]), "Match_88": (get_2nd("Group D"), get_2nd("Group G"))
+            "Match_85": (get_confirmed_2nd("Group A"), get_confirmed_2nd("Group B")), "Match_86": (get_confirmed_1st("Group J"), get_confirmed_2nd("Group H")),
+            "Match_87": (get_confirmed_1st("Group K"), u_wildcards[7]), "Match_88": (get_confirmed_2nd("Group D"), get_confirmed_2nd("Group G"))
         }
         
         ko_tabs = st.tabs(["Round of 32", "Round of 16", "Quarter-Finals", "Finals"])
@@ -746,11 +649,9 @@ elif app_tab == "📝 Submit Predictions":
             st.success("Knockout bracket selections successfully saved!")
             st.rerun()
 
-# --- 17. ADMINISTRATIVE CONTROL PANEL (ISOLATED BY LEAGUE OWNER) ---
+# --- 15. ADMINISTRATIVE CONTROL PANEL ---
 elif app_tab == "🛠️ Admin Dashboard" and is_league_admin:
     st.header(f"🛠️ {selected_league_name} Admin Control Panel")
-    st.markdown("Scores saved here instantly update points *exclusively* for this league's players.")
-    
     actual = db_fetch_league_actual_results(active_league_id)
     admin_tabs = st.tabs(["Group Stage Results", "Knockout Progress Matches"])
     
@@ -758,31 +659,3 @@ elif app_tab == "🛠️ Admin Dashboard" and is_league_admin:
         selected_adm_group = st.selectbox("Verify Target Group Pool", list(GROUPS.keys()))
         for match in CHRONO_MATCHES[selected_adm_group]:
             actual["group"] = render_match_card(
-                home=match["home"], away=match["away"], label=f"Match #{match['id']} Official Score",
-                key_prefix=f"Match_{match['id']}", disabled=False, score_mode=True, scores_dict=actual["group"]
-            )
-            if st.button("📢 Save Match Score", key=f"btn_pub_Match_{match['id']}", use_container_width=True):
-                db_save_league_actual_result(active_league_id, f"Match_{match['id']}_h", actual["group"][f"Match_{match['id']}_h"])
-                db_save_league_actual_result(active_league_id, f"Match_{match['id']}_a", actual["group"][f"Match_{match['id']}_a"])
-                st.success("Score updated smoothly inside league storage data!")
-            
-    with admin_tabs[1]:
-        adm_group_res, adm_wildcards = run_standings_engine(actual["group"])
-        def get_1st(g): return adm_group_res[g].iloc[0]["Team"] if not adm_group_res[g].empty else f"1st {g}"
-        def get_2nd(g): return adm_group_res[g].iloc[1]["Team"] if not adm_group_res[g].empty else f"2nd {g}"
-        
-        adm_r32_pairings = {
-            "Match_73": (get_1st("Group A"), adm_wildcards[4]), "Match_74": (get_1st("Group E"), adm_wildcards[0]),
-            "Match_75": (get_1st("Group F"), get_2nd("Group C")), "Match_76": (get_1st("Group C"), get_2nd("Group F")),
-            "Match_77": (get_1st("Group I"), adm_wildcards[1]), "Match_78": (get_2nd("Group E"), get_2nd("Group I")),
-            "Match_79": (get_1st("Group B"), adm_wildcards[6]), "Match_80": (get_1st("Group L"), adm_wildcards[5]),
-            "Match_81": (get_1st("Group D"), adm_wildcards[2]), "Match_82": (get_1st("Group G"), adm_wildcards[3]),
-            "Match_83": (get_2nd("Group K"), get_2nd("Group L")), "Match_84": (get_1st("Group H"), get_2nd("Group J")),
-            "Match_85": (get_2nd("Group A"), get_2nd("Group B")), "Match_86": (get_1st("Group J"), get_2nd("Group H")),
-            "Match_87": (get_1st("Group K"), adm_wildcards[7]), "Match_88": (get_2nd("Group D"), get_2nd("Group G"))
-        }
-        for m_id, (h, a) in adm_r32_pairings.items():
-            actual["ko_winners"][m_id] = render_match_card(h, a, f"Winner: {m_id.replace('_', ' ')}", m_id, disabled=False, score_mode=False, scores_dict=actual["ko_winners"])
-            if st.button("📢 Lock Knockout Winner", key=f"btn_ko_{m_id}", use_container_width=True):
-                db_save_league_actual_result(active_league_id, m_id, actual["ko_winners"][m_id])
-                st.success(f"{m_id.replace('_', ' ')} progression locked!")
