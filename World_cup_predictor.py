@@ -237,6 +237,105 @@ CHRONO_MATCHES = {
     ]
 }
 
+CHRONO_MATCHES = {
+    "Group A": [
+        {"id": 1, "home": "Mexico", "away": "South Africa"},
+        {"id": 2, "home": "Rep. of Korea", "away": "Czech Rep."},
+        {"id": 25, "home": "Czech Rep.", "away": "South Africa"},
+        {"id": 28, "home": "Mexico", "away": "Rep. of Korea"},
+        {"id": 49, "home": "Czech Rep.", "away": "Mexico"},
+        {"id": 50, "home": "South Africa", "away": "Rep. of Korea"}
+    ],
+    "Group B": [
+        {"id": 3, "home": "Canada", "away": "Bosnia/Herzeg."},
+        {"id": 5, "home": "Qatar", "away": "Switzerland"},
+        {"id": 26, "home": "Switzerland", "away": "Bosnia/Herzeg."},
+        {"id": 27, "home": "Canada", "away": "Qatar"},
+        {"id": 51, "home": "Switzerland", "away": "Canada"},
+        {"id": 52, "home": "Bosnia/Herzeg.", "away": "Qatar"}
+    ],
+    "Group C": [
+        {"id": 6, "home": "Brazil", "away": "Morocco"},
+        {"id": 7, "home": "Haiti", "away": "Scotland"},
+        {"id": 30, "home": "Scotland", "away": "Morocco"},
+        {"id": 31, "home": "Brazil", "away": "Haiti"},
+        {"id": 53, "home": "Scotland", "away": "Brazil"},
+        {"id": 54, "home": "Morocco", "away": "Haiti"}
+    ],
+    "Group D": [
+        {"id": 4, "home": "USA", "away": "Paraguay"},
+        {"id": 8, "home": "Australia", "away": "Turkey"},
+        {"id": 29, "home": "USA", "away": "Australia"},
+        {"id": 32, "home": "Turkey", "away": "Paraguay"},
+        {"id": 55, "home": "Turkey", "away": "USA"},
+        {"id": 56, "home": "Paraguay", "away": "Australia"}
+    ],
+    "Group E": [
+        {"id": 9, "home": "Germany", "away": "Curaçao"},
+        {"id": 11, "home": "Ivory Coast", "away": "Ecuador"},
+        {"id": 34, "home": "Germany", "away": "Ivory Coast"},
+        {"id": 35, "home": "Ecuador", "away": "Curaçao"},
+        {"id": 57, "home": "Ecuador", "away": "Germany"},
+        {"id": 58, "home": "Curaçao", "away": "Ivory Coast"}
+    ],
+    "Group F": [
+        {"id": 10, "home": "Netherlands", "away": "Japan"},
+        {"id": 12, "home": "Sweden", "away": "Tunisia"},
+        {"id": 33, "home": "Netherlands", "away": "Sweden"},
+        {"id": 36, "home": "Tunisia", "away": "Japan"},
+        {"id": 59, "home": "Tunisia", "away": "Netherlands"},
+        {"id": 60, "home": "Japan", "away": "Sweden"}
+    ],
+    "Group G": [
+        {"id": 14, "home": "Belgium", "away": "Egypt"},
+        {"id": 16, "home": "IR Iran", "away": "New Zealand"},
+        {"id": 38, "home": "Belgium", "away": "IR Iran"},
+        {"id": 40, "home": "New Zealand", "away": "Egypt"},
+        {"id": 61, "home": "New Zealand", "away": "Belgium"},
+        {"id": 62, "home": "Egypt", "away": "IR Iran"}
+    ],
+    "Group H": [
+        {"id": 13, "home": "Spain", "away": "Cape Verde"},
+        {"id": 15, "home": "Saudi Arabia", "away": "Uruguay"},
+        {"id": 37, "home": "Spain", "away": "Saudi Arabia"},
+        {"id": 39, "home": "Uruguay", "away": "Cape Verde"},
+        {"id": 63, "home": "Uruguay", "away": "Spain"},
+        {"id": 64, "home": "Cape Verde", "away": "Saudi Arabia"}
+    ],
+    "Group I": [
+        {"id": 17, "home": "France", "away": "Senegal"},
+        {"id": 18, "home": "Iraq", "away": "Norway"},
+        {"id": 41, "home": "France", "away": "Iraq"},
+        {"id": 42, "home": "Norway", "away": "Senegal"},
+        {"id": 65, "home": "Norway", "away": "France"},
+        {"id": 66, "home": "Senegal", "away": "Iraq"}
+    ],
+    "Group J": [
+        {"id": 19, "home": "Argentina", "away": "Algeria"},
+        {"id": 20, "home": "Austria", "away": "Jordan"},
+        {"id": 43, "home": "Argentina", "away": "Austria"},
+        {"id": 44, "home": "Jordan", "away": "Algeria"},
+        {"id": 67, "home": "Jordan", "away": "Argentina"},
+        {"id": 68, "home": "Algeria", "away": "Austria"}
+    ],
+    "Group K": [
+        {"id": 21, "home": "Portugal", "away": "DR Congo"},
+        {"id": 24, "home": "Uzbekistan", "away": "Colombia"},
+        {"id": 45, "home": "Portugal", "away": "Uzbekistan"},
+        {"id": 46, "home": "Colombia", "away": "DR Congo"},
+        {"id": 69, "home": "Colombia", "away": "Portugal"},
+        {"id": 70, "home": "DR Congo", "away": "Uzbekistan"}
+    ],
+    "Group L": [
+        {"id": 22, "home": "England", "away": "Croatia"},
+        {"id": 23, "home": "Ghana", "away": "Panama"},
+        {"id": 47, "home": "England", "away": "Ghana"},
+        {"id": 48, "home": "Panama", "away": "Croatia"},
+        {"id": 71, "home": "Panama", "away": "England"},
+        {"id": 72, "home": "Croatia", "away": "Ghana"}
+    ]
+}
+
 # --- 6. DATABASE HELPER WRAPPERS ---
 def db_fetch_user_predictions(user_id, league_id):
     res = supabase.table("predictions").select("match_key, score_value").eq("user_id", user_id).eq("league_id", league_id).execute()
@@ -247,11 +346,14 @@ def db_fetch_user_predictions(user_id, league_id):
     return preds
 
 def db_save_prediction(user_id, league_id, match_key, value):
+    # Security block: Protect against invalid text, selections, or structural placeholders hitting the database
+    if value is None or str(value).strip() == "" or str(value).startswith("Select") or str(value).startswith("W") or str(value).startswith("1st") or str(value).startswith("2nd"):
+        return
     supabase.table("predictions").upsert({
         "user_id": user_id,
         "league_id": league_id,
         "match_key": match_key,
-        "score_value": value
+        "score_value": str(value)
     }, on_conflict="user_id,league_id,match_key").execute()
 
 def db_fetch_locked_status(user_id, league_id):
@@ -689,56 +791,61 @@ elif app_tab == "📝 Submit Predictions":
             "Match 77": (get_confirmed_1st("Group I"), u_wildcards[1]), "Match 78": (get_confirmed_2nd("Group E"), get_confirmed_2nd("Group I")),
             "Match 79": (get_confirmed_1st("Group B"), u_wildcards[6]), "Match 80": (get_confirmed_1st("Group L"), u_wildcards[5]),
             "Match 81": (get_confirmed_1st("Group D"), u_wildcards[2]), "Match 82": (get_confirmed_1st("Group G"), u_wildcards[3]),
-            "Match 83": (get_confirmed_2nd("Group K"), get_confirmed_2nd("Group L")), "Match 84": (get_confirmed_1st("Group H"), get_confirmed_2nd("Group J")),
-            "Match 85": (get_confirmed_2nd("Group A"), get_confirmed_2nd("Group B")), "Match 86": (get_confirmed_1st("Group J"), get_confirmed_2nd("Group H")),
-            "Match 87": (get_confirmed_1st("Group K"), u_wildcards[7]), "Match 88": (get_confirmed_2nd("Group D"), get_confirmed_2nd("Group G"))
+            "Match 83": (get_2nd("Group K"), get_2nd("Group L")), "Match 84": (get_1st("Group H"), get_2nd("Group J")),
+            "Match 85": (get_2nd("Group A"), get_2nd("Group B")), "Match 86": (get_1st("Group J"), get_2nd("Group H")),
+            "Match 87": (get_1st("Group K"), u_wildcards[7]), "Match 88": (get_2nd("Group D"), get_2nd("Group G"))
         }
-        ko_tabs = st.tabs(["Round of 32", "Round of 16", "Quarter-Finals", "Finals"])
         
-        with ko_tabs[0]:
-            for m_id, (h, a) in o_r32.items():
-                user_preds[m_id] = render_match_card(h, a, m_id, m_id, disabled=False, score_mode=False, scores_dict=user_preds)
-                db_save_prediction(c_uid, active_league_id, m_id, user_preds[m_id])
-        with ko_tabs[1]:
-            o_r16 = {
-                "Match 89": (user_preds.get("Match 74", "W74"), user_preds.get("Match 77", "W77")), "Match 90": (user_preds.get("Match 73", "W73"), user_preds.get("Match 75", "W75")),
-                "Match 93": (user_preds.get("Match 83", "W83"), user_preds.get("Match 84", "W84")), "Match 94": (user_preds.get("Match 81", "W81"), user_preds.get("Match 82", "W82")),
-                "Match 91": (user_preds.get("Match 76", "W76"), user_preds.get("Match 78", "W78")), "Match 92": (user_preds.get("Match 79", "W79"), user_preds.get("Match 80", "W80")),
-                "Match 95": (user_preds.get("Match 86", "W86"), user_preds.get("Match 88", "W88")), "Match 96": (user_preds.get("Match 85", "W85"), user_preds.get("Match 87", "W87"))
-            }
-            for m_id, (h, a) in o_r16.items():
-                user_preds[m_id] = render_match_card(h, a, m_id, m_id, disabled=False, score_mode=False, scores_dict=user_preds)
-                db_save_prediction(c_uid, active_league_id, m_id, user_preds[m_id])
-        with ko_tabs[2]:
-            o_qf = {
-                "Match 97": (user_preds.get("Match 89", "W89"), user_preds.get("Match 90", "W90")), "Match 98": (user_preds.get("Match 93", "W93"), user_preds.get("Match 94", "W94")),
-                "Match 99": (user_preds.get("Match 91", "W91"), user_preds.get("Match 92", "W92")), "Match 100": (user_preds.get("Match 95", "W95"), user_preds.get("Match 100", "W100"))
-            }
-            for m_id, (h, a) in o_qf.items():
-                user_preds[m_id] = render_match_card(h, a, m_id, m_id, disabled=False, score_mode=False, scores_dict=user_preds)
-                db_save_prediction(c_uid, active_league_id, m_id, user_preds[m_id])
-        with ko_tabs[3]:
-            sf1_h, sf1_a = user_preds.get("Match 97", "W97"), user_preds.get("Match 98", "W98")
-            sf2_h, sf2_a = user_preds.get("Match 99", "W99"), user_preds.get("Match 100", "W100")
+        # Wrapped the knockout tabs under a single Submit form setup to entirely clear up auto-refresh crashes
+        with st.form(key="knockout_bracket_form", clear_on_submit=False):
+            ko_tabs = st.tabs(["Round of 32", "Round of 16", "Quarter-Finals", "Finals"])
             
-            sf1_opts = [sf1_h, sf1_a]
-            user_preds["Match 101"] = st.selectbox("Semi Final 1 Winner", sf1_opts, index=sf1_opts.index(user_preds.get("Match 101", sf1_h)) if user_preds.get("Match 101", sf1_h) in sf1_opts else 0, format_func=fmt_team)
-            db_save_prediction(c_uid, active_league_id, "Match 101", user_preds["Match 101"])
-            
-            sf2_opts = [sf2_h, sf2_a]
-            user_preds["Match 102"] = st.selectbox("Semi Final 2 Winner", sf2_opts, index=sf2_opts.index(user_preds.get("Match 102", sf2_h)) if user_preds.get("Match 102", sf2_h) in sf2_opts else 0, format_func=fmt_team)
-            db_save_prediction(c_uid, active_league_id, "Match 102", user_preds["Match 102"])
-            
-            sf1_l = sf1_a if user_preds["Match 101"] == sf1_h else sf1_h
-            sf2_l = sf2_a if user_preds["Match 102"] == sf2_h else sf2_h
-            
-            p3_opts = [sf1_l, sf2_l]
-            user_preds["Match 103"] = st.selectbox("🥉 3rd Place Winner Selection", p3_opts, index=p3_opts.index(user_preds.get("Match 103", sf1_l)) if user_preds.get("Match 103", sf1_l) in p3_opts else 0, format_func=fmt_team)
-            db_save_prediction(c_uid, active_league_id, "Match 103", user_preds["Match 103"])
-            
-            f_opts = [user_preds["Match 101"], user_preds["Match 102"]]
-            user_preds["Match 104"] = st.selectbox("🥇 Grand Champion Prediction", f_opts, index=f_opts.index(user_preds.get("Match 104", f_opts[0])) if user_preds.get("Match 104", f_opts[0]) in f_opts else 0, format_func=fmt_team)
-            db_save_prediction(c_uid, active_league_id, "Match 104", user_preds["Match 104"])
+            with ko_tabs[0]:
+                for m_id, (h, a) in o_r32.items():
+                    user_preds[m_id] = render_match_card(h, a, m_id, m_id, disabled=False, score_mode=False, scores_dict=user_preds)
+            with ko_tabs[1]:
+                o_r16 = {
+                    "Match 89": (user_preds.get("Match 74", "W74"), user_preds.get("Match 77", "W77")), "Match 90": (user_preds.get("Match 73", "W73"), user_preds.get("Match 75", "W75")),
+                    "Match 93": (user_preds.get("Match 83", "W83"), user_preds.get("Match 84", "W84")), "Match 94": (user_preds.get("Match 81", "W81"), user_preds.get("Match 82", "W82")),
+                    "Match 91": (user_preds.get("Match 76", "W76"), user_preds.get("Match 78", "W78")), "Match 92": (user_preds.get("Match 79", "W79"), user_preds.get("Match 80", "W80")),
+                    "Match 95": (user_preds.get("Match 86", "W86"), user_preds.get("Match 88", "W88")), "Match 96": (user_preds.get("Match 85", "W85"), user_preds.get("Match 87", "W87"))
+                }
+                for m_id, (h, a) in o_r16.items():
+                    user_preds[m_id] = render_match_card(h, a, m_id, m_id, disabled=False, score_mode=False, scores_dict=user_preds)
+            with ko_tabs[2]:
+                o_qf = {
+                    "Match 97": (user_preds.get("Match 89", "W89"), user_preds.get("Match 90", "W90")), "Match 98": (user_preds.get("Match 93", "W93"), user_preds.get("Match 94", "W94")),
+                    "Match 99": (user_preds.get("Match 91", "W91"), user_preds.get("Match 92", "W92")), "Match 100": (user_preds.get("Match 95", "W95"), user_preds.get("Match 100", "W100"))
+                }
+                for m_id, (h, a) in o_qf.items():
+                    user_preds[m_id] = render_match_card(h, a, m_id, m_id, disabled=False, score_mode=False, scores_dict=user_preds)
+            with ko_tabs[3]:
+                sf1_h, sf1_a = user_preds.get("Match 97", "W97"), user_preds.get("Match 98", "W98")
+                sf2_h, sf2_a = user_preds.get("Match 99", "W99"), user_preds.get("Match 100", "W100")
+                
+                sf1_opts = [sf1_h, sf1_a]
+                user_preds["Match 101"] = st.selectbox("Semi Final 1 Winner", sf1_opts, index=sf1_opts.index(user_preds.get("Match 101", sf1_h)) if user_preds.get("Match 101", sf1_h) in sf1_opts else 0, format_func=fmt_team)
+                
+                sf2_opts = [sf2_h, sf2_a]
+                user_preds["Match 102"] = st.selectbox("Semi Final 2 Winner", sf2_opts, index=sf2_opts.index(user_preds.get("Match 102", sf2_h)) if user_preds.get("Match 102", sf2_h) in sf2_opts else 0, format_func=fmt_team)
+                
+                sf1_l = sf1_a if user_preds["Match 101"] == sf1_h else sf1_h
+                sf2_l = sf2_a if user_preds["Match 102"] == sf2_h else sf2_h
+                
+                p3_opts = [sf1_l, sf2_l]
+                user_preds["Match 103"] = st.selectbox("🥉 3rd Place Winner Selection", p3_opts, index=p3_opts.index(user_preds.get("Match 103", sf1_l)) if user_preds.get("Match 103", sf1_l) in p3_opts else 0, format_func=fmt_team)
+                
+                f_opts = [user_preds["Match 101"], user_preds["Match 102"]]
+                user_preds["Match 104"] = st.selectbox("🥇 Grand Champion Prediction", f_opts, index=f_opts.index(user_preds.get("Match 104", f_opts[0])) if user_preds.get("Match 104", f_opts[0]) in f_opts else 0, format_func=fmt_team)
+
+            # Single secure action button to batch save all knockout changes cleanly
+            if st.form_submit_button("💾 Save All Knockout Brackets Predictions", use_container_width=True):
+                all_ko_ids = [f"Match {i}" for i in range(73, 105)]
+                for m_key in all_ko_ids:
+                    if m_key in user_preds:
+                        db_save_prediction(c_uid, active_league_id, m_key, user_preds[m_key])
+                st.success("Knockout bracket selections successfully saved!")
+                st.rerun()
 
 # --- 17. ADMINISTRATIVE CONTROL PANEL (ISOLATED BY LEAGUE OWNER) ---
 elif app_tab == "🛠️ Admin Dashboard" and is_league_admin:
