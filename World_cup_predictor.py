@@ -38,10 +38,101 @@ st.markdown(
         font-weight: 700 !important;
         text-shadow: none !important;
     }
+
+    /* EXCLUSIVE FIX: Force white text inside the Select Box container elements */
+    [data-testid="stSidebar"] div[data-baseweb="select"] *,
+    [data-testid="stSidebar"] div[data-baseweb="select"] span,
+    [data-testid="stSidebar"] div[data-baseweb="select"] div,
+    [data-testid="stSidebar"] svg {
+        color: #ffffff !important;
+        -webkit-text-fill-color: #ffffff !important;
+    }
     </style>
     """,
     unsafe_allow_html=True
 )
+# ==============================================================================
+
+st.markdown("""
+    <style>
+    /* Background Image setup */
+    .stApp {
+        background: linear-gradient(rgba(15, 23, 42, 0.2), rgba(15, 23, 42, 0.4)),
+                    url("https://cdn-media.theathletic.com/cdn-cgi/image/width=1000%2cquality=70%2cformat=auto/https://cdn-media.theathletic.com/vwYC1qZfTwfm_3qmyXkIC5Rja_1440x960.jpg");
+        background-size: cover;
+        background-position: center;
+        background-attachment: fixed;
+    }
+    
+    /* Main body typography - Explicitly isolated only to the main content panel */
+    [data-testid="stMain"] p, 
+    [data-testid="stMain"] label, 
+    [data-testid="stMain"] .stMarkdown, 
+    [data-testid="stMain"] .stText, 
+    [data-testid="stMain"] [data-testid="stWidgetLabel"] p {
+        color: #f8fafc !important;
+        font-weight: 500 !important;
+        text-shadow: 1px 1px 3px rgba(0, 0, 0, 0.8);
+    }
+    
+    /* Main header styling rules */
+    [data-testid="stMain"] h1, 
+    [data-testid="stMain"] h2, 
+    [data-testid="stMain"] h3, 
+    [data-testid="stMain"] h4 {
+        color: #ffffff !important;
+        text-transform: uppercase;
+        font-weight: 800 !important;
+        letter-spacing: 0.5px;
+        text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.9);
+    }
+
+    /* Container blocks for content panels */
+    [data-testid="stExpander"], [data-testid="stTabContent"], .stTabs {
+        background: rgba(15, 23, 42, 0.75) !important;
+        border: 1px solid rgba(255, 255, 255, 0.15) !important;
+        border-radius: 12px !important;
+        padding: 16px !important;
+        margin-bottom: 16px !important;
+    }
+
+    /* Select boxes styling */
+    div[data-baseweb="select"] > div {
+        background-color: rgba(15, 23, 42, 0.95) !important;
+        color: white !important;
+        border: 1px solid rgba(255, 255, 255, 0.25) !important;
+    }
+    
+    /* Standard interactive buttons */
+    div.stButton > button {
+        background-color: #2563eb !important;
+        color: white !important;
+        font-weight: 700 !important;
+        text-transform: uppercase;
+        width: 100% !important;
+        border: none !important;
+        border-radius: 6px !important;
+        padding: 10px !important;
+        box-shadow: 0 4px 6px rgba(0,0,0,0.3);
+    }
+    
+    div.stButton > button:hover {
+        background-color: #1d4ed8 !important;
+    }
+    
+    .lock-badge-banner {
+        background-color: rgba(220, 38, 38, 0.9);
+        color: #ffffff !important;
+        border: 1px solid #ef4444;
+        padding: 12px;
+        border-radius: 8px;
+        font-weight: bold;
+        text-align: center;
+        margin-bottom: 20px;
+    }
+    </style>
+""", unsafe_allow_html=True)
+
 # ==============================================================================
 
 st.markdown("""
