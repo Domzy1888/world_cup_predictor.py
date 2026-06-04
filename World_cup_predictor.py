@@ -3,16 +3,18 @@ import pandas as pd
 import hashlib
 from supabase import create_client, Client
 
+# ==============================================================================
 # --- 1. CONFIGURATION & FULL COLOUR DARK THEME STYLING ---
+# ==============================================================================
 import streamlit as st
 
-# st.set_page_config MUST be the very first Streamlit command called
+# Initialize page configuration as the very first Streamlit command
 st.set_page_config(
     page_title="World Cup 2026 Prediction League",
-    layout="wide"  # or whatever arguments you originally had inside it
+    layout="wide"
 )
 
-# Custom CSS to darken only the sidebar menu text items
+# Custom CSS to safely darken only the sidebar menu text items
 st.markdown(
     """
     <style>
@@ -24,7 +26,7 @@ st.markdown(
         font-weight: 500 !important;
     }
     
-    /* Optional: Targets the sidebar headers/subheaders if needed */
+    /* Targets the sidebar headers/subheaders if present */
     [data-testid="stSidebar"] h1,
     [data-testid="stSidebar"] h2,
     [data-testid="stSidebar"] h3 {
@@ -34,7 +36,7 @@ st.markdown(
     """,
     unsafe_allow_html=True
 )
-
+# ==============================================================================
 (
     page_title="World Cup 2026 Prediction League",
     page_icon="🏆",
