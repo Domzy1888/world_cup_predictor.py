@@ -636,7 +636,7 @@ elif app_tab == "📝 Submit Predictions":
     
     pred_sub_tabs = st.tabs(["📊 Group Matches Workspace", "🌳 Knockout Brackets"])
     
-    with pred_sub_tabs[0]:
+        with pred_sub_tabs[0]:
         selected_group = st.selectbox("Choose Group Stage Pool", list(GROUPS.keys()))
         group_match_ids = [m["id"] for m in CHRONO_MATCHES[selected_group]]
         group_keys = [f"Match_{mid}_h" for mid in group_match_ids] + [f"Match_{mid}_a" for mid in group_match_ids]
@@ -646,23 +646,37 @@ elif app_tab == "📝 Submit Predictions":
         with col_input:
             if is_group_locked:
                 st.markdown(f"<div class='lock-badge-banner'>🔒 {selected_group} Locked In</div>", unsafe_allow_html=True)
+                for match in CHRONO_MATCHES[selected_group]:
+                    user_preds = render_match_card(
+                        home=match["home"], away=match["away"], label=f"Match #{match['id']}", 
+                        key_prefix=f"Match_{match['id']}", disabled=is_group_locked, score_mode=True, scores_dict=user_preds
+                    )
             else:
                 st.markdown("<div style='color:#34d399; margin-bottom:15px; font-weight:bold; font-size:1.1rem; text-align:center;'>🔓 Changes Active</div>", unsafe_allow_html=True)
                 
-            for match in CHRONO_MATCHES[selected_group]:
-                user_preds = render_match_card(
-                    home=match["home"], away=match["away"], label=f"Match #{match['id']}", 
-                    key_prefix=f"Match_{match['id']}", disabled=is_group_locked, score_mode=True, scores_dict=user_preds
-                )
-                if not is_group_locked:
-                    db_save_prediction(c_uid, active_league_id, f"Match_{match['id']}_h", user_preds[f"Match_{match['id']}_h"])
-                    db_save_prediction(c_uid, active_league_id, f"Match_{match['id']}_a", user_preds[f"Match_{match['id']}_a"])
-            
-            if not is_group_locked:
-                if st.button(f"🔒 Finalize & Lock {selected_group} Predictions", use_container_width=True):
-                    db_lock_group_predictions(c_uid, active_league_id, group_keys)
-                    st.success(f"{selected_group} locked successfully!")
-                    st.rerun()
+                # Wrap input cards inside an isolated form container to prevent auto-refreshing
+                with st.form(key=f"form_{selected_group}", clear_on_submit=False):
+                    for match in CHRONO_MATCHES[selected_group]:
+                        user_preds = render_match_card(
+                            home=match["home"], away=match["away"], label=f"Match #{match['id']}", 
+                            key_prefix=f"Match_{match['id']}", disabled=is_group_locked, score_mode=True, scores_dict=user_preds
+                        )
+                    
+                    # The single submission button handles database batching and locking simultaneously
+                    if st.form_submit_button(f"🔒 Finalize & Lock {selected_group} Predictions", use_container_width=True):
+                        for match in CHRONO_MATCHES[selected_group]:
+                            db_save_prediction(c_uid, active_league_id, f"Match_{match['id']}_h", user_preds[f"Match_{match['id']}_h"])
+                            db_save_prediction(c_uid, active_league_id, f"Match_{match['id']}_a", user_preds[f"Match_{match['id']}_a"])
+                        db_lock_group_predictions(c_uid, active_league_id, group_keys)
+                        st.success(f"{selected_group} locked successfully!")
+                        st.rerun()
+                
+        with col_table:
+            st.subheader("Simulated Group Table")
+            u_results, _ = run_standings_engine(user_preds)
+            df_display = u_results[selected_group][["Team", "Pts", "GD", "GF"]].copy()
+            df_display["Team"] = df_display["Team"].apply(fmt_team)
+            st.dataframe(df_display, use_container_width=True, hide_index=True)
                 
         with col_table:
             st.subheader("Simulated Group Table")
