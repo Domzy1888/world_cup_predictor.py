@@ -4,7 +4,38 @@ import hashlib
 from supabase import create_client, Client
 
 # --- 1. CONFIGURATION & FULL COLOUR DARK THEME STYLING ---
+import streamlit as st
+
+# st.set_page_config MUST be the very first Streamlit command called
 st.set_page_config(
+    page_title="World Cup 2026 Prediction League",
+    layout="wide"  # or whatever arguments you originally had inside it
+)
+
+# Custom CSS to darken only the sidebar menu text items
+st.markdown(
+    """
+    <style>
+    /* Targets the text inside the sidebar radio/navigation options */
+    [data-testid="stSidebar"] .st-emotion-cache-170701z,
+    [data-testid="stSidebar"] label,
+    [data-testid="stSidebar"] p {
+        color: #1A1A1A !important;
+        font-weight: 500 !important;
+    }
+    
+    /* Optional: Targets the sidebar headers/subheaders if needed */
+    [data-testid="stSidebar"] h1,
+    [data-testid="stSidebar"] h2,
+    [data-testid="stSidebar"] h3 {
+        color: #0E1117 !important;
+    }
+    </style>
+    """,
+    unsafe_allow_html=True
+)
+
+(
     page_title="World Cup 2026 Prediction League",
     page_icon="🏆",
     layout="wide"
