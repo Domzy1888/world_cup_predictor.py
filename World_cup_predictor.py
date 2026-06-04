@@ -109,7 +109,7 @@ FLAGS = {
 }
 
 def fmt_team(name):
-    return FLAGS.get(name, str(name).upper())
+    return FLAGS.get(name, str(name).upper()) if name else "TBD"
 
 # --- 5. DATA STRUCTURES (GROUPS & CHRONOLOGICAL FIXTURES) ---
 GROUPS = {
@@ -226,6 +226,17 @@ CHRONO_MATCHES = {
     ]
 }
 
+PAIRS_R32_STRUC = {
+    "Match_73": ("Group A", "1st", "Wildcard_4"), "Match_74": ("Group E", "1st", "Wildcard_0"),
+    "Match_75": ("Group F", "1st", "Group C", "2nd"), "Match_76": ("Group C", "1st", "Group F", "2nd"),
+    "Match_77": ("Group I", "1st", "Wildcard_1"), "Match_78": ("Group E", "2nd", "Group I", "2nd"),
+    "Match_79": ("Group B", "1st", "Wildcard_6"), "Match_80": ("Group L", "1st", "Wildcard_5"),
+    "Match_81": ("Group D", "1st", "Wildcard_2"), "Match_82": ("Group G", "1st", "Wildcard_3"),
+    "Match_83": ("Group K", "2nd", "Group L", "2nd"), "Match_84": ("Group H", "1st", "Group J", "2nd"),
+    "Match_85": ("Group A", "2nd", "Group B", "2nd"), "Match_86": ("Group J", "1st", "Group H", "2nd"),
+    "Match_87": ("Group K", "1st", "Wildcard_7"), "Match_88": ("Group D", "2nd", "Group G", "2nd")
+}
+
 # --- 6. DATABASE HELPER WRAPPERS ---
 def db_fetch_user_predictions(user_id, league_id):
     res = supabase.table("predictions").select("match_key, score_value").eq("user_id", user_id).eq("league_id", league_id).execute()
@@ -243,7 +254,6 @@ def db_save_prediction(user_id, league_id, match_key, value):
         return
         
     try:
-        # Verify if value is an integer score (Group phase or numerical flag index)
         score_val = int(val_str)
     except ValueError:
         return
@@ -293,7 +303,10 @@ def db_fetch_league_actual_results(league_id):
             elif key == "Match_103_winner":
                 results["third_place"] = val
             else:
-                results["ko_winners"][key] = val
+                try:
+                    results["ko_winners"][key] = int(val)
+                except:
+                    results["ko_winners"][key] = val
     return results
 
 def db_save_league_actual_result(league_id, match_key, value):
@@ -344,7 +357,6 @@ def render_match_card(home, away, label, key_prefix, disabled=False, score_mode=
         options = ["Select Winner", home, away]
         saved_db_val = scores_dict.get(key_prefix, "Select Winner") if scores_dict else "Select Winner"
         
-        # Translate stored integer flags back into selection visual indexes
         if str(saved_db_val) == "1":
             curr = home
         elif str(saved_db_val) == "2":
@@ -400,10 +412,112 @@ def run_standings_engine(scores_dict):
     while len(adv_wildcards) < 8: adv_wildcards.append(f"Wildcard Slot {len(adv_wildcards)+1}")
     return all_group_results, adv_wildcards
 
+def resolve_bracket_teams(scores_dict, target_is_actual=False, actual_results_obj=None):
+    """
+    Simulates or extracts the teams that populate each tier of the tournament 
+    dynamically based on scores, ensuring flexible cross-referencing per round.
+    """
+    if target_is_actual and actual_results_obj is not None:
+        g_scores = actual_results_obj["group"]
+        ko_choices = actual_results_obj["ko_winners"]
+    else:
+        g_scores = scores_dict
+        ko_choices = scores_dict
+
+    g_tables, wildcards = run_standings_engine(g_scores)
+    
+    def get_1st(g): return g_tables[g].iloc[0]["Team"] if g in g_tables and not g_tables[g].empty else ""
+    def get_2nd(g): return g_tables[g].iloc[1]["Team"] if g in g_tables and not g_tables[g].empty else ""
+
+    r32_teams = {}
+    for m_id, details in PAIRS_R32_STRUC.items():
+        if len(details) == 3:
+            h = get_1st(details[0]) if details[1] == "1st" else get_2nd(details[0])
+            w_idx = int(details[2].split("_")[1])
+            a = wildcards[w_idx] if w_idx < len(wildcards) else ""
+        else:
+            h = get_1st(details[0]) if details[1] == "1st" else get_2nd(details[0])
+            a = get_1st(details[2]) if details[3] == "1st" else get_2nd(details[2])
+        r32_teams[m_id] = (h, a)
+
+    # 1. Evaluate Round of 16 Teams
+    r16_teams = set()
+    for m in range(73, 89):
+        m_key = f"Match_{m}"
+        teams = r32_teams.get(m_key, ("", ""))
+        choice = str(ko_choices.get(m_key, ""))
+        if choice == "1" or choice == teams[0]: r16_teams.add(teams[0])
+        elif choice == "2" or choice == teams[1]: r16_teams.add(teams[1])
+
+    # 2. Evaluate Quarter-Final Teams
+    qf_pairings = {
+        "Match_89": ("Match_74", "Match_77"), "Match_90": ("Match_73", "Match_75"),
+        "Match_93": ("Match_83", "Match_84"), "Match_94": ("Match_81", "Match_82"),
+        "Match_91": ("Match_76", "Match_78"), "Match_92": ("Match_79", "Match_80"),
+        "Match_95": ("Match_86", "Match_88"), "Match_96": ("Match_85", "Match_87")
+    }
+    qf_teams = set()
+    for m_id, (prev1, prev2) in qf_pairings.items():
+        t1 = str(ko_choices.get(prev1, ""))
+        t2 = str(ko_choices.get(prev2, ""))
+        if t1 == "1": t1 = r32_teams.get(prev1, ("",""))[0]
+        elif t1 == "2": t1 = r32_teams.get(prev1, ("",""))[1]
+        if t2 == "1": t2 = r32_teams.get(prev2, ("",""))[0]
+        elif t2 == "2": t2 = r32_teams.get(prev2, ("",""))[1]
+        
+        choice = str(ko_choices.get(m_id, ""))
+        if choice == "1" or choice == t1: qf_teams.add(t1)
+        elif choice == "2" or choice == t2: qf_teams.add(t2)
+
+    # 3. Evaluate Semi-Final Teams
+    sf_pairings = {
+        "Match_97": ("Match_89", "Match_90"), "Match_98": ("Match_93", "Match_94"),
+        "Match_99": ("Match_91", "Match_92"), "Match_100": ("Match_95", "Match_96")
+    }
+    sf_teams = set()
+    for m_id, (p1, p2) in sf_pairings.items():
+        def get_winner_of_r16(r16_id):
+            ch = str(ko_choices.get(r16_id, ""))
+            if ch == "1": 
+                prev = qf_pairings[r16_id][0]
+                val = str(ko_choices.get(prev, ""))
+                return r32_teams[prev][0] if val == "1" else r32_teams[prev][1]
+            elif ch == "2":
+                prev = qf_pairings[r16_id][1]
+                val = str(ko_choices.get(prev, ""))
+                return r32_teams[prev][0] if val == "1" else r32_teams[prev][1]
+            return ch
+            
+        t1 = get_winner_of_r16(p1)
+        t2 = get_winner_of_r16(p2)
+        choice = str(ko_choices.get(m_id, ""))
+        if choice == "1" or choice == t1: sf_teams.add(t1)
+        elif choice == "2" or choice == t2: sf_teams.add(t2)
+
+    # 4. Evaluate Finalists
+    f1_winner_sel = str(ko_choices.get("Match_101", ""))
+    f2_winner_sel = str(ko_choices.get("Match_102", ""))
+    
+    finalists = set([f1_winner_sel, f2_winner_sel])
+    champ = str(ko_choices.get("Match_104", ""))
+    third_place = str(ko_choices.get("Match_103" if not target_is_actual else "Match_103_winner", ""))
+
+    return {
+        "r32_pairings": r32_teams,
+        "r16": r16_teams,
+        "qf": qf_teams,
+        "sf": sf_teams,
+        "finalists": finalists,
+        "champ": champ,
+        "third": third_place
+    }
+
 def calculate_user_points(user_id, league_id):
     user_preds = db_fetch_user_predictions(user_id, league_id)
     actual = db_fetch_league_actual_results(league_id)
     points = 0
+    
+    # 1. Group Stage Verification
     for g_name, matches in CHRONO_MATCHES.items():
         for match in matches:
             m_id = match["id"]
@@ -411,20 +525,30 @@ def calculate_user_points(user_id, league_id):
             p_h, p_a = user_preds.get(kh, None), user_preds.get(ka, None)
             a_h, a_a = actual["group"].get(kh, None), actual["group"].get(ka, None)
             if p_h is not None and p_a is not None and a_h is not None and a_a is not None:
-                if int(p_h) == int(a_h) and int(p_a) == int(a_a): points += 3  
-                elif (int(p_h) > int(p_a) and int(a_h) > int(a_a)) or (int(p_a) > int(p_h) and int(a_a) > int(a_h)) or (int(p_h) == int(p_a) and int(a_h) == int(a_a)): points += 1  
-    
-    # Check knockout match point allocations by translating textual outcomes back to stored binary choices
-    for m in [f"Match_{i}" for i in range(73, 89)]:
-        if user_preds.get(m) == actual["ko_winners"].get(m) and user_preds.get(m) is not None: points += 3
-    for m in [f"Match_{i}" for i in range(89, 97)]:
-        if user_preds.get(m) == actual["ko_winners"].get(m) and user_preds.get(m) is not None: points += 5
-    for m in [f"Match_{i}" for i in range(97, 101)]:
-        if user_preds.get(m) == actual["ko_winners"].get(m) and user_preds.get(m) is not None: points += 10
-    for m in ["Match_101", "Match_102"]:
-        if user_preds.get(m) == actual["ko_winners"].get(m) and user_preds.get(m) is not None: points += 15
-    if user_preds.get("Match_103") == actual.get("third_place") and user_preds.get("Match_103") is not None: points += 15
-    if user_preds.get("Match_104") == actual["ko_winners"].get("Match_104") and user_preds.get("Match_104") is not None: points += 25
+                if int(p_h) == int(a_h) and int(p_a) == int(a_a): 
+                    points += 3  
+                elif (int(p_h) > int(p_a) and int(a_h) > int(a_a)) or (int(p_a) > int(p_h) and int(a_a) > int(a_h)) or (int(p_h) == int(p_a) and int(a_h) == int(a_a)): 
+                    points += 1  
+
+    # 2. Team-Based Progression Check (Cross-referencing round qualification groups globally)
+    user_bracket = resolve_bracket_teams(user_preds, target_is_actual=False)
+    actual_bracket = resolve_bracket_teams(None, target_is_actual=True, actual_results_obj=actual)
+
+    for team in user_bracket["r16"]:
+        if team and team in actual_bracket["r16"]: points += 3
+
+    for team in user_bracket["qf"]:
+        if team and team in actual_bracket["qf"]: points += 5
+
+    for team in user_bracket["sf"]:
+        if team and team in actual_bracket["sf"]: points += 10
+
+    for team in user_bracket["finalists"]:
+        if team and team in actual_bracket["finalists"]: points += 15
+
+    if user_bracket["third"] and user_bracket["third"] == actual_bracket["third"]: points += 15
+    if user_bracket["champ"] and user_bracket["champ"] == actual_bracket["champ"]: points += 25
+
     return points
 
 # --- 10. SIGN IN GATEWAY ---
@@ -499,7 +623,6 @@ if not user_leagues_list:
                     st.rerun()
     st.stop()
 
-# Layout setup
 col_nav1, col_nav2 = st.columns([8, 2])
 with col_nav1:
     st.markdown(f"👥 Active Profile: **{c_user}**")
@@ -601,21 +724,9 @@ elif app_tab == "📝 Submit Predictions":
             st.dataframe(df_display, use_container_width=True, hide_index=True)
 
     with pred_sub_tabs[1]:
-        u_results, u_wildcards = run_standings_engine(user_preds)
-        
-        def get_confirmed_1st(g): return u_results[g].iloc[0]["Team"] if g in u_results and not u_results[g].empty else f"1st {g}"
-        def get_confirmed_2nd(g): return u_results[g].iloc[1]["Team"] if g in u_results and not u_results[g].empty else f"2nd {g}"
-
-        o_r32 = {
-            "Match_73": (get_confirmed_1st("Group A"), u_wildcards[4]), "Match_74": (get_confirmed_1st("Group E"), u_wildcards[0]),
-            "Match_75": (get_confirmed_1st("Group F"), get_confirmed_2nd("Group C")), "Match_76": (get_confirmed_1st("Group C"), get_confirmed_2nd("Group F")),
-            "Match_77": (get_confirmed_1st("Group I"), u_wildcards[1]), "Match_78": (get_confirmed_2nd("Group E"), get_confirmed_2nd("Group I")),
-            "Match_79": (get_confirmed_1st("Group B"), u_wildcards[6]), "Match_80": (get_confirmed_1st("Group L"), u_wildcards[5]),
-            "Match_81": (get_confirmed_1st("Group D"), u_wildcards[2]), "Match_82": (get_confirmed_1st("Group G"), u_wildcards[3]),
-            "Match_83": (get_2nd("Group K"), get_2nd("Group L")), "Match_84": (get_1st("Group H"), get_2nd("Group J")),
-            "Match_85": (get_2nd("Group A"), get_2nd("Group B")), "Match_86": (get_1st("Group J"), get_2nd("Group H")),
-            "Match_87": (get_1st("Group K"), u_wildcards[7]), "Match_88": (get_2nd("Group D"), get_2nd("Group G"))
-        }
+        # Generate the user's dynamic bracket pairings
+        user_calc_bracket = resolve_bracket_teams(user_preds, target_is_actual=False)
+        o_r32 = user_calc_bracket["r32_pairings"]
         
         ko_tabs = st.tabs(["Round of 32", "Round of 16", "Quarter-Finals", "Finals"])
         
@@ -777,7 +888,6 @@ elif app_tab == "🛠️ Admin Dashboard" and is_league_admin:
     with admin_tabs[0]:
         st.subheader("📆 All Group Matches (Chronological Feed)")
         
-        # Flatten all group matches from structural definitions and sort by ID
         flat_chrono_list = []
         for g_name, matches in CHRONO_MATCHES.items():
             for m in matches:
@@ -793,7 +903,6 @@ elif app_tab == "🛠️ Admin Dashboard" and is_league_admin:
             m_id = match["id"]
             kh, ka = f"Match_{m_id}_h", f"Match_{m_id}_a"
             
-            # If both scores exist in the database, consider the score entry locked/saved
             is_score_saved = (kh in actual["group"] and ka in actual["group"])
             
             actual["group"] = render_match_card(
@@ -821,20 +930,11 @@ elif app_tab == "🛠️ Admin Dashboard" and is_league_admin:
             st.markdown("<hr style='margin: 15px 0; border: 0; border-top: 1px solid rgba(255,255,255,0.1);' />", unsafe_allow_html=True)
             
     with admin_tabs[1]:
-        adm_group_res, adm_wildcards = run_standings_engine(actual["group"])
-        def get_1st(g): return adm_group_res[g].iloc[0]["Team"] if not adm_group_res[g].empty else f"1st {g}"
-        def get_2nd(g): return adm_group_res[g].iloc[1]["Team"] if not adm_group_res[g].empty else f"2nd {g}"
+        # FIXED: Extract dynamic actual pairings from actual real-life group configurations
+        actual_calc_bracket = resolve_bracket_teams(None, target_is_actual=True, actual_results_obj=actual)
+        adm_r32_pairings = actual_calc_bracket["r32_pairings"]
         
-        adm_r32_pairings = {
-            "Match_73": (get_1st("Group A"), adm_wildcards[4]), "Match_74": (get_1st("Group E"), adm_wildcards[0]),
-            "Match_75": (get_1st("Group F"), get_2nd("Group C")), "Match_76": (get_1st("Group C"), get_2nd("Group F")),
-            "Match_77": (get_1st("Group I"), adm_wildcards[1]), "Match_78": (get_2nd("Group E"), get_2nd("Group I")),
-            "Match_79": (get_1st("Group B"), adm_wildcards[6]), "Match_80": (get_1st("Group L"), adm_wildcards[5]),
-            "Match_81": (get_1st("Group D"), adm_wildcards[2]), "Match_82": (get_1st("Group G"), adm_wildcards[3]),
-            "Match_83": (get_2nd("Group K"), get_2nd("Group L")), "Match_84": (get_1st("Group H"), get_2nd("Group J")),
-            "Match_85": (get_2nd("Group A"), get_2nd("Group B")), "Match_86": (get_1st("Group J"), get_2nd("Group H")),
-            "Match_87": (get_1st("Group K"), adm_wildcards[7]), "Match_88": (get_2nd("Group D"), get_2nd("Group G"))
-        }
+        st.subheader("🌳 Round of 32 Matches (Populated via Real Group Standings)")
         for m_id, (h, a) in adm_r32_pairings.items():
             is_ko_saved = (m_id in actual["ko_winners"])
             
