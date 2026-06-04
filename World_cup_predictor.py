@@ -404,19 +404,19 @@ def calculate_user_points(user_id, league_id):
             if p_h is not None and p_a is not None and a_h is not None and a_a is not None:
                 if int(p_h) == int(a_h) and int(p_a) == int(a_a): points += 3  
                 elif (int(p_h) > int(p_a) and int(a_h) > int(a_a)) or (int(p_a) > int(p_h) and int(a_a) > int(a_h)) or (int(p_h) == int(p_a) and int(a_h) == int(a_a)): points += 1  
-    for m in [f"Match {i}" for i in range(73, 89)]:
+    for m in [f"Match_{i}" for i in range(73, 89)]:
         if user_preds.get(m) == actual["ko_winners"].get(m): points += 3
-    for m in [f"Match {i}" for i in range(89, 97)]:
+    for m in [f"Match_{i}" for i in range(89, 97)]:
         if user_preds.get(m) == actual["ko_winners"].get(m): points += 5
-    for m in [f"Match {i}" for i in range(97, 101)]:
+    for m in [f"Match_{i}" for i in range(97, 101)]:
         if user_preds.get(m) == actual["ko_winners"].get(m): points += 10
-    for m in ["Match 101", "Match 102"]:
+    for m in ["Match_101", "Match_102"]:
         if user_preds.get(m) == actual["ko_winners"].get(m): points += 15
-    if user_preds.get("Match 103") == actual.get("third_place"): points += 15
-    if user_preds.get("Match 104") == actual["ko_winners"].get("Match 104"): points += 25
+    if user_preds.get("Match_103") == actual.get("third_place"): points += 15
+    if user_preds.get("Match_104") == actual["ko_winners"].get("Match_104"): points += 25
     return points
 
-# --- 7. SIGN IN GATEWAY ---
+# --- 10. SIGN IN GATEWAY ---
 if st.session_state.current_user_id is None:
     with st.container():
         st.title("🔐 Tournament Sign-In")
@@ -679,14 +679,14 @@ elif app_tab == "📝 Submit Predictions":
         def get_confirmed_2nd(g): return u_results[g].iloc[1]["Team"] if g in u_results and not u_results[g].empty else f"2nd {g}"
 
         o_r32 = {
-            "Match 73": (get_confirmed_1st("Group A"), u_wildcards[4]), "Match 74": (get_confirmed_1st("Group E"), u_wildcards[0]),
-            "Match 75": (get_confirmed_1st("Group F"), get_confirmed_2nd("Group C")), "Match 76": (get_confirmed_1st("Group C"), get_confirmed_2nd("Group F")),
-            "Match 77": (get_confirmed_1st("Group I"), u_wildcards[1]), "Match 78": (get_confirmed_2nd("Group E"), get_confirmed_2nd("Group I")),
-            "Match 79": (get_confirmed_1st("Group B"), u_wildcards[6]), "Match 80": (get_confirmed_1st("Group L"), u_wildcards[5]),
-            "Match 81": (get_confirmed_1st("Group D"), u_wildcards[2]), "Match 82": (get_confirmed_1st("Group G"), u_wildcards[3]),
-            "Match 83": (get_confirmed_2nd("Group K"), get_confirmed_2nd("Group L")), "Match 84": (get_confirmed_1st("Group H"), get_confirmed_2nd("Group J")),
-            "Match 85": (get_confirmed_2nd("Group A"), get_confirmed_2nd("Group B")), "Match 86": (get_confirmed_1st("Group J"), get_confirmed_2nd("Group H")),
-            "Match 87": (get_confirmed_1st("Group K"), u_wildcards[7]), "Match 88": (get_confirmed_2nd("Group D"), get_confirmed_2nd("Group G"))
+            "Match_73": (get_confirmed_1st("Group A"), u_wildcards[4]), "Match_74": (get_confirmed_1st("Group E"), u_wildcards[0]),
+            "Match_75": (get_confirmed_1st("Group F"), get_confirmed_2nd("Group C")), "Match_76": (get_confirmed_1st("Group C"), get_confirmed_2nd("Group F")),
+            "Match_77": (get_confirmed_1st("Group I"), u_wildcards[1]), "Match_78": (get_confirmed_2nd("Group E"), get_confirmed_2nd("Group I")),
+            "Match_79": (get_confirmed_1st("Group B"), u_wildcards[6]), "Match_80": (get_confirmed_1st("Group L"), u_wildcards[5]),
+            "Match_81": (get_confirmed_1st("Group D"), u_wildcards[2]), "Match_82": (get_confirmed_1st("Group G"), u_wildcards[3]),
+            "Match_83": (get_confirmed_2nd("Group K"), get_confirmed_2nd("Group L")), "Match_84": (get_confirmed_1st("Group H"), get_confirmed_2nd("Group J")),
+            "Match_85": (get_confirmed_2nd("Group A"), get_confirmed_2nd("Group B")), "Match_86": (get_confirmed_1st("Group J"), get_confirmed_2nd("Group H")),
+            "Match_87": (get_confirmed_1st("Group K"), u_wildcards[7]), "Match_88": (get_confirmed_2nd("Group D"), get_confirmed_2nd("Group G"))
         }
         
         with st.form(key="knockout_bracket_form", clear_on_submit=False):
@@ -694,44 +694,44 @@ elif app_tab == "📝 Submit Predictions":
             
             with ko_tabs[0]:
                 for m_id, (h, a) in o_r32.items():
-                    user_preds[m_id] = render_match_card(h, a, m_id, m_id, disabled=False, score_mode=False, scores_dict=user_preds)
+                    user_preds[m_id] = render_match_card(h, a, m_id.replace("_", " "), m_id, disabled=False, score_mode=False, scores_dict=user_preds)
             with ko_tabs[1]:
                 o_r16 = {
-                    "Match 89": (user_preds.get("Match 74", "W74"), user_preds.get("Match 77", "W77")), "Match 90": (user_preds.get("Match 73", "W73"), user_preds.get("Match 75", "W75")),
-                    "Match 93": (user_preds.get("Match 83", "W83"), user_preds.get("Match 84", "W84")), "Match 94": (user_preds.get("Match 81", "W81"), user_preds.get("Match 82", "W82")),
-                    "Match 91": (user_preds.get("Match 76", "W76"), user_preds.get("Match 78", "W78")), "Match 92": (user_preds.get("Match 79", "W79"), user_preds.get("Match 80", "W80")),
-                    "Match 95": (user_preds.get("Match 86", "W86"), user_preds.get("Match 88", "W88")), "Match 96": (user_preds.get("Match 85", "W85"), user_preds.get("Match 87", "W87"))
+                    "Match_89": (user_preds.get("Match_74", "W74"), user_preds.get("Match_77", "W77")), "Match_90": (user_preds.get("Match_73", "W73"), user_preds.get("Match_75", "W75")),
+                    "Match_93": (user_preds.get("Match_83", "W83"), user_preds.get("Match_84", "W84")), "Match_94": (user_preds.get("Match_81", "W81"), user_preds.get("Match_82", "W82")),
+                    "Match_91": (user_preds.get("Match_76", "W76"), user_preds.get("Match_78", "W78")), "Match_92": (user_preds.get("Match_79", "W79"), user_preds.get("Match_80", "W80")),
+                    "Match_95": (user_preds.get("Match_86", "W86"), user_preds.get("Match_88", "W88")), "Match_96": (user_preds.get("Match_85", "W85"), user_preds.get("Match_87", "W87"))
                 }
                 for m_id, (h, a) in o_r16.items():
-                    user_preds[m_id] = render_match_card(h, a, m_id, m_id, disabled=False, score_mode=False, scores_dict=user_preds)
+                    user_preds[m_id] = render_match_card(h, a, m_id.replace("_", " "), m_id, disabled=False, score_mode=False, scores_dict=user_preds)
             with ko_tabs[2]:
                 o_qf = {
-                    "Match 97": (user_preds.get("Match 89", "W89"), user_preds.get("Match 90", "W90")), "Match 98": (user_preds.get("Match 93", "W93"), user_preds.get("Match 94", "W94")),
-                    "Match 99": (user_preds.get("Match 91", "W91"), user_preds.get("Match 92", "W92")), "Match 100": (user_preds.get("Match 95", "W95"), user_preds.get("Match 100", "W100"))
+                    "Match_97": (user_preds.get("Match_89", "W89"), user_preds.get("Match_90", "W90")), "Match_98": (user_preds.get("Match_93", "W93"), user_preds.get("Match_94", "W94")),
+                    "Match_99": (user_preds.get("Match_91", "W91"), user_preds.get("Match_92", "W92")), "Match_100": (user_preds.get("Match_95", "W95"), user_preds.get("Match_96", "W96"))
                 }
                 for m_id, (h, a) in o_qf.items():
-                    user_preds[m_id] = render_match_card(h, a, m_id, m_id, disabled=False, score_mode=False, scores_dict=user_preds)
+                    user_preds[m_id] = render_match_card(h, a, m_id.replace("_", " "), m_id, disabled=False, score_mode=False, scores_dict=user_preds)
             with ko_tabs[3]:
-                sf1_h, sf1_a = user_preds.get("Match 97", "W97"), user_preds.get("Match 98", "W98")
-                sf2_h, sf2_a = user_preds.get("Match 99", "W99"), user_preds.get("Match 100", "W100")
+                sf1_h, sf1_a = user_preds.get("Match_97", "W97"), user_preds.get("Match_98", "W98")
+                sf2_h, sf2_a = user_preds.get("Match_99", "W99"), user_preds.get("Match_100", "W100")
                 
                 sf1_opts = [sf1_h, sf1_a]
-                user_preds["Match 101"] = st.selectbox("Semi Final 1 Winner", sf1_opts, index=sf1_opts.index(user_preds.get("Match 101", sf1_h)) if user_preds.get("Match 101", sf1_h) in sf1_opts else 0, format_func=fmt_team)
+                user_preds["Match_101"] = st.selectbox("Semi Final 1 Winner", sf1_opts, index=sf1_opts.index(user_preds.get("Match_101", sf1_h)) if user_preds.get("Match_101", sf1_h) in sf1_opts else 0, format_func=fmt_team)
                 
                 sf2_opts = [sf2_h, sf2_a]
-                user_preds["Match 102"] = st.selectbox("Semi Final 2 Winner", sf2_opts, index=sf2_opts.index(user_preds.get("Match 102", sf2_h)) if user_preds.get("Match 102", sf2_h) in sf2_opts else 0, format_func=fmt_team)
+                user_preds["Match_102"] = st.selectbox("Semi Final 2 Winner", sf2_opts, index=sf2_opts.index(user_preds.get("Match_102", sf2_h)) if user_preds.get("Match_102", sf2_h) in sf2_opts else 0, format_func=fmt_team)
                 
-                sf1_l = sf1_a if user_preds["Match 101"] == sf1_h else sf1_h
-                sf2_l = sf2_a if user_preds["Match 102"] == sf2_h else sf2_h
+                sf1_l = sf1_a if user_preds["Match_101"] == sf1_h else sf1_h
+                sf2_l = sf2_a if user_preds["Match_102"] == sf2_h else sf2_h
                 
                 p3_opts = [sf1_l, sf2_l]
-                user_preds["Match 103"] = st.selectbox("🥉 3rd Place Winner Selection", p3_opts, index=p3_opts.index(user_preds.get("Match 103", sf1_l)) if user_preds.get("Match 103", sf1_l) in p3_opts else 0, format_func=fmt_team)
+                user_preds["Match_103"] = st.selectbox("🥉 3rd Place Winner Selection", p3_opts, index=p3_opts.index(user_preds.get("Match_103", sf1_l)) if user_preds.get("Match_103", sf1_l) in p3_opts else 0, format_func=fmt_team)
                 
-                f_opts = [user_preds["Match 101"], user_preds["Match 102"]]
-                user_preds["Match 104"] = st.selectbox("🥇 Grand Champion Prediction", f_opts, index=f_opts.index(user_preds.get("Match 104", f_opts[0])) if user_preds.get("Match 104", f_opts[0]) in f_opts else 0, format_func=fmt_team)
+                f_opts = [user_preds["Match_101"], user_preds["Match_102"]]
+                user_preds["Match_104"] = st.selectbox("🥇 Grand Champion Prediction", f_opts, index=f_opts.index(user_preds.get("Match_104", f_opts[0])) if user_preds.get("Match_104", f_opts[0]) in f_opts else 0, format_func=fmt_team)
 
             if st.form_submit_button("💾 Save All Knockout Brackets Predictions", use_container_width=True):
-                all_ko_ids = [f"Match {i}" for i in range(73, 105)]
+                all_ko_ids = [f"Match_{i}" for i in range(73, 105)]
                 for m_key in all_ko_ids:
                     if m_key in user_preds:
                         db_save_prediction(c_uid, active_league_id, m_key, user_preds[m_key])
@@ -764,17 +764,17 @@ elif app_tab == "🛠️ Admin Dashboard" and is_league_admin:
         def get_2nd(g): return adm_group_res[g].iloc[1]["Team"] if not adm_group_res[g].empty else f"2nd {g}"
         
         adm_r32_pairings = {
-            "Match 73": (get_1st("Group A"), adm_wildcards[4]), "Match 74": (get_1st("Group E"), adm_wildcards[0]),
-            "Match 75": (get_1st("Group F"), get_2nd("Group C")), "Match 76": (get_1st("Group C"), get_2nd("Group F")),
-            "Match 77": (get_1st("Group I"), adm_wildcards[1]), "Match 78": (get_2nd("Group E"), get_2nd("Group I")),
-            "Match 79": (get_1st("Group B"), adm_wildcards[6]), "Match 80": (get_1st("Group L"), adm_wildcards[5]),
-            "Match 81": (get_1st("Group D"), adm_wildcards[2]), "Match 82": (get_1st("Group G"), adm_wildcards[3]),
-            "Match 83": (get_2nd("Group K"), get_2nd("Group L")), "Match 84": (get_1st("Group H"), get_2nd("Group J")),
-            "Match 85": (get_2nd("Group A"), get_2nd("Group B")), "Match 86": (get_1st("Group J"), get_2nd("Group H")),
-            "Match 87": (get_1st("Group K"), adm_wildcards[7]), "Match 88": (get_2nd("Group D"), get_2nd("Group G"))
+            "Match_73": (get_1st("Group A"), adm_wildcards[4]), "Match_74": (get_1st("Group E"), adm_wildcards[0]),
+            "Match_75": (get_1st("Group F"), get_2nd("Group C")), "Match_76": (get_1st("Group C"), get_2nd("Group F")),
+            "Match_77": (get_1st("Group I"), adm_wildcards[1]), "Match_78": (get_2nd("Group E"), get_2nd("Group I")),
+            "Match_79": (get_1st("Group B"), adm_wildcards[6]), "Match_80": (get_1st("Group L"), adm_wildcards[5]),
+            "Match_81": (get_1st("Group D"), adm_wildcards[2]), "Match_82": (get_1st("Group G"), adm_wildcards[3]),
+            "Match_83": (get_2nd("Group K"), get_2nd("Group L")), "Match_84": (get_1st("Group H"), get_2nd("Group J")),
+            "Match_85": (get_2nd("Group A"), get_2nd("Group B")), "Match_86": (get_1st("Group J"), get_2nd("Group H")),
+            "Match_87": (get_1st("Group K"), adm_wildcards[7]), "Match_88": (get_2nd("Group D"), get_2nd("Group G"))
         }
         for m_id, (h, a) in adm_r32_pairings.items():
-            actual["ko_winners"][m_id] = render_match_card(h, a, f"Winner: {m_id}", m_id, disabled=False, score_mode=False, scores_dict=actual["ko_winners"])
+            actual["ko_winners"][m_id] = render_match_card(h, a, f"Winner: {m_id.replace('_', ' ')}", m_id, disabled=False, score_mode=False, scores_dict=actual["ko_winners"])
             if st.button("📢 Lock Knockout Winner", key=f"btn_ko_{m_id}", use_container_width=True):
                 db_save_league_actual_result(active_league_id, m_id, actual["ko_winners"][m_id])
-                st.success(f"{m_id} progression locked!")
+                st.success(f"{m_id.replace('_', ' ')} progression locked!")
