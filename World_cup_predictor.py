@@ -6,11 +6,11 @@ from supabase import create_client, Client
 # ==============================================================================
 # --- 1. CONFIGURATION & FULL COLOUR DARK THEME STYLING ---
 # ==============================================================================
-import streamlit as st
 
 # Initialize page configuration as the very first Streamlit command
 st.set_page_config(
     page_title="World Cup 2026 Prediction League",
+    page_icon="🏆",
     layout="wide"
 )
 
@@ -37,11 +37,6 @@ st.markdown(
     unsafe_allow_html=True
 )
 # ==============================================================================
-(
-    page_title="World Cup 2026 Prediction League",
-    page_icon="🏆",
-    layout="wide"
-)
 
 st.markdown("""
     <style>
@@ -560,7 +555,7 @@ def calculate_user_points(user_id, league_id):
             if p_h is not None and p_a is not None and a_h is not None and a_a is not None:
                 if int(p_h) == int(a_h) and int(p_a) == int(a_a): 
                     points += 3  
-                elif (int(p_h) > int(p_a) and int(a_h) > int(a_a)) or (int(p_a) > int(p_h) and int(a_a) > int(a_h)) or (int(p_h) == int(p_a) and int(a_h) == int(a_a)): 
+                elif (int(p_h) > int(p_a) and int(a_h) > int(a_a)) or (int(p_a) > int(p_h) and int(a_a) > int(a_a)) or (int(p_h) == int(p_a) and int(a_h) == int(a_a)): 
                     points += 1  
 
     # 2. Team-Based Progression Check (Cross-referencing round qualification groups globally)
@@ -1132,53 +1127,4 @@ elif app_tab == "🛠️ Admin Dashboard" and is_league_admin:
             c_sf2_1, c_sf2_2 = st.columns(2)
             with c_sf2_1:
                 if not is_102_saved and st.button("📢 Lock SF 2 Winner", key="btn_adm_102", use_container_width=True):
-                    f_v = 1 if actual["ko_winners"]["Match_102"] == sf2_h else (2 if actual["ko_winners"]["Match_102"] == sf2_a else 0)
-                    if f_v > 0: db_save_league_actual_result(active_league_id, "Match_102", f_v); st.rerun()
-                elif is_102_saved: st.markdown("<div style='color: #22c55e; font-weight: bold;'>✅ Locked</div>", unsafe_allow_html=True)
-            with c_sf2_2:
-                if is_102_saved and st.button("🔓 Reset SF 2", key="unl_adm_102", use_container_width=True):
-                    db_delete_league_actual_result(active_league_id, "Match_102"); st.rerun()
-
-            # 3rd Place Setup (Match 103)
-            def get_adm_winner(m_key, h, a):
-                v = str(actual["ko_winners"].get(m_key, ""))
-                return h if v == "1" or v == str(h) else (a if v == "2" or v == str(a) else f"W_{m_key}")
-            def get_adm_loser(m_key, h, a):
-                v = str(actual["ko_winners"].get(m_key, ""))
-                return a if v == "1" or v == str(h) else (h if v == "2" or v == str(a) else f"L_{m_key}")
-
-            sf1_w, sf1_l = get_adm_winner("Match_101", sf1_h, sf1_a), get_adm_loser("Match_101", sf1_h, sf1_a)
-            sf2_w, sf2_l = get_adm_winner("Match_102", sf2_h, sf2_a), get_adm_loser("Match_102", sf2_h, sf2_a)
-
-            is_103_saved = (actual.get("third_place") != "")
-            saved_winner_103 = actual["ko_winners"].get("Match_103_winner")
-            if str(saved_winner_103) == "1": actual["ko_winners"]["Match_103_winner"] = sf1_l
-            elif str(saved_winner_103) == "2": actual["ko_winners"]["Match_103_winner"] = sf2_l
-
-            actual["ko_winners"]["Match_103_winner"] = render_match_card(sf1_l, sf2_l, "🥉 Third Place Playoff Official Winner", "Match_103_winner", disabled=is_103_saved, score_mode=False, scores_dict=actual["ko_winners"])
-            c_p3_1, c_p3_2 = st.columns(2)
-            with c_p3_1:
-                if not is_103_saved and st.button("📢 Lock 3rd Place Winner", key="btn_adm_103", use_container_width=True):
-                    f_v = 1 if actual["ko_winners"]["Match_103_winner"] == sf1_l else (2 if actual["ko_winners"]["Match_103_winner"] == sf2_l else 0)
-                    if f_v > 0: db_save_league_actual_result(active_league_id, "Match_103_winner", f_v); st.rerun()
-                elif is_103_saved: st.markdown("<div style='color: #22c55e; font-weight: bold;'>✅ Locked</div>", unsafe_allow_html=True)
-            with c_p3_2:
-                if is_103_saved and st.button("🔓 Reset 3rd Place", key="unl_adm_103", use_container_width=True):
-                    db_delete_league_actual_result(active_league_id, "Match_103_winner"); st.rerun()
-
-            # Grand Final Setup (Match 104)
-            is_104_saved = ("Match_104" in actual["ko_winners"])
-            saved_winner_104 = actual["ko_winners"].get("Match_104")
-            if str(saved_winner_104) == "1": actual["ko_winners"]["Match_104"] = sf1_w
-            elif str(saved_winner_104) == "2": actual["ko_winners"]["Match_104"] = sf2_w
-
-            actual["ko_winners"]["Match_104"] = render_match_card(sf1_w, sf2_w, "🥇 Grand Champion Official Winner", "Match_104", disabled=is_104_saved, score_mode=False, scores_dict=actual["ko_winners"])
-            c_f_1, c_f_2 = st.columns(2)
-            with c_f_1:
-                if not is_104_saved and st.button("📢 Lock Grand Champion", key="btn_adm_104", use_container_width=True):
-                    f_v = 1 if actual["ko_winners"]["Match_104"] == sf1_w else (2 if actual["ko_winners"]["Match_104"] == sf2_w else 0)
-                    if f_v > 0: db_save_league_actual_result(active_league_id, "Match_104", f_v); st.rerun()
-                elif is_104_saved: st.markdown("<div style='color: #22c55e; font-weight: bold;'>✅ Locked</div>", unsafe_allow_html=True)
-            with c_f_2:
-                if is_104_saved and st.button("🔓 Reset Grand Champion", key="unl_adm_104", use_container_width=True):
-                    db_delete_league_actual_result(active_league_id, "Match_104"); st.rerun()
+                    f_v = 1 if actual["ko_winners"]["Match_102"] == sf2_h else (
