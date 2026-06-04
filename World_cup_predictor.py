@@ -669,13 +669,13 @@ elif app_tab == "🛡️ Create/Join a League":
     with c1:
         st.subheader("Join Another League")
         sec_join_code = st.text_input("Enter Additional Invite Code")
-        if st.button("🔑 Join Pool", use_container_width=True):
+        if st.button("🔑 Join League", use_container_width=True):
             if sec_join_code.strip() != "":
                 code_query = supabase.table("leagues").select("id, name").eq("invite_code", sec_join_code).execute()
                 if code_query.data:
                     t_id = code_query.data[0]["id"]
                     supabase.table("league_members").insert({"user_id": c_uid, "league_id": t_id}).execute()
-                    st.success("Successfully registered into new pool context!")
+                    st.success("Successfully registered into new League!")
                     st.rerun()
 
 # --- 14. USER PREDICTIONS DESK ---
@@ -685,7 +685,7 @@ elif app_tab == "📝 Submit Predictions":
     user_preds = db_fetch_user_predictions(c_uid, active_league_id)
     locked_keys_set = db_fetch_locked_status(c_uid, active_league_id)
     
-    pred_sub_tabs = st.tabs(["📊 Group Matches", "🌳 Knockout Rounds"])
+    pred_sub_tabs = st.tabs(["Group Matches", "Knockout Rounds"])
     
     with pred_sub_tabs[0]:
         selected_group = st.selectbox("Choose Group Stage Pool", list(GROUPS.keys()))
@@ -883,7 +883,7 @@ elif app_tab == "📝 Submit Predictions":
 elif app_tab == "🛠️ Admin Dashboard" and is_league_admin:
     st.header(f"🛠️ {selected_league_name} Admin Control Panel")
     actual = db_fetch_league_actual_results(active_league_id)
-    admin_tabs = st.tabs(["Group Stage Results", "Knockout Progress Matches"])
+    admin_tabs = st.tabs(["Group Stage Results", "Knockout Round Results"])
     
     with admin_tabs[0]:
         st.subheader("📆 All Group Matches (Match Order)")
