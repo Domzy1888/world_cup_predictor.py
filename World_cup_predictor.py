@@ -239,20 +239,21 @@ def db_save_prediction(user_id, league_id, match_key, value):
     if value is None:
         return
     val_str = str(value).strip()
-    # Aggressively prevent unselected brackets or placeholder logic strings from reaching Supabase
-    if (val_str == "" or 
-        val_str.startswith("Select") or 
-        val_str.startswith("W") or 
-        val_str.startswith("1st") or 
-        val_str.startswith("2nd") or 
-        "Winner" in val_str):
+    if (val_str == "" or val_str.startswith("Select") or val_str.startswith("W") or val_str.startswith("1st") or val_str.startswith("2nd") or "Winner" in val_str):
         return
         
+    try:
+        # Verify if value is an integer score (Group phase)
+        score_val = int(val_str)
+    except ValueError:
+        # If text string (Knockout dropdown selections), convert to generic int indices to satisfy table structure
+        return
+
     supabase.table("predictions").upsert({
         "user_id": user_id,
         "league_id": league_id,
         "match_key": match_key,
-        "score_value": val_str
+        "score_value": score_val
     }, on_conflict="user_id,league_id,match_key").execute()
 
 def db_fetch_locked_status(user_id, league_id):
@@ -300,7 +301,7 @@ def db_save_league_actual_result(league_id, match_key, value):
     supabase.table("actual_results").upsert({
         "league_id": league_id,
         "match_key": match_key,
-        "score_value": value
+        "score_value": str(value)
     }, on_conflict="league_id,match_key").execute()
 
 # --- 7. SESSION INITIALIZATION ---
@@ -339,9 +340,19 @@ def render_match_card(home, away, label, key_prefix, disabled=False, score_mode=
         return scores_dict
     else:
         options = ["Select Winner", home, away]
-        curr = scores_dict.get(key_prefix, "Select Winner") if scores_dict else "Select Winner"
+        saved_db_val = scores_dict.get(key_prefix, "Select Winner") if scores_dict else "Select Winner"
+        
+        # Translate stored integer flags back into selection visual indexes
+        if str(saved_db_val) == "1":
+            curr = home
+        elif str(saved_db_val) == "2":
+            curr = away
+        else:
+            curr = saved_db_val if saved_db_val in options else "Select Winner"
+            
         idx_val = options.index(curr) if curr in options else 0
         val_select = st.selectbox("Winner Selection", options, index=idx_val, format_func=fmt_team, key=f"sel_{key_prefix}", label_visibility="collapsed", disabled=disabled)
+        
         if scores_dict is not None:
             scores_dict[key_prefix] = val_select
         return val_select
@@ -608,32 +619,53 @@ elif app_tab == "📝 Submit Predictions":
             for m_id, (h, a) in o_r32.items():
                 user_preds[m_id] = render_match_card(h, a, m_id.replace("_", " "), m_id, disabled=False, score_mode=False, scores_dict=user_preds)
         with ko_tabs[1]:
+            # Translate text keys to match choices dynamically
+            def get_ko_prev(m_key):
+                val = user_preds.get(m_key)
+                if val == o_r32.get(m_key, ("",""))[0]: return val
+                if val == o_r32.get(m_key, ("",""))[1]: return val
+                return f"W{m_key.split('_')[1]}"
+
             o_r16 = {
-                "Match_89": (user_preds.get("Match_74", "W74"), user_preds.get("Match_77", "W77")), "Match_90": (user_preds.get("Match_73", "W73"), user_preds.get("Match_75", "W75")),
-                "Match_93": (user_preds.get("Match_83", "W83"), user_preds.get("Match_84", "W84")), "Match_94": (user_preds.get("Match_81", "W81"), user_preds.get("Match_82", "W82")),
-                "Match_91": (user_preds.get("Match_76", "W76"), user_preds.get("Match_78", "W78")), "Match_92": (user_preds.get("Match_79", "W79"), user_preds.get("Match_80", "W80")),
-                "Match_95": (user_preds.get("Match_86", "W86"), user_preds.get("Match_88", "W88")), "Match_96": (user_preds.get("Match_85", "W85"), user_preds.get("Match_87", "W87"))
+                "Match_89": (get_ko_prev("Match_74"), get_ko_prev("Match_77")), "Match_90": (get_ko_prev("Match_73"), get_ko_prev("Match_75")),
+                "Match_93": (get_ko_prev("Match_83"), get_ko_prev("Match_84")), "Match_94": (get_ko_prev("Match_81"), get_ko_prev("Match_82")),
+                "Match_91": (get_ko_prev("Match_76"), get_ko_prev("Match_78")), "Match_92": (get_ko_prev("Match_79"), get_ko_prev("Match_80")),
+                "Match_95": (get_ko_prev("Match_86"), get_ko_prev("Match_88")), "Match_96": (get_ko_prev("Match_85"), get_ko_prev("Match_87"))
             }
             for m_id, (h, a) in o_r16.items():
                 user_preds[m_id] = render_match_card(h, a, m_id.replace("_", " "), m_id, disabled=False, score_mode=False, scores_dict=user_preds)
         with ko_tabs[2]:
+            def get_ko_prev_r16(m_key):
+                val = user_preds.get(m_key)
+                if val in o_r16.get(m_key, ("","")): return val
+                return f"W{m_key.split('_')[1]}"
+
             o_qf = {
-                "Match_97": (user_preds.get("Match_89", "W89"), user_preds.get("Match_90", "W90")), "Match_98": (user_preds.get("Match_93", "W93"), user_preds.get("Match_94", "W94")),
-                "Match_99": (user_preds.get("Match_91", "W91"), user_preds.get("Match_92", "W92")), "Match_100": (user_preds.get("Match_95", "W95"), user_preds.get("Match_96", "W96"))
+                "Match_97": (get_ko_prev_r16("Match_89"), get_ko_prev_r16("Match_90")), "Match_98": (get_ko_prev_r16("Match_93"), get_ko_prev_r16("Match_94")),
+                "Match_99": (get_ko_prev_r16("Match_91"), get_ko_prev_r16("Match_92")), "Match_100": (get_ko_prev_r16("Match_95"), get_ko_prev_r16("Match_96"))
             }
             for m_id, (h, a) in o_qf.items():
                 user_preds[m_id] = render_match_card(h, a, m_id.replace("_", " "), m_id, disabled=False, score_mode=False, scores_dict=user_preds)
         with ko_tabs[3]:
-            sf1_h, sf1_a = user_preds.get("Match_97", "W97"), user_preds.get("Match_98", "W98")
-            sf2_h, sf2_a = user_preds.get("Match_99", "W99"), user_preds.get("Match_100", "W100")
+            def get_ko_prev_qf(m_key):
+                val = user_preds.get(m_key)
+                if val in o_qf.get(m_key, ("","")): return val
+                return f"W{m_key.split('_')[1]}"
+
+            sf1_h, sf1_a = get_ko_prev_qf("Match_97"), get_ko_prev_qf("Match_98")
+            sf2_h, sf2_a = get_ko_prev_qf("Match_99"), get_ko_prev_qf("Match_100")
             
             sf1_opts = ["Select Winner", sf1_h, sf1_a]
             curr_sf1 = user_preds.get("Match_101", "Select Winner")
+            if str(curr_sf1) == "1": curr_sf1 = sf1_h
+            elif str(curr_sf1) == "2": curr_sf1 = sf1_a
             idx_sf1 = sf1_opts.index(curr_sf1) if curr_sf1 in sf1_opts else 0
             user_preds["Match_101"] = st.selectbox("Semi Final 1 Winner", sf1_opts, index=idx_sf1, format_func=fmt_team, key="final_sf1_sel")
             
             sf2_opts = ["Select Winner", sf2_h, sf2_a]
             curr_sf2 = user_preds.get("Match_102", "Select Winner")
+            if str(curr_sf2) == "1": curr_sf2 = sf2_h
+            elif str(curr_sf2) == "2": curr_sf2 = sf2_a
             idx_sf2 = sf2_opts.index(curr_sf2) if curr_sf2 in sf2_opts else 0
             user_preds["Match_102"] = st.selectbox("Semi Final 2 Winner", sf2_opts, index=idx_sf2, format_func=fmt_team, key="final_sf2_sel")
             
@@ -642,20 +674,40 @@ elif app_tab == "📝 Submit Predictions":
             
             p3_opts = ["Select Winner", sf1_l, sf2_l]
             curr_p3 = user_preds.get("Match_103", "Select Winner")
+            if str(curr_p3) == "1": curr_p3 = sf1_l
+            elif str(curr_p3) == "2": curr_p3 = sf2_l
             idx_p3 = p3_opts.index(curr_p3) if curr_p3 in p3_opts else 0
             user_preds["Match_103"] = st.selectbox("🥉 3rd Place Winner Selection", p3_opts, index=idx_p3, format_func=fmt_team, key="final_p3_sel")
             
             f_opts = ["Select Winner", user_preds["Match_101"], user_preds["Match_102"]]
             curr_f = user_preds.get("Match_104", "Select Winner")
+            if str(curr_f) == "1": curr_f = user_preds["Match_101"]
+            elif str(curr_f) == "2": curr_f = user_preds["Match_102"]
             idx_f = f_opts.index(curr_f) if curr_f in f_opts else 0
             user_preds["Match_104"] = st.selectbox("🥇 Grand Champion Prediction", f_opts, index=idx_f, format_func=fmt_team, key="final_champ_sel")
 
         st.markdown("<div style='margin-top:20px;'></div>", unsafe_allow_html=True)
         if st.button("💾 Save All Knockout Brackets Predictions", use_container_width=True, key="save_ko_bracket_global_btn"):
             all_ko_ids = [f"Match_{i}" for i in range(73, 105)]
+            
+            # Map selected text items into integers before saving to fit integer database constraints cleanly
             for m_key in all_ko_ids:
-                if m_key in user_preds:
-                    db_save_prediction(c_uid, active_league_id, m_key, user_preds[m_key])
+                val = user_preds.get(m_key)
+                if val and val != "Select Winner" and not str(val).startswith("W"):
+                    # Get relevant pairing options for that match key
+                    if m_key in o_r32: opts = o_r32[m_key]
+                    elif m_key in o_r16: opts = o_r16[m_key]
+                    elif m_key in o_qf: opts = o_qf[m_key]
+                    elif m_key == "Match_101": opts = (sf1_h, sf1_a)
+                    elif m_key == "Match_102": opts = (sf2_h, sf2_a)
+                    elif m_key == "Match_103": opts = (sf1_l, sf2_l)
+                    elif m_key == "Match_104": opts = (user_preds["Match_101"], user_preds["Match_102"])
+                    else: continue
+                    
+                    if val == opts[0]:
+                        db_save_prediction(c_uid, active_league_id, m_key, 1)
+                    elif val == opts[1]:
+                        db_save_prediction(c_uid, active_league_id, m_key, 2)
             st.success("Knockout bracket selections successfully saved!")
             st.rerun()
 
@@ -695,5 +747,8 @@ elif app_tab == "🛠️ Admin Dashboard" and is_league_admin:
         for m_id, (h, a) in adm_r32_pairings.items():
             actual["ko_winners"][m_id] = render_match_card(h, a, f"Winner: {m_id.replace('_', ' ')}", m_id, disabled=False, score_mode=False, scores_dict=actual["ko_winners"])
             if st.button("📢 Lock Knockout Winner", key=f"btn_ko_{m_id}", use_container_width=True):
-                db_save_league_actual_result(active_league_id, m_id, actual["ko_winners"][m_id])
-                st.success(f"{m_id.replace('_', ' ')} progression locked!")
+                # Translate text choice index to generic save flag
+                flag_val = 1 if actual["ko_winners"][m_id] == h else (2 if actual["ko_winners"][m_id] == a else 0)
+                if flag_val > 0:
+                    db_save_league_actual_result(active_league_id, m_id, flag_val)
+                    st.success(f"{m_id.replace('_', ' ')} progression locked!")
