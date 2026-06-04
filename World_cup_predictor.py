@@ -589,13 +589,13 @@ user_leagues_list = db_fetch_user_leagues(c_uid)
 # --- 11. STRICT LEAGUE LOCK CHECK ---
 if not user_leagues_list:
     st.title("🛡️ Secure Onboarding")
-    st.warning("Welcome! To proceed into the dashboard, you must first create or join a standalone league environment.")
+    st.warning("Welcome! To proceed into the dashboard, you must first create or join a league.")
     
     c1, c2 = st.columns(2)
     with c1:
         st.subheader("Join an Existing League")
         join_code_input = st.text_input("Enter Invite Code Provided By Your Admin")
-        if st.button("🔑 Access League Pool", use_container_width=True):
+        if st.button("🔑 Access League", use_container_width=True):
             if join_code_input.strip() != "":
                 code_query = supabase.table("leagues").select("id, name").eq("invite_code", join_code_input).execute()
                 if code_query.data:
@@ -606,12 +606,12 @@ if not user_leagues_list:
                 else: st.error("Invite code not verified.")
     with c2:
         st.subheader("Request A New League Setup")
-        master_pass = st.text_input("Enter Master Creation Passcode", type="password")
+        master_pass = st.text_input("Enter Master Passcode", type="password")
         new_lg_name = st.text_input("Proposed League Name")
         new_lg_code = st.text_input("Create Custom Invite Code For Friends")
         
         if st.button("✨ Initialize Authorized League", use_container_width=True):
-            if master_pass != "FIRE_CHIEF_2026":
+            if master_pass != "WORLD_CUP_2026":
                 st.error("Invalid Master Creation Passcode.")
             elif new_lg_name.strip() == "" or new_lg_code.strip() == "":
                 st.error("Fields cannot be left blank.")
@@ -685,7 +685,7 @@ elif app_tab == "📝 Submit Predictions":
     user_preds = db_fetch_user_predictions(c_uid, active_league_id)
     locked_keys_set = db_fetch_locked_status(c_uid, active_league_id)
     
-    pred_sub_tabs = st.tabs(["📊 Group Matches Workspace", "🌳 Knockout Brackets"])
+    pred_sub_tabs = st.tabs(["📊 Group Matches", "🌳 Knockout Rounds"])
     
     with pred_sub_tabs[0]:
         selected_group = st.selectbox("Choose Group Stage Pool", list(GROUPS.keys()))
@@ -886,7 +886,7 @@ elif app_tab == "🛠️ Admin Dashboard" and is_league_admin:
     admin_tabs = st.tabs(["Group Stage Results", "Knockout Progress Matches"])
     
     with admin_tabs[0]:
-        st.subheader("📆 All Group Matches (Chronological Feed)")
+        st.subheader("📆 All Group Matches (Match Order)")
         
         flat_chrono_list = []
         for g_name, matches in CHRONO_MATCHES.items():
