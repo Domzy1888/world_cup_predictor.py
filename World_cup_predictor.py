@@ -14,28 +14,107 @@ st.set_page_config(
     layout="wide"
 )
 
-# Custom CSS to safely darken only the sidebar menu text items
+# Custom CSS to safely darken only the sidebar menu text items and isolate them from main body overrides
 st.markdown(
     """
     <style>
-    /* Targets the text inside the sidebar radio/navigation options */
-    [data-testid="stSidebar"] .st-emotion-cache-170701z,
+    /* 1. Force absolute dark theme readability on sidebar texts and remove conflicting text-shadows */
+    [data-testid="stSidebar"] div,
+    [data-testid="stSidebar"] p,
     [data-testid="stSidebar"] label,
-    [data-testid="stSidebar"] p {
-        color: #1A1A1A !important;
-        font-weight: 500 !important;
+    [data-testid="stSidebar"] span,
+    [data-testid="stSidebar"] .st-emotion-cache-170701z {
+        color: #1E293B !important;
+        font-weight: 700 !important;
+        text-shadow: none !important;
     }
     
-    /* Targets the sidebar headers/subheaders if present */
+    /* 2. Clear out any lingering header styling conflicts in sidebar */
     [data-testid="stSidebar"] h1,
     [data-testid="stSidebar"] h2,
     [data-testid="stSidebar"] h3 {
-        color: #0E1117 !important;
+        color: #0F172A !important;
+        text-shadow: none !important;
     }
     </style>
     """,
     unsafe_allow_html=True
 )
+# ==============================================================================
+
+st.markdown("""
+    <style>
+    /* Background Image setup */
+    .stApp {
+        background: linear-gradient(rgba(15, 23, 42, 0.2), rgba(15, 23, 42, 0.4)),
+                    url("https://cdn-media.theathletic.com/cdn-cgi/image/width=1000%2cquality=70%2cformat=auto/https://cdn-media.theathletic.com/vwYC1qZfTwfm_3qmyXkIC5Rja_1440x960.jpg");
+        background-size: cover;
+        background-position: center;
+        background-attachment: fixed;
+    }
+    
+    /* Global Typography - Specifically constrained away from the sidebar elements */
+    [data-testid="stMain"] p, 
+    [data-testid="stMain"] label, 
+    [data-testid="stMain"] .stMarkdown, 
+    [data-testid="stMain"] .stText, 
+    [data-testid="stMain"] [data-testid="stWidgetLabel"] p {
+        color: #f8fafc !important;
+        font-weight: 500 !important;
+        text-shadow: 1px 1px 3px rgba(0, 0, 0, 0.8);
+    }
+    
+    h1, h2, h3, h4 {
+        color: #ffffff !important;
+        text-transform: uppercase;
+        font-weight: 800 !important;
+        letter-spacing: 0.5px;
+        text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.9);
+    }
+
+    [data-testid="stExpander"], [data-testid="stTabContent"], .stTabs {
+        background: rgba(15, 23, 42, 0.75) !important;
+        border: 1px solid rgba(255, 255, 255, 0.15) !important;
+        border-radius: 12px !important;
+        padding: 16px !important;
+        margin-bottom: 16px !important;
+    }
+
+    div[data-baseweb="select"] > div {
+        background-color: rgba(15, 23, 42, 0.95) !important;
+        color: white !important;
+        border: 1px solid rgba(255, 255, 255, 0.25) !important;
+    }
+    
+    div.stButton > button {
+        background-color: #2563eb !important;
+        color: white !important;
+        font-weight: 700 !important;
+        text-transform: uppercase;
+        width: 100% !important;
+        border: none !important;
+        border-radius: 6px !important;
+        padding: 10px !important;
+        box-shadow: 0 4px 6px rgba(0,0,0,0.3);
+    }
+    
+    div.stButton > button:hover {
+        background-color: #1d4ed8 !important;
+    }
+    
+    .lock-badge-banner {
+        background-color: rgba(220, 38, 38, 0.9);
+        color: #ffffff !important;
+        border: 1px solid #ef4444;
+        padding: 12px;
+        border-radius: 8px;
+        font-weight: bold;
+        text-align: center;
+        margin-bottom: 20px;
+    }
+    </style>
+""", unsafe_allow_html=True)
+
 # ==============================================================================
 
 st.markdown("""
