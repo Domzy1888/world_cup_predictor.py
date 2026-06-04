@@ -724,7 +724,6 @@ elif app_tab == "📝 Submit Predictions":
             st.dataframe(df_display, use_container_width=True, hide_index=True)
 
     with pred_sub_tabs[1]:
-        # Generate the user's dynamic bracket pairings
         user_calc_bracket = resolve_bracket_teams(user_preds, target_is_actual=False)
         o_r32 = user_calc_bracket["r32_pairings"]
         
@@ -940,6 +939,14 @@ elif app_tab == "🛠️ Admin Dashboard" and is_league_admin:
             st.subheader("🌳 Round of 32 Matches (Populated via Real Group Standings)")
             for m_id, (h, a) in adm_r32_pairings.items():
                 is_ko_saved = (m_id in actual["ko_winners"])
+                
+                # Dynamic translation check: ensures choice selections are accurately linked across the component map
+                saved_winner = actual["ko_winners"].get(m_id)
+                if str(saved_winner) == "1":
+                    actual["ko_winners"][m_id] = h
+                elif str(saved_winner) == "2":
+                    actual["ko_winners"][m_id] = a
+
                 actual["ko_winners"][m_id] = render_match_card(h, a, f"Winner: {m_id.replace('_', ' ')}", m_id, disabled=is_ko_saved, score_mode=False, scores_dict=actual["ko_winners"])
                 
                 col_ko1, col_ko2 = st.columns(2)
@@ -967,6 +974,8 @@ elif app_tab == "🛠️ Admin Dashboard" and is_league_admin:
                 val = actual["ko_winners"].get(m_key)
                 if str(val) == "1": return actual_calc_bracket["r32_pairings"].get(m_key, ("",""))[0]
                 if str(val) == "2": return actual_calc_bracket["r32_pairings"].get(m_key, ("",""))[1]
+                # Fallback check if it was translated to a literal country name string
+                if val and not (str(val).startswith("W") and "_" not in str(val)): return str(val)
                 return f"W{m_key.split('_')[1]}"
 
             adm_r16 = {
@@ -978,6 +987,13 @@ elif app_tab == "🛠️ Admin Dashboard" and is_league_admin:
             st.subheader("🌳 Round of 16 Matches")
             for m_id, (h, a) in adm_r16.items():
                 is_ko_saved = (m_id in actual["ko_winners"])
+                
+                saved_winner = actual["ko_winners"].get(m_id)
+                if str(saved_winner) == "1":
+                    actual["ko_winners"][m_id] = h
+                elif str(saved_winner) == "2":
+                    actual["ko_winners"][m_id] = a
+
                 actual["ko_winners"][m_id] = render_match_card(h, a, f"Winner: {m_id.replace('_', ' ')}", m_id, disabled=is_ko_saved, score_mode=False, scores_dict=actual["ko_winners"])
                 
                 col_ko1, col_ko2 = st.columns(2)
@@ -1005,6 +1021,7 @@ elif app_tab == "🛠️ Admin Dashboard" and is_league_admin:
                 val = actual["ko_winners"].get(m_key)
                 if str(val) == "1": return adm_r16.get(m_key, ("",""))[0]
                 if str(val) == "2": return adm_r16.get(m_key, ("",""))[1]
+                if val and not (str(val).startswith("W") and "_" not in str(val)): return str(val)
                 return f"W{m_key.split('_')[1]}"
 
             adm_qf = {
@@ -1014,6 +1031,13 @@ elif app_tab == "🛠️ Admin Dashboard" and is_league_admin:
             st.subheader("🌳 Quarter-Final Matches")
             for m_id, (h, a) in adm_qf.items():
                 is_ko_saved = (m_id in actual["ko_winners"])
+                
+                saved_winner = actual["ko_winners"].get(m_id)
+                if str(saved_winner) == "1":
+                    actual["ko_winners"][m_id] = h
+                elif str(saved_winner) == "2":
+                    actual["ko_winners"][m_id] = a
+
                 actual["ko_winners"][m_id] = render_match_card(h, a, f"Winner: {m_id.replace('_', ' ')}", m_id, disabled=is_ko_saved, score_mode=False, scores_dict=actual["ko_winners"])
                 
                 col_ko1, col_ko2 = st.columns(2)
@@ -1042,6 +1066,7 @@ elif app_tab == "🛠️ Admin Dashboard" and is_league_admin:
                 val = actual["ko_winners"].get(m_key)
                 if str(val) == "1": return adm_qf.get(m_key, ("",""))[0]
                 if str(val) == "2": return adm_qf.get(m_key, ("",""))[1]
+                if val and not (str(val).startswith("W") and "_" not in str(val)): return str(val)
                 return f"W{m_key.split('_')[1]}"
 
             sf1_h, sf1_a = get_adm_ko_prev_qf("Match_97"), get_adm_ko_prev_qf("Match_98")
@@ -1049,6 +1074,10 @@ elif app_tab == "🛠️ Admin Dashboard" and is_league_admin:
             
             # Match 101 Setup
             is_101_saved = ("Match_101" in actual["ko_winners"])
+            saved_winner_101 = actual["ko_winners"].get("Match_101")
+            if str(saved_winner_101) == "1": actual["ko_winners"]["Match_101"] = sf1_h
+            elif str(saved_winner_101) == "2": actual["ko_winners"]["Match_101"] = sf1_a
+            
             actual["ko_winners"]["Match_101"] = render_match_card(sf1_h, sf1_a, "Semi Final 1 Official Winner", "Match_101", disabled=is_101_saved, score_mode=False, scores_dict=actual["ko_winners"])
             c_sf1_1, c_sf1_2 = st.columns(2)
             with c_sf1_1:
@@ -1062,6 +1091,10 @@ elif app_tab == "🛠️ Admin Dashboard" and is_league_admin:
 
             # Match 102 Setup
             is_102_saved = ("Match_102" in actual["ko_winners"])
+            saved_winner_102 = actual["ko_winners"].get("Match_102")
+            if str(saved_winner_102) == "1": actual["ko_winners"]["Match_102"] = sf2_h
+            elif str(saved_winner_102) == "2": actual["ko_winners"]["Match_102"] = sf2_a
+
             actual["ko_winners"]["Match_102"] = render_match_card(sf2_h, sf2_a, "Semi Final 2 Official Winner", "Match_102", disabled=is_102_saved, score_mode=False, scores_dict=actual["ko_winners"])
             c_sf2_1, c_sf2_2 = st.columns(2)
             with c_sf2_1:
@@ -1076,15 +1109,19 @@ elif app_tab == "🛠️ Admin Dashboard" and is_league_admin:
             # 3rd Place Setup (Match 103)
             def get_adm_winner(m_key, h, a):
                 v = str(actual["ko_winners"].get(m_key, ""))
-                return h if v == "1" else (a if v == "2" else f"W_{m_key}")
+                return h if v == "1" or v == str(h) else (a if v == "2" or v == str(a) else f"W_{m_key}")
             def get_adm_loser(m_key, h, a):
                 v = str(actual["ko_winners"].get(m_key, ""))
-                return a if v == "1" else (h if v == "2" else f"L_{m_key}")
+                return a if v == "1" or v == str(h) else (h if v == "2" or v == str(a) else f"L_{m_key}")
 
             sf1_w, sf1_l = get_adm_winner("Match_101", sf1_h, sf1_a), get_adm_loser("Match_101", sf1_h, sf1_a)
             sf2_w, sf2_l = get_adm_winner("Match_102", sf2_h, sf2_a), get_adm_loser("Match_102", sf2_h, sf2_a)
 
             is_103_saved = (actual.get("third_place") != "")
+            saved_winner_103 = actual["ko_winners"].get("Match_103_winner")
+            if str(saved_winner_103) == "1": actual["ko_winners"]["Match_103_winner"] = sf1_l
+            elif str(saved_winner_103) == "2": actual["ko_winners"]["Match_103_winner"] = sf2_l
+
             actual["ko_winners"]["Match_103_winner"] = render_match_card(sf1_l, sf2_l, "🥉 Third Place Playoff Official Winner", "Match_103_winner", disabled=is_103_saved, score_mode=False, scores_dict=actual["ko_winners"])
             c_p3_1, c_p3_2 = st.columns(2)
             with c_p3_1:
@@ -1098,6 +1135,10 @@ elif app_tab == "🛠️ Admin Dashboard" and is_league_admin:
 
             # Grand Final Setup (Match 104)
             is_104_saved = ("Match_104" in actual["ko_winners"])
+            saved_winner_104 = actual["ko_winners"].get("Match_104")
+            if str(saved_winner_104) == "1": actual["ko_winners"]["Match_104"] = sf1_w
+            elif str(saved_winner_104) == "2": actual["ko_winners"]["Match_104"] = sf2_w
+
             actual["ko_winners"]["Match_104"] = render_match_card(sf1_w, sf2_w, "🥇 Grand Champion Official Winner", "Match_104", disabled=is_104_saved, score_mode=False, scores_dict=actual["ko_winners"])
             c_f_1, c_f_2 = st.columns(2)
             with c_f_1:
