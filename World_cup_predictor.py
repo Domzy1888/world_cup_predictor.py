@@ -487,7 +487,7 @@ def generate_live_ticker_stream(league_id):
         for f in fixtures:
             flat_matches[f["id"]] = {"home": f["home"], "away": f["away"], "group": g_name}
             
-    # 2. Build out completed dynamic results
+    # 2. Build out completed dynamic results (Forced elements inside ticker to pure white font)
     completed_ids = []
     for mid in sorted(flat_matches.keys()):
         kh, ka = f"Match_{mid}_h", f"Match_{mid}_a"
@@ -496,10 +496,10 @@ def generate_live_ticker_stream(league_id):
             sa = actual["group"][ka]
             h_disp = FLAGS.get(flat_matches[mid]["home"], flat_matches[mid]["home"].upper())
             a_disp = FLAGS.get(flat_matches[mid]["away"], flat_matches[mid]["away"].upper())
-            ticker_elements.append(f"<span style='color: #ffffff;'>💥 Match #{mid}:</span> {h_disp} <span style='color: #00FF66;'>{sh} - {sa}</span> {a_disp} <span style='color: #00FF66; font-size: 11px; vertical-align: super;'>FT</span>")
+            ticker_elements.append(f"<span style='color: #ffffff;'>💥 Match #{mid}:</span> {h_disp} <span style='color: #ffffff;'>{sh} - {sa}</span> {a_disp} <span style='color: #ffffff; font-size: 11px; vertical-align: super;'>FT</span>")
             completed_ids.append(mid)
             
-    # 3. Build out future upcoming real matches (Next 4 matches sequentially)
+    # 3. Build out future upcoming real matches (Forced elements inside ticker to pure white font)
     upcoming_count = 0
     for mid in sorted(flat_matches.keys()):
         if mid not in completed_ids:
@@ -508,8 +508,8 @@ def generate_live_ticker_stream(league_id):
             meta = FIFA_REAL_METADATA.get(mid, {"date": "TBD", "time": "TBD", "venue": "TBD"})
             
             ticker_elements.append(
-                f"<span style='color: #ff9f43;'>⏳ UPCOMING Match #{mid}:</span> {h_disp} VS {a_disp} "
-                f"<span style='color: #cbd5e1; font-weight: normal; font-size: 13px;'>({meta['date']} @ {meta['time']} - {meta['venue']})</span>"
+                f"<span style='color: #ffffff;'>⏳ UPCOMING Match #{mid}:</span> {h_disp} VS {a_disp} "
+                f"<span style='color: #ffffff; font-weight: normal; font-size: 13px;'>({meta['date']} @ {meta['time']} - {meta['venue']})</span>"
             )
             upcoming_count += 1
             if upcoming_count >= 4:
@@ -518,7 +518,7 @@ def generate_live_ticker_stream(league_id):
     if not ticker_elements:
         ticker_elements = ["🏆 WORLD CUP 2026 PREDICTION LEAGUE — NO ACTIVE RESULTS RECORDED"]
 
-    # Render Marquee Component Injection Block
+    # Render Marquee Component Injection Block (Slowed animation speed down by exactly 20% from 35s to 42s)
     ticker_string = " &nbsp;&nbsp;&nbsp;&nbsp;•&nbsp;&nbsp;&nbsp;&nbsp; ".join(ticker_elements)
     marquee_html = f"""
     <style>
@@ -544,11 +544,15 @@ def generate_live_ticker_stream(league_id):
             display: inline-block;
             white-space: nowrap;
             padding-right: 50px;
-            animation: marquee 35s linear infinite;
+            animation: marquee 42s linear infinite;
             font-family: 'Helvetica Neue', Arial, sans-serif;
             font-weight: bold;
             font-size: 14px;
+            color: #ffffff !important;
             letter-spacing: 0.5px;
+        }}
+        .ticker-content * {{
+            color: #ffffff !important;
         }}
         .ticker-content:hover {{
             animation-play-state: paused;
@@ -1284,84 +1288,4 @@ elif app_tab == "🛠️ Admin Dashboard" and is_league_admin:
                 if val and not (str(val).startswith("W") and "_" not in str(val)): return str(val)
                 return f"W{m_key.split('_')[1]}"
 
-            adm_qf = {
-                "Match_97": (get_adm_ko_prev_r16("Match_89"), get_adm_ko_prev_r16("Match_90")), "Match_98": (get_adm_ko_prev_r16("Match_93"), get_adm_ko_prev_r16("Match_94")),
-                "Match_99": (get_adm_ko_prev_r16("Match_91"), get_adm_ko_prev_r16("Match_92")), "Match_100": (get_adm_ko_prev_r16("Match_95"), get_adm_ko_prev_r16("Match_96"))
-            }
-            st.subheader("🌳 Quarter-Final Matches")
-            for m_id, (h, a) in adm_qf.items():
-                is_ko_saved = (m_id in actual["ko_winners"])
-                
-                saved_winner = actual["ko_winners"].get(m_id)
-                if str(saved_winner) == "1":
-                    actual["ko_winners"][m_id] = h
-                elif str(saved_winner) == "2":
-                    actual["ko_winners"][m_id] = a
-
-                actual["ko_winners"][m_id] = render_match_card(h, a, f"Winner: {m_id.replace('_', ' ')}", m_id, disabled=is_ko_saved, score_mode=False, scores_dict=actual["ko_winners"])
-                
-                col_ko1, col_ko2 = st.columns(2)
-                with col_ko1:
-                    if not is_ko_saved:
-                        if st.button("📢 Lock Knockout Winner", key=f"btn_ko_{m_id}", use_container_width=True):
-                            flag_val = 1 if actual["ko_winners"][m_id] == h else (2 if actual["ko_winners"][m_id] == a else 0)
-                            if flag_val > 0:
-                                db_save_league_actual_result(active_league_id, m_id, flag_val)
-                                st.success(f"{m_id.replace('_', ' ')} progression locked!")
-                                st.rerun()
-                    else:
-                        st.markdown("<div style='color: #22c55e; font-weight: bold; padding-top: 10px;'>✅ Confirmed Locked</div>", unsafe_allow_html=True)
-                with col_ko2:
-                    if is_ko_saved:
-                        if st.button("🔓 Reset / Unlock Winner", key=f"btn_unl_ko_{m_id}", use_container_width=True):
-                            db_delete_league_actual_result(active_league_id, m_id)
-                            st.warning(f"{m_id.replace('_', ' ')} status cleared.")
-                            st.rerun()
-                st.markdown("<hr style='margin: 15px 0; border: 0; border-top: 1px solid rgba(255,255,255,0.1);' />", unsafe_allow_html=True)
-
-        # --- ADMIN WORKSPACE: FINALS & CHAMPION ---
-        with adm_ko_tabs[3]:
-            st.subheader("🌳 Semi-Finals & Final Infrastructure")
-            def get_adm_ko_prev_qf(m_key):
-                val = actual["ko_winners"].get(m_key)
-                if str(val) == "1": return adm_qf.get(m_key, ("",""))[0]
-                if str(val) == "2": return adm_qf.get(m_key, ("",""))[1]
-                if val and not (str(val).startswith("W") and "_" not in str(val)): return str(val)
-                return f"W{m_key.split('_')[1]}"
-
-            sf1_h, sf1_a = get_adm_ko_prev_qf("Match_97"), get_adm_ko_prev_qf("Match_98")
-            sf2_h, sf2_a = get_adm_ko_prev_qf("Match_99"), get_adm_ko_prev_qf("Match_100")
-            
-            # Match 101 Setup
-            is_101_saved = ("Match_101" in actual["ko_winners"])
-            saved_winner_101 = actual["ko_winners"].get("Match_101")
-            if str(saved_winner_101) == "1": actual["ko_winners"]["Match_101"] = sf1_h
-            elif str(saved_winner_101) == "2": actual["ko_winners"]["Match_101"] = sf1_a
-            
-            actual["ko_winners"]["Match_101"] = render_match_card(sf1_h, sf1_a, "Semi Final 1 Official Winner", "Match_101", disabled=is_101_saved, score_mode=False, scores_dict=actual["ko_winners"])
-            c_sf1_1, c_sf1_2 = st.columns(2)
-            with c_sf1_1:
-                if not is_101_saved and st.button("📢 Lock SF 1 Winner", key="btn_adm_101", use_container_width=True):
-                    f_v = 1 if actual["ko_winners"]["Match_101"] == sf1_h else (2 if actual["ko_winners"]["Match_101"] == sf1_a else 0)
-                    if f_v > 0: db_save_league_actual_result(active_league_id, "Match_101", f_v); st.rerun()
-                elif is_101_saved: st.markdown("<div style='color: #22c55e; font-weight: bold;'>✅ Locked</div>", unsafe_allow_html=True)
-            with c_sf1_2:
-                if is_101_saved and st.button("🔓 Reset SF 1", key="unl_adm_101", use_container_width=True):
-                    db_delete_league_actual_result(active_league_id, "Match_101"); st.rerun()
-
-            # Match 102 Setup
-            is_102_saved = ("Match_102" in actual["ko_winners"])
-            saved_winner_102 = actual["ko_winners"].get("Match_102")
-            if str(saved_winner_102) == "1": actual["ko_winners"]["Match_102"] = sf2_h
-            elif str(saved_winner_102) == "2": actual["ko_winners"]["Match_102"] = sf2_a
-
-            actual["ko_winners"]["Match_102"] = render_match_card(sf2_h, sf2_a, "Semi Final 2 Official Winner", "Match_102", disabled=is_102_saved, score_mode=False, scores_dict=actual["ko_winners"])
-            c_sf2_1, c_sf2_2 = st.columns(2)
-            with c_sf2_1:
-                if not is_102_saved and st.button("📢 Lock SF 2 Winner", key="btn_adm_102", use_container_width=True):
-                    f_v = 1 if actual["ko_winners"]["Match_102"] == sf2_h else (2 if actual["ko_winners"]["Match_102"] == sf2_a else 0)
-                    if f_v > 0: db_save_league_actual_result(active_league_id, "Match_102", f_v); st.rerun()
-                elif is_102_saved: st.markdown("<div style='color: #22c55e; font-weight: bold;'>✅ Locked</div>", unsafe_allow_html=True)
-            with c_sf2_2:
-                if is_102_saved and st.button("🔓 Reset SF 2", key="unl_adm_102", use_container_width=True):
-                    db_delete_league_actual_result(active_league_id, "Match_102"); st.rerun()
+            adm_
