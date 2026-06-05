@@ -384,6 +384,20 @@ def db_save_league_actual_result(league_id, match_key, value):
 def db_delete_league_actual_result(league_id, match_key):
     supabase.table("actual_results").delete().eq("league_id", league_id).eq("match_key", match_key).execute()
 
+# --- NEW HELPER FUNCTION: GROUP STAGE COMPLETENESS CHECK ---
+def check_group_stage_completion(user_preds):
+    total_group_matches = 72
+    completed_matches = 0
+    
+    for mid in range(1, total_group_matches + 1):
+        kh = f"Match_{mid}_h"
+        ka = f"Match_{mid}_a"
+        if user_preds.get(kh) is not None and user_preds.get(ka) is not None:
+            completed_matches += 1
+            
+    percent = int((completed_matches / total_group_matches) * 100)
+    return completed_matches, total_group_matches, percent
+
 # --- 7. SESSION INITIALIZATION ---
 if "current_user_id" not in st.session_state:
     st.session_state.current_user_id = None
@@ -748,7 +762,20 @@ elif app_tab == "📝 Submit Predictions":
     
     pred_sub_tabs = st.tabs(["Group Matches", "Knockout Rounds"])
     
+    # Fetch group stage completeness metrics globally for these tabs
+    comp_matches, tot_matches, comp_percent = check_group_stage_completion(user_preds)
+    
     with pred_sub_tabs[0]:
+        # Progress Bar Dashboard UI Configuration
+        st.markdown(f"### 📊 Overall Group Predictions Progress: {comp_percent}%")
+        st.progress(comp_percent / 100.0)
+        if comp_percent < 100:
+            st.info(f"💡 You have completed **{comp_matches}** out of **{tot_matches}** group stage fixtures. Submit and lock all 12 groups to unlock the Knockout Stage brackets!")
+        else:
+            st.success("✅ Marvelous! All 72 group matches predicted and locked. Knockout rounds are now available.")
+            
+        st.markdown("<br />", unsafe_allow_html=True)
+        
         selected_group = st.selectbox("Choose Group Stage Pool", list(GROUPS.keys()))
         group_match_ids = [m["id"] for m in CHRONO_MATCHES[selected_group]]
         group_keys = [f"Match_{mid}_h" for mid in group_match_ids] + [f"Match_{mid}_a" for mid in group_match_ids]
@@ -785,159 +812,163 @@ elif app_tab == "📝 Submit Predictions":
             st.dataframe(df_display, use_container_width=True, hide_index=True)
 
     with pred_sub_tabs[1]:
-        user_calc_bracket = resolve_bracket_teams(user_preds, target_is_actual=False)
-        o_r32 = user_calc_bracket["r32_pairings"]
-        
-        ko_tabs = st.tabs(["Round of 32", "Round of 16", "Quarter-Finals", "Finals"])
-        
-        with ko_tabs[0]:
-            r32_keys = list(o_r32.keys())
-            is_r32_locked = all(k in locked_keys_set for k in r32_keys)
+        if comp_percent < 100:
+            st.markdown("<div style='margin-top: 20px;'></div>", unsafe_allow_html=True)
+            st.warning("⚠️ **Knockout Stage Locked:** You must complete and finalize 100% of your Group Stage predictions before you can view or make selections on the knockout rounds brackets layout.")
+        else:
+            user_calc_bracket = resolve_bracket_teams(user_preds, target_is_actual=False)
+            o_r32 = user_calc_bracket["r32_pairings"]
             
-            if is_r32_locked:
-                st.markdown("<div class='lock-badge-banner'>🔒 Round of 32 Selections Locked</div>", unsafe_allow_html=True)
+            ko_tabs = st.tabs(["Round of 32", "Round of 16", "Quarter-Finals", "Finals"])
             
-            for m_id, (h, a) in o_r32.items():
-                user_preds[m_id] = render_match_card(h, a, m_id.replace("_", " "), m_id, disabled=is_r32_locked, score_mode=False, scores_dict=user_preds)
+            with ko_tabs[0]:
+                r32_keys = list(o_r32.keys())
+                is_r32_locked = all(k in locked_keys_set for k in r32_keys)
                 
-            if not is_r32_locked:
-                if st.button("🔒 Lock Round of 32 Predictions", use_container_width=True):
-                    for m_key in r32_keys:
-                        val = user_preds.get(m_key)
-                        if val and val != "Select Winner" and not str(val).startswith("W"):
-                            opts = o_r32[m_key]
-                            if val == opts[0]: db_save_prediction(c_uid, active_league_id, m_key, 1)
-                            elif val == opts[1]: db_save_prediction(c_uid, active_league_id, m_key, 2)
-                    db_lock_predictions(c_uid, active_league_id, r32_keys)
-                    st.success("Round of 32 predictions successfully locked!")
-                    st.rerun()
+                if is_r32_locked:
+                    st.markdown("<div class='lock-badge-banner'>🔒 Round of 32 Selections Locked</div>", unsafe_allow_html=True)
+                
+                for m_id, (h, a) in o_r32.items():
+                    user_preds[m_id] = render_match_card(h, a, m_id.replace("_", " "), m_id, disabled=is_r32_locked, score_mode=False, scores_dict=user_preds)
                     
-        with ko_tabs[1]:
-            def get_ko_prev(m_key):
-                val = user_preds.get(m_key)
-                if val == o_r32.get(m_key, ("",""))[0]: return val
-                if val == o_r32.get(m_key, ("",""))[1]: return val
-                return f"W{m_key.split('_')[1]}"
+                if not is_r32_locked:
+                    if st.button("🔒 Lock Round of 32 Predictions", use_container_width=True):
+                        for m_key in r32_keys:
+                            val = user_preds.get(m_key)
+                            if val and val != "Select Winner" and not str(val).startswith("W"):
+                                opts = o_r32[m_key]
+                                if val == opts[0]: db_save_prediction(c_uid, active_league_id, m_key, 1)
+                                elif val == opts[1]: db_save_prediction(c_uid, active_league_id, m_key, 2)
+                        db_lock_predictions(c_uid, active_league_id, r32_keys)
+                        st.success("Round of 32 predictions successfully locked!")
+                        st.rerun()
+                        
+            with ko_tabs[1]:
+                def get_ko_prev(m_key):
+                    val = user_preds.get(m_key)
+                    if val == o_r32.get(m_key, ("",""))[0]: return val
+                    if val == o_r32.get(m_key, ("",""))[1]: return val
+                    return f"W{m_key.split('_')[1]}"
 
-            o_r16 = {
-                "Match_89": (get_ko_prev("Match_74"), get_ko_prev("Match_77")), "Match_90": (get_ko_prev("Match_73"), get_ko_prev("Match_75")),
-                "Match_93": (get_ko_prev("Match_83"), get_ko_prev("Match_84")), "Match_94": (get_ko_prev("Match_81"), get_ko_prev("Match_82")),
-                "Match_91": (get_ko_prev("Match_76"), get_ko_prev("Match_78")), "Match_92": (get_ko_prev("Match_79"), get_ko_prev("Match_80")),
-                "Match_95": (get_ko_prev("Match_86"), get_ko_prev("Match_88")), "Match_96": (get_ko_prev("Match_85"), get_ko_prev("Match_87"))
-            }
-            r16_keys = list(o_r16.keys())
-            is_r16_locked = all(k in locked_keys_set for k in r16_keys)
-            
-            if is_r16_locked:
-                st.markdown("<div class='lock-badge-banner'>🔒 Round of 16 Selections Locked</div>", unsafe_allow_html=True)
+                o_r16 = {
+                    "Match_89": (get_ko_prev("Match_74"), get_ko_prev("Match_77")), "Match_90": (get_ko_prev("Match_73"), get_ko_prev("Match_75")),
+                    "Match_93": (get_ko_prev("Match_83"), get_ko_prev("Match_84")), "Match_94": (get_ko_prev("Match_81"), get_ko_prev("Match_82")),
+                    "Match_91": (get_ko_prev("Match_76"), get_ko_prev("Match_78")), "Match_92": (get_ko_prev("Match_79"), get_ko_prev("Match_80")),
+                    "Match_95": (get_ko_prev("Match_86"), get_ko_prev("Match_88")), "Match_96": (get_ko_prev("Match_85"), get_ko_prev("Match_87"))
+                }
+                r16_keys = list(o_r16.keys())
+                is_r16_locked = all(k in locked_keys_set for k in r16_keys)
                 
-            for m_id, (h, a) in o_r16.items():
-                user_preds[m_id] = render_match_card(h, a, m_id.replace("_", " "), m_id, disabled=is_r16_locked, score_mode=False, scores_dict=user_preds)
-                
-            if not is_r16_locked:
-                if st.button("🔒 Lock Round of 16 Predictions", use_container_width=True):
-                    for m_key in r16_keys:
-                        val = user_preds.get(m_key)
-                        if val and val != "Select Winner" and not str(val).startswith("W"):
-                            opts = o_r16[m_key]
-                            if val == opts[0]: db_save_prediction(c_uid, active_league_id, m_key, 1)
-                            elif val == opts[1]: db_save_prediction(c_uid, active_league_id, m_key, 2)
-                    db_lock_predictions(c_uid, active_league_id, r16_keys)
-                    st.success("Round of 16 predictions successfully locked!")
-                    st.rerun()
+                if is_r16_locked:
+                    st.markdown("<div class='lock-badge-banner'>🔒 Round of 16 Selections Locked</div>", unsafe_allow_html=True)
                     
-        with ko_tabs[2]:
-            def get_ko_prev_r16(m_key):
-                val = user_preds.get(m_key)
-                if val in o_r16.get(m_key, ("","")): return val
-                return f"W{m_key.split('_')[1]}"
-
-            o_qf = {
-                "Match_97": (get_ko_prev_r16("Match_89"), get_ko_prev_r16("Match_90")), "Match_98": (get_ko_prev_r16("Match_93"), get_ko_prev_r16("Match_94")),
-                "Match_99": (get_ko_prev_r16("Match_91"), get_ko_prev_r16("Match_92")), "Match_100": (get_ko_prev_r16("Match_95"), get_ko_prev_r16("Match_96"))
-            }
-            qf_keys = list(o_qf.keys())
-            is_qf_locked = all(k in locked_keys_set for k in qf_keys)
-            
-            if is_qf_locked:
-                st.markdown("<div class='lock-badge-banner'>🔒 Quarter-Final Selections Locked</div>", unsafe_allow_html=True)
-                
-            for m_id, (h, a) in o_qf.items():
-                user_preds[m_id] = render_match_card(h, a, m_id.replace("_", " "), m_id, disabled=is_qf_locked, score_mode=False, scores_dict=user_preds)
-                
-            if not is_qf_locked:
-                if st.button("🔒 Lock Quarter-Final Predictions", use_container_width=True):
-                    for m_key in qf_keys:
-                        val = user_preds.get(m_key)
-                        if val and val != "Select Winner" and not str(val).startswith("W"):
-                            opts = o_qf[m_key]
-                            if val == opts[0]: db_save_prediction(c_uid, active_league_id, m_key, 1)
-                            elif val == opts[1]: db_save_prediction(c_uid, active_league_id, m_key, 2)
-                    db_lock_predictions(c_uid, active_league_id, qf_keys)
-                    st.success("Quarter-Final predictions successfully locked!")
-                    st.rerun()
+                for m_id, (h, a) in o_r16.items():
+                    user_preds[m_id] = render_match_card(h, a, m_id.replace("_", " "), m_id, disabled=is_r16_locked, score_mode=False, scores_dict=user_preds)
                     
-        with ko_tabs[3]:
-            def get_ko_prev_qf(m_key):
-                val = user_preds.get(m_key)
-                if val in o_qf.get(m_key, ("","")): return val
-                return f"W{m_key.split('_')[1]}"
+                if not is_r16_locked:
+                    if st.button("🔒 Lock Round of 16 Predictions", use_container_width=True):
+                        for m_key in r16_keys:
+                            val = user_preds.get(m_key)
+                            if val and val != "Select Winner" and not str(val).startswith("W"):
+                                opts = o_r16[m_key]
+                                if val == opts[0]: db_save_prediction(c_uid, active_league_id, m_key, 1)
+                                elif val == opts[1]: db_save_prediction(c_uid, active_league_id, m_key, 2)
+                        db_lock_predictions(c_uid, active_league_id, r16_keys)
+                        st.success("Round of 16 predictions successfully locked!")
+                        st.rerun()
+                        
+            with ko_tabs[2]:
+                def get_ko_prev_r16(m_key):
+                    val = user_preds.get(m_key)
+                    if val in o_r16.get(m_key, ("","")): return val
+                    return f"W{m_key.split('_')[1]}"
 
-            sf1_h, sf1_a = get_ko_prev_qf("Match_97"), get_ko_prev_qf("Match_98")
-            sf2_h, sf2_a = get_ko_prev_qf("Match_99"), get_ko_prev_qf("Match_100")
-            
-            finals_keys = ["Match_101", "Match_102", "Match_103", "Match_104"]
-            is_finals_locked = all(k in locked_keys_set for k in finals_keys)
-            
-            if is_finals_locked:
-                st.markdown("<div class='lock-badge-banner'>🔒 Finals Selections Locked</div>", unsafe_allow_html=True)
-            
-            sf1_opts = ["Select Winner", sf1_h, sf1_a]
-            curr_sf1 = user_preds.get("Match_101", "Select Winner")
-            if str(curr_sf1) == "1": curr_sf1 = sf1_h
-            elif str(curr_sf1) == "2": curr_sf1 = sf1_a
-            idx_sf1 = sf1_opts.index(curr_sf1) if curr_sf1 in sf1_opts else 0
-            user_preds["Match_101"] = st.selectbox("Semi Final 1 Winner", sf1_opts, index=idx_sf1, format_func=fmt_team, key="final_sf1_sel", disabled=is_finals_locked)
-            
-            sf2_opts = ["Select Winner", sf2_h, sf2_a]
-            curr_sf2 = user_preds.get("Match_102", "Select Winner")
-            if str(curr_sf2) == "1": curr_sf2 = sf2_h
-            elif str(curr_sf2) == "2": curr_sf2 = sf2_a
-            idx_sf2 = sf2_opts.index(curr_sf2) if curr_sf2 in sf2_opts else 0
-            user_preds["Match_102"] = st.selectbox("Semi Final 2 Winner", sf2_opts, index=idx_sf2, format_func=fmt_team, key="final_sf2_sel", disabled=is_finals_locked)
-            
-            sf1_l = sf1_a if user_preds["Match_101"] == sf1_h else sf1_h
-            sf2_l = sf2_a if user_preds["Match_102"] == sf2_h else sf2_h
-            
-            p3_opts = ["Select Winner", sf1_l, sf2_l]
-            curr_p3 = user_preds.get("Match_103", "Select Winner")
-            if str(curr_p3) == "1": curr_p3 = sf1_l
-            elif str(curr_p3) == "2": curr_p3 = sf2_l
-            idx_p3 = p3_opts.index(curr_p3) if curr_p3 in p3_opts else 0
-            user_preds["Match_103"] = st.selectbox("🥉 3rd Place Winner Selection", p3_opts, index=idx_p3, format_func=fmt_team, key="final_p3_sel", disabled=is_finals_locked)
-            
-            f_opts = ["Select Winner", user_preds["Match_101"], user_preds["Match_102"]]
-            curr_f = user_preds.get("Match_104", "Select Winner")
-            if str(curr_f) == "1": curr_f = user_preds["Match_101"]
-            elif str(curr_f) == "2": curr_f = user_preds["Match_102"]
-            idx_f = f_opts.index(curr_f) if curr_f in f_opts else 0
-            user_preds["Match_104"] = st.selectbox("🥇 Grand Champion Prediction", f_opts, index=idx_f, format_func=fmt_team, key="final_champ_sel", disabled=is_finals_locked)
-
-            if not is_finals_locked:
-                st.markdown("<div style='margin-top:20px;'></div>", unsafe_allow_html=True)
-                if st.button("🔒 Lock Finals Brackets Predictions", use_container_width=True):
-                    if user_preds["Match_101"] in sf1_opts[1:]:
-                        db_save_prediction(c_uid, active_league_id, "Match_101", 1 if user_preds["Match_101"] == sf1_h else 2)
-                    if user_preds["Match_102"] in sf2_opts[1:]:
-                        db_save_prediction(c_uid, active_league_id, "Match_102", 1 if user_preds["Match_102"] == sf2_h else 2)
-                    if user_preds["Match_103"] in p3_opts[1:]:
-                        db_save_prediction(c_uid, active_league_id, "Match_103", 1 if user_preds["Match_103"] == sf1_l else 2)
-                    if user_preds["Match_104"] in f_opts[1:]:
-                        db_save_prediction(c_uid, active_league_id, "Match_104", 1 if user_preds["Match_104"] == user_preds["Match_101"] else 2)
+                o_qf = {
+                    "Match_97": (get_ko_prev_r16("Match_89"), get_ko_prev_r16("Match_90")), "Match_98": (get_ko_prev_r16("Match_93"), get_ko_prev_r16("Match_94")),
+                    "Match_99": (get_ko_prev_r16("Match_91"), get_ko_prev_r16("Match_92")), "Match_100": (get_ko_prev_r16("Match_95"), get_ko_prev_r16("Match_96"))
+                }
+                qf_keys = list(o_qf.keys())
+                is_qf_locked = all(k in locked_keys_set for k in qf_keys)
+                
+                if is_qf_locked:
+                    st.markdown("<div class='lock-badge-banner'>🔒 Quarter-Final Selections Locked</div>", unsafe_allow_html=True)
                     
-                    db_lock_predictions(c_uid, active_league_id, finals_keys)
-                    st.success("Finals brackets predictions successfully locked!")
-                    st.rerun()
+                for m_id, (h, a) in o_qf.items():
+                    user_preds[m_id] = render_match_card(h, a, m_id.replace("_", " "), m_id, disabled=is_qf_locked, score_mode=False, scores_dict=user_preds)
+                    
+                if not is_qf_locked:
+                    if st.button("🔒 Lock Quarter-Final Predictions", use_container_width=True):
+                        for m_key in qf_keys:
+                            val = user_preds.get(m_key)
+                            if val and val != "Select Winner" and not str(val).startswith("W"):
+                                opts = o_qf[m_key]
+                                if val == opts[0]: db_save_prediction(c_uid, active_league_id, m_key, 1)
+                                elif val == opts[1]: db_save_prediction(c_uid, active_league_id, m_key, 2)
+                        db_lock_predictions(c_uid, active_league_id, qf_keys)
+                        st.success("Quarter-Final predictions successfully locked!")
+                        st.rerun()
+                        
+            with ko_tabs[3]:
+                def get_ko_prev_qf(m_key):
+                    val = user_preds.get(m_key)
+                    if val in o_qf.get(m_key, ("","")): return val
+                    return f"W{m_key.split('_')[1]}"
+
+                sf1_h, sf1_a = get_ko_prev_qf("Match_97"), get_ko_prev_qf("Match_98")
+                sf2_h, sf2_a = get_ko_prev_qf("Match_99"), get_ko_prev_qf("Match_100")
+                
+                finals_keys = ["Match_101", "Match_102", "Match_103", "Match_104"]
+                is_finals_locked = all(k in locked_keys_set for k in finals_keys)
+                
+                if is_finals_locked:
+                    st.markdown("<div class='lock-badge-banner'>🔒 Finals Selections Locked</div>", unsafe_allow_html=True)
+                
+                sf1_opts = ["Select Winner", sf1_h, sf1_a]
+                curr_sf1 = user_preds.get("Match_101", "Select Winner")
+                if str(curr_sf1) == "1": curr_sf1 = sf1_h
+                elif str(curr_sf1) == "2": curr_sf1 = sf1_a
+                idx_sf1 = sf1_opts.index(curr_sf1) if curr_sf1 in sf1_opts else 0
+                user_preds["Match_101"] = st.selectbox("Semi Final 1 Winner", sf1_opts, index=idx_sf1, format_func=fmt_team, key="final_sf1_sel", disabled=is_finals_locked)
+                
+                sf2_opts = ["Select Winner", sf2_h, sf2_a]
+                curr_sf2 = user_preds.get("Match_102", "Select Winner")
+                if str(curr_sf2) == "1": curr_sf2 = sf2_h
+                elif str(curr_sf2) == "2": curr_sf2 = sf2_a
+                idx_sf2 = sf2_opts.index(curr_sf2) if curr_sf2 in sf2_opts else 0
+                user_preds["Match_102"] = st.selectbox("Semi Final 2 Winner", sf2_opts, index=idx_sf2, format_func=fmt_team, key="final_sf2_sel", disabled=is_finals_locked)
+                
+                sf1_l = sf1_a if user_preds["Match_101"] == sf1_h else sf1_h
+                sf2_l = sf2_a if user_preds["Match_102"] == sf2_h else sf2_h
+                
+                p3_opts = ["Select Winner", sf1_l, sf2_l]
+                curr_p3 = user_preds.get("Match_103", "Select Winner")
+                if str(curr_p3) == "1": curr_p3 = sf1_l
+                elif str(curr_p3) == "2": curr_p3 = sf2_l
+                idx_p3 = p3_opts.index(curr_p3) if curr_p3 in p3_opts else 0
+                user_preds["Match_103"] = st.selectbox("🥉 3rd Place Winner Selection", p3_opts, index=idx_p3, format_func=fmt_team, key="final_p3_sel", disabled=is_finals_locked)
+                
+                f_opts = ["Select Winner", user_preds["Match_101"], user_preds["Match_102"]]
+                curr_f = user_preds.get("Match_104", "Select Winner")
+                if str(curr_f) == "1": curr_f = user_preds["Match_101"]
+                elif str(curr_f) == "2": curr_f = user_preds["Match_102"]
+                idx_f = f_opts.index(curr_f) if curr_f in f_opts else 0
+                user_preds["Match_104"] = st.selectbox("🥇 Grand Champion Prediction", f_opts, index=idx_f, format_func=fmt_team, key="final_champ_sel", disabled=is_finals_locked)
+
+                if not is_finals_locked:
+                    st.markdown("<div style='margin-top:20px;'></div>", unsafe_allow_html=True)
+                    if st.button("🔒 Lock Finals Brackets Predictions", use_container_width=True):
+                        if user_preds["Match_101"] in sf1_opts[1:]:
+                            db_save_prediction(c_uid, active_league_id, "Match_101", 1 if user_preds["Match_101"] == sf1_h else 2)
+                        if user_preds["Match_102"] in sf2_opts[1:]:
+                            db_save_prediction(c_uid, active_league_id, "Match_102", 1 if user_preds["Match_102"] == sf2_h else 2)
+                        if user_preds["Match_103"] in p3_opts[1:]:
+                            db_save_prediction(c_uid, active_league_id, "Match_103", 1 if user_preds["Match_103"] == sf1_l else 2)
+                        if user_preds["Match_104"] in f_opts[1:]:
+                            db_save_prediction(c_uid, active_league_id, "Match_104", 1 if user_preds["Match_104"] == user_preds["Match_101"] else 2)
+                        
+                        db_lock_predictions(c_uid, active_league_id, finals_keys)
+                        st.success("Finals brackets predictions successfully locked!")
+                        st.rerun()
 
 # --- 15. ADMINISTRATIVE CONTROL PANEL ---
 elif app_tab == "🛠️ Admin Dashboard" and is_league_admin:
