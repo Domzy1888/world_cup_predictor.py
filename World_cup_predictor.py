@@ -291,6 +291,83 @@ CHRONO_MATCHES = {
     ]
 }
 
+# Real-world official FIFA structural data corresponding to your ID keys.
+# Time-zone conversion handled directly to match UK Summer Time (BST)
+FIFA_REAL_METADATA = {
+    1: {"date": "11 June", "time": "20:30 BST", "venue": "Mexico City"},
+    2: {"date": "11 June", "time": "23:00 BST", "venue": "Los Angeles"},
+    3: {"date": "12 June", "time": "21:00 BST", "venue": "Toronto"},
+    4: {"date": "12 June", "time": "23:30 BST", "venue": "Los Angeles"},
+    5: {"date": "13 June", "time": "17:00 BST", "venue": "Boston"},
+    6: {"date": "13 June", "time": "20:00 BST", "venue": "Vancouver"},
+    7: {"date": "13 June", "time": "23:00 BST", "venue": "Atlanta"},
+    8: {"date": "13 June", "time": "02:00 BST", "venue": "Dallas"},
+    9: {"date": "14 June", "time": "20:00 BST", "venue": "Dallas"},
+    10: {"date": "14 June", "time": "23:00 BST", "venue": "Houston"},
+    11: {"date": "14 June", "time": "18:00 BST", "venue": "Philadelphia"},
+    12: {"date": "14 June", "time": "21:00 BST", "venue": "New York/NJ"},
+    13: {"date": "15 June", "time": "19:00 BST", "venue": "Monterrey"},
+    14: {"date": "15 June", "time": "22:00 BST", "venue": "Miami"},
+    15: {"date": "15 June", "time": "01:00 BST", "venue": "Seattle"},
+    16: {"date": "16 June", "time": "18:00 BST", "venue": "New York/NJ"},
+    17: {"date": "16 June", "time": "21:00 BST", "venue": "Boston"},
+    18: {"date": "16 June", "time": "00:00 BST", "venue": "Kansas City"},
+    19: {"date": "17 June", "time": "18:00 BST", "venue": "Houston"},
+    20: {"date": "17 June", "time": "21:00 BST", "venue": "Atlanta"},
+    21: {"date": "17 June", "time": "00:00 BST", "venue": "Charlotte"},
+    22: {"date": "18 June", "time": "18:00 BST", "venue": "Toronto"},
+    23: {"date": "18 June", "time": "21:00 BST", "venue": "Mexico City"},
+    24: {"date": "18 June", "time": "00:00 BST", "venue": "Guadalajara"},
+    25: {"date": "19 June", "time": "18:00 BST", "venue": "Philadelphia"},
+    26: {"date": "19 June", "time": "21:00 BST", "venue": "Boston"},
+    27: {"date": "19 June", "time": "00:00 BST", "venue": "San Francisco"},
+    28: {"date": "20 June", "time": "18:00 BST", "venue": "Guadalajara"},
+    29: {"date": "20 June", "time": "21:00 BST", "venue": "Los Angeles"},
+    30: {"date": "20 June", "time": "00:00 BST", "venue": "Seattle"},
+    31: {"date": "21 June", "time": "17:00 BST", "venue": "Houston"},
+    32: {"date": "21 June", "time": "20:00 BST", "venue": "Atlanta"},
+    33: {"date": "21 June", "time": "23:00 BST", "venue": "Miami"},
+    34: {"date": "22 June", "time": "19:00 BST", "venue": "Dallas"},
+    35: {"date": "22 June", "time": "22:00 BST", "venue": "New York/NJ"},
+    36: {"date": "22 June", "time": "01:00 BST", "venue": "Las Vegas"},
+    37: {"date": "23 June", "time": "18:00 BST", "venue": "Boston"},
+    38: {"date": "23 June", "time": "21:00 BST", "venue": "Toronto"},
+    39: {"date": "23 June", "time": "00:00 BST", "venue": "Kansas City"},
+    40: {"date": "24 June", "time": "18:00 BST", "venue": "Atlanta"},
+    41: {"date": "24 June", "time": "21:00 BST", "venue": "Miami"},
+    42: {"date": "24 June", "time": "00:00 BST", "venue": "Houston"},
+    43: {"date": "25 June", "time": "18:00 BST", "venue": "New York/NJ"},
+    44: {"date": "25 June", "time": "21:00 BST", "venue": "Philadelphia"},
+    45: {"date": "25 June", "time": "00:00 BST", "venue": "Charlotte"},
+    46: {"date": "26 June", "time": "18:00 BST", "venue": "Boston"},
+    47: {"date": "26 June", "time": "21:00 BST", "venue": "Toronto"},
+    48: {"date": "26 June", "time": "00:00 BST", "venue": "Seattle"},
+    49: {"date": "27 June", "time": "21:00 BST", "venue": "MetLife"},
+    50: {"date": "27 June", "time": "21:00 BST", "venue": "Orlando"},
+    51: {"date": "27 June", "time": "00:00 BST", "venue": "Vancouver"},
+    52: {"date": "27 June", "time": "00:00 BST", "venue": "San Francisco"},
+    53: {"date": "28 June", "time": "19:00 BST", "venue": "Mexico City"},
+    54: {"date": "28 June", "time": "19:00 BST", "venue": "Monterrey"},
+    55: {"date": "28 June", "time": "00:00 BST", "venue": "Los Angeles"},
+    56: {"date": "28 June", "time": "00:00 BST", "venue": "Seattle"},
+    57: {"date": "29 June", "time": "20:00 BST", "venue": "Boston"},
+    58: {"date": "29 June", "time": "20:00 BST", "venue": "Philadelphia"},
+    59: {"date": "29 June", "time": "00:00 BST", "venue": "Kansas City"},
+    60: {"date": "29 June", "time": "00:00 BST", "venue": "Dallas"},
+    61: {"date": "30 June", "time": "19:00 BST", "venue": "Atlanta"},
+    62: {"date": "30 June", "time": "19:00 BST", "venue": "Charlotte"},
+    63: {"date": "30 June", "time": "00:00 BST", "venue": "Miami"},
+    64: {"date": "30 June", "time": "00:00 BST", "venue": "Houston"},
+    65: {"date": "01 July", "time": "18:00 BST", "venue": "Toronto"},
+    66: {"date": "01 July", "time": "18:00 BST", "venue": "Montreal"},
+    67: {"date": "01 July", "time": "23:00 BST", "venue": "San Francisco"},
+    68: {"date": "01 July", "time": "23:00 BST", "venue": "Las Vegas"},
+    69: {"date": "02 July", "time": "19:00 BST", "venue": "Orlando"},
+    70: {"date": "02 July", "time": "19:00 BST", "venue": "New York/NJ"},
+    71: {"date": "02 July", "time": "00:00 BST", "venue": "Dallas"},
+    72: {"date": "02 July", "time": "00:00 BST", "venue": "Seattle"}
+}
+
 PAIRS_R32_STRUC = {
     "Match_73": ("Group A", "1st", "Wildcard_4"), "Match_74": ("Group E", "1st", "Wildcard_0"),
     "Match_75": ("Group F", "1st", "Group C", "2nd"), "Match_76": ("Group C", "1st", "Group F", "2nd"),
@@ -397,6 +474,94 @@ def check_group_stage_completion(user_preds):
             
     percent = int((completed_matches / total_group_matches) * 100)
     return completed_matches, total_group_matches, percent
+
+# --- NEW TICKER WORKSPACE ENGINE ---
+def generate_live_ticker_stream(league_id):
+    # Fetch existing official admin results
+    actual = db_fetch_league_actual_results(league_id)
+    ticker_elements = []
+    
+    # 1. Flatten our structural data matches to cross reference
+    flat_matches = {}
+    for g_name, fixtures in CHRONO_MATCHES.items():
+        for f in fixtures:
+            flat_matches[f["id"]] = {"home": f["home"], "away": f["away"], "group": g_name}
+            
+    # 2. Build out completed dynamic results
+    completed_ids = []
+    for mid in sorted(flat_matches.keys()):
+        kh, ka = f"Match_{mid}_h", f"Match_{mid}_a"
+        if kh in actual["group"] and ka in actual["group"]:
+            sh = actual["group"][kh]
+            sa = actual["group"][ka]
+            h_disp = FLAGS.get(flat_matches[mid]["home"], flat_matches[mid]["home"].upper())
+            a_disp = FLAGS.get(flat_matches[mid]["away"], flat_matches[mid]["away"].upper())
+            ticker_elements.append(f"<span style='color: #ffffff;'>💥 Match #{mid}:</span> {h_disp} <span style='color: #00FF66;'>{sh} - {sa}</span> {a_disp} <span style='color: #00FF66; font-size: 11px; vertical-align: super;'>FT</span>")
+            completed_ids.append(mid)
+            
+    # 3. Build out future upcoming real matches (Next 4 matches sequentially)
+    upcoming_count = 0
+    for mid in sorted(flat_matches.keys()):
+        if mid not in completed_ids:
+            h_disp = FLAGS.get(flat_matches[mid]["home"], flat_matches[mid]["home"].upper())
+            a_disp = FLAGS.get(flat_matches[mid]["away"], flat_matches[mid]["away"].upper())
+            meta = FIFA_REAL_METADATA.get(mid, {"date": "TBD", "time": "TBD", "venue": "TBD"})
+            
+            ticker_elements.append(
+                f"<span style='color: #ff9f43;'>⏳ UPCOMING Match #{mid}:</span> {h_disp} VS {a_disp} "
+                f"<span style='color: #cbd5e1; font-weight: normal; font-size: 13px;'>({meta['date']} @ {meta['time']} - {meta['venue']})</span>"
+            )
+            upcoming_count += 1
+            if upcoming_count >= 4:
+                break
+                
+    if not ticker_elements:
+        ticker_elements = ["🏆 WORLD CUP 2026 PREDICTION LEAGUE — NO ACTIVE RESULTS RECORDED"]
+
+    # Render Marquee Component Injection Block
+    ticker_string = " &nbsp;&nbsp;&nbsp;&nbsp;•&nbsp;&nbsp;&nbsp;&nbsp; ".join(ticker_elements)
+    marquee_html = f"""
+    <style>
+        @keyframes marquee {{
+            0% {{ transform: translate3d(0, 0, 0); }}
+            100% {{ transform: translate3d(-50%, 0, 0); }}
+        }}
+        .ticker-container {{
+            width: 100%;
+            overflow: hidden;
+            background: rgba(15, 23, 42, 0.85);
+            border: 1px solid rgba(255, 255, 255, 0.15);
+            border-radius: 8px;
+            padding: 10px 0;
+            box-sizing: border-box;
+            margin-bottom: 20px;
+        }}
+        .ticker-wrapper {{
+            display: flex;
+            width: fit-content;
+        }}
+        .ticker-content {{
+            display: inline-block;
+            white-space: nowrap;
+            padding-right: 50px;
+            animation: marquee 35s linear infinite;
+            font-family: 'Helvetica Neue', Arial, sans-serif;
+            font-weight: bold;
+            font-size: 14px;
+            letter-spacing: 0.5px;
+        }}
+        .ticker-content:hover {{
+            animation-play-state: paused;
+            cursor: pointer;
+        }}
+    </style>
+    <div class="ticker-container">
+        <div class="ticker-wrapper">
+            <div class="ticker-content">{ticker_string} &nbsp;&nbsp;&nbsp;&nbsp;•&nbsp;&nbsp;&nbsp;&nbsp; {ticker_string}</div>
+        </div>
+    </div>
+    """
+    st.components.v1.html(marquee_html, height=46)
 
 # --- 7. SESSION INITIALIZATION ---
 if "current_user_id" not in st.session_state:
@@ -575,7 +740,7 @@ def resolve_bracket_teams(scores_dict, target_is_actual=False, actual_results_ob
     
     finalists = set([f1_winner_sel, f2_winner_sel])
     champ = str(ko_choices.get("Match_104", ""))
-    third_place = str(ko_choices.get("Match_103" if not target_is_actual else "Match_103_winner", ""))
+    third = str(ko_choices.get("Match_103" if not target_is_actual else "Match_103_winner", ""))
 
     return {
         "r32_pairings": r32_teams,
@@ -584,7 +749,7 @@ def resolve_bracket_teams(scores_dict, target_is_actual=False, actual_results_ob
         "sf": sf_teams,
         "finalists": finalists,
         "champ": champ,
-        "third": third_place
+        "third": third
     }
 
 def calculate_user_points(user_id, league_id):
@@ -602,7 +767,7 @@ def calculate_user_points(user_id, league_id):
             if p_h is not None and p_a is not None and a_h is not None and a_a is not None:
                 if int(p_h) == int(a_h) and int(p_a) == int(a_a): 
                     points += 3  
-                elif (int(p_h) > int(p_a) and int(a_h) > int(a_a)) or (int(p_a) > int(p_h) and int(a_a) > int(a_a)) or (int(p_h) == int(p_a) and int(a_h) == int(a_a)): 
+                elif (int(p_h) > int(p_a) and int(a_h) > int(a_a)) or (int(p_a) > int(p_h) and int(a_a) > int(a_h)) or (int(p_h) == int(p_a) and int(a_h) == int(a_a)): 
                     points += 1  
 
     # 2. Team-Based Progression Check
@@ -698,6 +863,17 @@ if not user_leagues_list:
                     st.rerun()
     st.stop()
 
+# Dropdown management configuration handles
+leagues_dropdown_options = {lg["name"]: lg for lg in user_leagues_list}
+selected_league_name = st.sidebar.selectbox("Current League Environment:", list(leagues_dropdown_options.keys()))
+active_league_meta = leagues_dropdown_options[selected_league_name]
+active_league_id = active_league_meta["id"]
+is_league_admin = (active_league_meta["creator_id"] == c_uid)
+
+# --- GLOBAL LIVE SPORTS TICKER INJECTION ---
+# Renders at the very top of the app workspace dashboard interface for all views
+generate_live_ticker_stream(active_league_id)
+
 col_nav1, col_nav2 = st.columns([8, 2])
 with col_nav1:
     st.markdown(f"👥 Active Profile: **{c_user}**")
@@ -706,12 +882,6 @@ with col_nav2:
         st.session_state.current_user_id = None
         st.session_state.current_username = None
         st.rerun()
-
-leagues_dropdown_options = {lg["name"]: lg for lg in user_leagues_list}
-selected_league_name = st.sidebar.selectbox("Current League Environment:", list(leagues_dropdown_options.keys()))
-active_league_meta = leagues_dropdown_options[selected_league_name]
-active_league_id = active_league_meta["id"]
-is_league_admin = (active_league_meta["creator_id"] == c_uid)
 
 main_tabs = ["🏆 Leaderboards", "📝 Submit Predictions", "🛡️ Create/Join a League"]
 if is_league_admin: 
