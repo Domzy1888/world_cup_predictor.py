@@ -1232,7 +1232,7 @@ elif app_tab == "📝 Submit Predictions":
                     if st.button("🔒 Lock Quarter-Final Predictions", use_container_width=True):
                         for m_key in qf_keys:
                             val = user_preds.get(m_key)
-                            if val charity with and val != "Select Winner" and not str(val).startswith("W"):
+                            if val and val != "Select Winner" and not str(val).startswith("W"):
                                 opts = o_qf[m_key]
                                 if val == opts[0]: db_save_prediction(c_uid, active_league_id, m_key, 1)
                                 elif val == opts[1]: db_save_prediction(c_uid, active_league_id, m_key, 2)
@@ -1548,34 +1548,4 @@ elif app_tab == "🛠️ Admin Dashboard" and is_league_admin:
             c_p3_1, c_p3_2 = st.columns(2)
             with c_p3_1:
                 if not is_m103_saved:
-                    if st.button("📢 Lock 3rd Place Winner", key="btn_lock_m103", use_container_width=True):
-                        f_v = sf1_l if actual["ko_winners"]["Match_103"] == sf1_l else (sf2_l if actual["ko_winners"]["Match_103"] == sf2_l else None)
-                        if f_v:
-                            db_save_league_actual_result(active_league_id, "Match_103_winner", f_v)
-                            st.rerun()
-                else: st.markdown(f"<div style='color: #22c55e; font-weight: bold;'>✅ 3rd Place Locked: {actual['third_place']}</div>", unsafe_allow_html=True)
-            with c_p3_2:
-                if is_m103_saved and st.button("🔓 Unlock 3rd Place", key="btn_unl_m103", use_container_width=True):
-                    db_delete_league_actual_result(active_league_id, "Match_103_winner")
-                    st.rerun()
-
-            st.markdown("<hr style='margin: 15px 0; border-top: 1px solid rgba(255,255,255,0.1);' />", unsafe_allow_html=True)
-
-            # Match 104 (Grand Final)
-            final_h = sf1_w if sf1_w else "W101"
-            final_a = sf2_w if sf2_w else "W102"
-            is_m104_saved = ("Match_104" in actual["ko_winners"])
-            actual["ko_winners"]["Match_104"] = render_match_card(final_h, final_a, "🥇 Grand Champion Official Winner", "Match_104", disabled=is_m104_saved, score_mode=False, scores_dict=actual["ko_winners"])
-            c_f1, c_f2 = st.columns(2)
-            with c_f1:
-                if not is_m104_saved:
-                    if st.button("📢 Lock World Champion", key="btn_lock_m104", use_container_width=True):
-                        f_v = 1 if actual["ko_winners"]["Match_104"] == final_h else (2 if actual["ko_winners"]["Match_104"] == final_a else 0)
-                        if f_v > 0:
-                            db_save_league_actual_result(active_league_id, "Match_104", f_v)
-                            st.rerun()
-                else: st.markdown("<div style='color: #22c55e; font-weight: bold;'>✅ World Champion Locked</div>", unsafe_allow_html=True)
-            with c_f2:
-                if is_m104_saved and st.button("🔓 Unlock World Champion", key="btn_unl_m104", use_container_width=True):
-                    db_delete_league_actual_result(active_league_id, "Match_104")
-                    st.rerun()
+                    if st.
