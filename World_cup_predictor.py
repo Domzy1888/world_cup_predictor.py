@@ -197,11 +197,15 @@ st.markdown("""
     </style>
 """, unsafe_allow_html=True)
 
+# ==============================================================================
 # --- 2. SECURITY HELPER ---
+# ==============================================================================
 def hash_password(password):
     return hashlib.sha256(password.encode()).hexdigest()
 
+# ==============================================================================
 # --- 3. GLOBAL SUPABASE CONNECTION INIT ---
+# ==============================================================================
 try:
     SUPABASE_URL = st.secrets["connections"]["supabase"]["url"]
     SUPABASE_KEY = st.secrets["connections"]["supabase"]["key"]
@@ -210,7 +214,9 @@ except Exception as e:
     st.error("Could not establish a connection to your Supabase database. Please double check your secrets parameters.")
     st.stop()
 
+# ==============================================================================
 # --- 4. GLOBAL TEAMS & FLAGS MAP ---
+# ==============================================================================
 FLAGS = {
     "Mexico": "🇲🇽 MEXICO", "South Africa": "🇿🇦 SOUTH AFRICA", "Rep. of Korea": "🇰🇷 REP. OF KOREA", "Czech Rep.": "🇨🇿 CZECH REP.",
     "Canada": "🇨🇦 CANADA", "Bosnia/Herzeg Mom.": "🇧🇦 BOSNIA/HERZEG.", "Bosnia/Herzeg.": "🇧🇦 BOSNIA/HERZEG.", "Qatar": "🇶🇦 QATAR", "Switzerland": "🇨🇭 SWITZERLAND",
@@ -238,7 +244,9 @@ def split_flag_and_name(formatted_string):
         return parts[0], parts[1]
     return "", formatted_string
 
+# ==============================================================================
 # --- 5. DATA STRUCTURES (GROUPS & CHRONOLOGICAL FIXTURES) ---
+# ==============================================================================
 GROUPS = {
     "Group A": ["Mexico", "South Africa", "Rep. of Korea", "Czech Rep."],
     "Group B": ["Canada", "Bosnia/Herzeg.", "Qatar", "Switzerland"],
@@ -439,7 +447,9 @@ PAIRS_R32_STRUC = {
     "Match_87": ("Group K", "1st", "Wildcard_7"), "Match_88": ("Group D", "2nd", "Group G", "2nd")
 }
 
+# ==============================================================================
 # --- 6. DATABASE HELPER WRAPPERS ---
+# ==============================================================================
 def db_fetch_user_predictions(user_id, league_id):
     res = supabase.table("predictions").select("match_key, score_value").eq("user_id", user_id).eq("league_id", league_id).execute()
     preds = {}
@@ -657,13 +667,17 @@ def generate_live_ticker_stream(league_id):
     """
     st.components.v1.html(marquee_html, height=46)
 
+# ==============================================================================
 # --- 7. SESSION INITIALIZATION ---
+# ==============================================================================
 if "current_user_id" not in st.session_state:
     st.session_state.current_user_id = None
 if "current_username" not in st.session_state:
     st.session_state.current_username = None
 
+# ==============================================================================
 # --- 8. UNIFIED MATCH CARD RENDERER ---
+# ==============================================================================
 def render_match_card(home, away, label, key_prefix, disabled=False, score_mode=False, scores_dict=None):
     disp1 = fmt_team(name=home)
     disp2 = fmt_team(name=away)
@@ -719,7 +733,9 @@ def render_match_card(home, away, label, key_prefix, disabled=False, score_mode=
             scores_dict[key_prefix] = val_select
         return val_select
 
+# ==============================================================================
 # --- 9. COMPUTATION ENGINES ---
+# ==============================================================================
 def run_standings_engine(scores_dict):
     all_group_results = {}
     third_place_pool = []
@@ -976,7 +992,9 @@ def calculate_user_points(user_id, league_id):
 
     return points
 
+# ==============================================================================
 # --- 10. SIGN IN GATEWAY ---
+# ==============================================================================
 if st.session_state.current_user_id is None:
     with st.container():
         st.title("🔐 Tournament Sign-In")
@@ -1011,7 +1029,9 @@ c_user = st.session_state.current_username
 
 user_leagues_list = db_fetch_user_leagues(c_uid)
 
+# ==============================================================================
 # --- 11. STRICT LEAGUE LOCK CHECK ---
+# ==============================================================================
 if not user_leagues_list:
     st.title("🛡️ Secure Onboarding")
     st.warning("Welcome! To proceed into the dashboard, you must first create or join a league.")
@@ -1083,7 +1103,9 @@ if is_league_admin:
     main_tabs.append("🛠️ Admin Dashboard")
 app_tab = st.sidebar.radio("Main Menu Navigation", main_tabs)
 
+# ==============================================================================
 # --- 12. LEADERBOARD WORKSPACE ---
+# ==============================================================================
 if app_tab == "🏆 Leaderboards":
     st.header(f"🏆 {selected_league_name} Standings")
     members_res = supabase.table("league_members").select("users(id, username)").eq("league_id", active_league_id).execute()
@@ -1111,7 +1133,9 @@ if app_tab == "🏆 Leaderboards":
             hide_index=True
         )
 
+# ==============================================================================
 # --- 13. CREATE / JOIN LEAGUE HUB ---
+# ==============================================================================
 elif app_tab == "🛡️ Create/Join a League":
     st.header("🛡️ League Management Hub")
     c1, c2 = st.columns(2)
@@ -1127,7 +1151,9 @@ elif app_tab == "🛡️ Create/Join a League":
                     st.success("Successfully registered into new League!")
                     st.rerun()
 
+# ==============================================================================
 # --- 14. USER PREDICTIONS DESK ---
+# ==============================================================================
 elif app_tab == "📝 Submit Predictions":
     st.header(f"📝 Match Setup — {selected_league_name}")
     
@@ -1460,7 +1486,9 @@ elif app_tab == "📝 Submit Predictions":
                         st.success("Finals brackets predictions successfully locked!")
                         st.rerun()
 
+# ==============================================================================
 # --- 15. ADMINISTRATIVE CONTROL PANEL ---
+# ==============================================================================
 elif app_tab == "🛠️ Admin Dashboard" and is_league_admin:
     st.header(f"🛠️ {selected_league_name} Admin Control Panel")
     actual = db_fetch_league_actual_results(active_league_id)
