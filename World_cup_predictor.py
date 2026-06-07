@@ -477,7 +477,6 @@ def check_group_stage_completion(user_preds):
 def generate_live_ticker_stream(league_id):
     # Fetch existing official admin results
     actual = db_fetch_league_actual_results(league_id)
-    ticker_elements = []
     
     # 1. Flatten our structural data matches to cross reference
     flat_matches = {}
@@ -485,7 +484,8 @@ def generate_live_ticker_stream(league_id):
         for f in fixtures:
             flat_matches[f["id"]] = {"home": f["home"], "away": f["away"], "group": g_name}
             
-    # 2. Build out completed dynamic results (Forced elements inside ticker to pure white font)
+    # 2. Gather all completed dynamic results
+    completed_elements = []
     completed_ids = []
     for mid in sorted(flat_matches.keys()):
         kh, ka = f"Match_{mid}_h", f"Match_{mid}_a"
@@ -494,10 +494,15 @@ def generate_live_ticker_stream(league_id):
             sa = actual["group"][ka]
             h_disp = FLAGS.get(flat_matches[mid]["home"], flat_matches[mid]["home"].upper())
             a_disp = FLAGS.get(flat_matches[mid]["away"], flat_matches[mid]["away"].upper())
-            ticker_elements.append(f"<span style='color: #ffffff;'>💥 Match #{mid}:</span> {h_disp} <span style='color: #ffffff;'>{sh} - {sa}</span> {a_disp} <span style='color: #ffffff; font-size: 11px; vertical-align: super;'>FT</span>")
+            completed_elements.append(f"<span style='color: #ffffff;'>💥 Match #{mid}:</span> {h_disp} <span style='color: #ffffff;'>{sh} - {sa}</span> {a_disp} <span style='color: #ffffff; font-size: 11px; vertical-align: super;'>FT</span>")
             completed_ids.append(mid)
             
-    # 3. Build out future upcoming real matches (Forced elements inside ticker to pure white font)
+    # Slice to strictly keep only the LAST 4 completed match results
+    # (Taking the last 4 from the end ensures we show the 4 most recent results)
+    past_ticker_elements = completed_elements[-4:]
+            
+    # 3. Build out future upcoming real matches
+    upcoming_ticker_elements = []
     upcoming_count = 0
     for mid in sorted(flat_matches.keys()):
         if mid not in completed_ids:
@@ -505,13 +510,16 @@ def generate_live_ticker_stream(league_id):
             a_disp = FLAGS.get(flat_matches[mid]["away"], flat_matches[mid]["away"].upper())
             meta = FIFA_REAL_METADATA.get(mid, {"date": "TBD", "time": "TBD", "venue": "TBD"})
             
-            ticker_elements.append(
+            upcoming_ticker_elements.append(
                 f"<span style='color: #ffffff;'>⏳ UPCOMING Match #{mid}:</span> {h_disp} VS {a_disp} "
                 f"<span style='color: #ffffff; font-weight: normal; font-size: 13px;'>({meta['date']} @ {meta['time']} - {meta['venue']})</span>"
             )
             upcoming_count += 1
             if upcoming_count >= 4:
                 break
+                
+    # Combine the subsets together (strictly maximum of 8 items total)
+    ticker_elements = past_ticker_elements + upcoming_ticker_elements
                 
     if not ticker_elements:
         ticker_elements = ["🏆 WORLD CUP 2026 PREDICTION LEAGUE — NO ACTIVE RESULTS RECORDED"]
@@ -844,7 +852,7 @@ def calculate_user_points(user_id, league_id):
             if p_h is not None and p_a is not None and a_h is not None and a_a is not None:
                 if int(p_h) == int(a_h) and int(p_a) == int(a_a): 
                     points += 3  
-                elif (int(p_h) > int(p_a) and int(a_h) > int(a_a)) or (int(p_a) > int(p_h) and int(a_a) > int(a_h)) or (int(p_h) == int(p_a) and int(a_h) == int(a_a)): 
+                elif (int(p_h) > int(p_a) and int(a_h) > int(a_a)) or (int(p_a) > int(p_h) and int(a_a) > int(a_a)) or (int(p_h) == int(p_a) and int(a_h) == int(a_a)): 
                     points += 1  
 
     # 2. Team-Based Progression Check
