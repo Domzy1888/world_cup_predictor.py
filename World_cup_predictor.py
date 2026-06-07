@@ -1,6 +1,8 @@
 import streamlit as st
 import pandas as pd
 import hashlib
+from datetime import datetime
+import pytz
 from supabase import create_client, Client
 
 # ==============================================================================
@@ -13,6 +15,23 @@ st.set_page_config(
     page_icon="🏆",
     layout="wide"
 )
+
+def is_tournament_locked():
+    """
+    Returns True if the current time has passed the tournament kickoff:
+    Thursday, June 11, 2026, at 5:00 PM UK Time (Europe/London).
+    """
+    try:
+        uk_tz = pytz.timezone('Europe/London')
+        deadline = uk_tz.localize(datetime(2026, 6, 11, 17, 0, 0))
+        now_uk = datetime.now(uk_tz)
+        return now_uk >= deadline
+    except Exception:
+        # Fallback safeguard
+        return False
+
+# Evaluate global tournament lockout status
+global_tournament_lock = is_tournament_locked()
 
 # Comprehensive sidebar override to forcefully darken all navigation text elements
 st.markdown(
@@ -1112,6 +1131,10 @@ elif app_tab == "🛡️ Create/Join a League":
 elif app_tab == "📝 Submit Predictions":
     st.header(f"📝 Match Setup — {selected_league_name}")
     
+    # Display tournament lockout warning if time has run out
+    if global_tournament_lock:
+        st.markdown("<div class='lock-badge-banner'>🔒 Tournament Started: All setup inputs are locked as read-only.</div>", unsafe_allow_html=True)
+    
     user_preds = db_fetch_user_predictions(c_uid, active_league_id)
     locked_keys_set = db_fetch_locked_status(c_uid, active_league_id)
     
@@ -1147,12 +1170,18 @@ elif app_tab == "📝 Submit Predictions":
         selected_group = st.selectbox("Choose Group Stage Pool", list(GROUPS.keys()))
         group_match_ids = [m["id"] for m in CHRONO_MATCHES[selected_group]]
         group_keys = [f"Match_{mid}_h" for mid in group_match_ids] + [f"Match_{mid}_a" for mid in group_match_ids]
-        is_group_locked = any(k in locked_keys_set for k in group_keys)
+        
+        # Combine local lock status with global lockout status
+        is_group_locked = global_tournament_lock or any(k in locked_keys_set for k in group_keys)
         
         col_input, col_table = st.columns([1, 1])
         with col_input:
             if is_group_locked:
-                st.markdown(f"<div class='lock-badge-banner'>🔒 {selected_group} Locked In</div>", unsafe_allow_html=True)
+                if global_tournament_lock:
+                    st.markdown(f"<div class='lock-badge-banner'>🔒 {selected_group} Locked (Tournament Started)</div>", unsafe_allow_html=True)
+                else:
+                    st.markdown(f"<div class='lock-badge-banner'>🔒 {selected_group} Locked In</div>", unsafe_allow_html=True)
+                
                 for match in CHRONO_MATCHES[selected_group]:
                     user_preds = render_match_card(
                         home=match["home"], away=match["away"], label=f"Match #{match['id']}", 
@@ -1182,13 +1211,18 @@ elif app_tab == "📝 Submit Predictions":
             if tied_mask.any() and is_group_locked:
                 tb_lock_key = f"tb_locked_{selected_group}"
                 tb_order_key = f"tb_order_{selected_group}"
-                is_tb_locked = st.session_state.get(tb_lock_key, False)
+                
+                # Force true if tournament level lockout condition evaluates true
+                is_tb_locked = global_tournament_lock or st.session_state.get(tb_lock_key, False)
 
-                st.warning(
-                    "⚠️ **Tie Break Alert:** Teams are perfectly level on point parameters, GD, and GF metrics. "
-                    "Please arrange the final positions below. Note: Final positions will be decided based on "
-                    "FIFA Fair Play points / drawing of lots. Once confirmed, lock your choices."
-                )
+                if global_tournament_lock:
+                    st.info("🔒 Tie-break sequence completed. Standings locked due to tournament initialization rules.")
+                else:
+                    st.warning(
+                        "⚠️ **Tie Break Alert:** Teams are perfectly level on point parameters, GD, and GF metrics. "
+                        "Please arrange the final positions below. Note: Final positions will be decided based on "
+                        "FIFA Fair Play points / drawing of lots. Once confirmed, lock your choices."
+                    )
                 
                 tied_indices = df_display[tied_mask].index.tolist()
                 tied_teams = df_display.loc[tied_indices, 'Team'].tolist()
@@ -1204,7 +1238,7 @@ elif app_tab == "📝 Submit Predictions":
                         
                         # Set default dropdown selections gracefully
                         default_team = temp_pool[0] if temp_pool else tied_teams[i]
-                        if is_tb_locked and tb_order_key in st.session_state:
+                        if (is_tb_locked or global_tournament_lock) and tb_order_key in st.session_state:
                             default_team = st.session_state[tb_order_key][idx]
 
                         chosen_team = st.selectbox(
@@ -1238,7 +1272,7 @@ elif app_tab == "📝 Submit Predictions":
                             st.rerun()
                         else:
                             st.error("Invalid Selection: Please ensure you haven't assigned the same team to multiple positions.")
-                else:
+                elif not global_tournament_lock:
                     st.info("🔒 Tie-break resolved. Group standings are locked.")
 
                 # If selection mapping matches layout requirements, rebuild ordering structure
@@ -1267,10 +1301,13 @@ elif app_tab == "📝 Submit Predictions":
             
             with ko_tabs[0]:
                 r32_keys = list(o_r32.keys())
-                is_r32_locked = all(k in locked_keys_set for k in r32_keys)
+                is_r32_locked = global_tournament_lock or all(k in locked_keys_set for k in r32_keys)
                 
                 if is_r32_locked:
-                    st.markdown("<div class='lock-badge-banner'>🔒 Round of 32 Selections Locked</div>", unsafe_allow_html=True)
+                    if global_tournament_lock:
+                        st.markdown("<div class='lock-badge-banner'>🔒 Round of 32 Selections Locked (Tournament Started)</div>", unsafe_allow_html=True)
+                    else:
+                        st.markdown("<div class='lock-badge-banner'>🔒 Round of 32 Selections Locked</div>", unsafe_allow_html=True)
                 
                 for m_id, (h, a) in o_r32.items():
                     user_preds[m_id] = render_match_card(h, a, m_id.replace("_", " "), m_id, disabled=is_r32_locked, score_mode=False, scores_dict=user_preds)
@@ -1301,10 +1338,13 @@ elif app_tab == "📝 Submit Predictions":
                     "Match_95": (get_ko_prev("Match_86"), get_ko_prev("Match_88")), "Match_96": (get_ko_prev("Match_85"), get_ko_prev("Match_87"))
                 }
                 r16_keys = list(o_r16.keys())
-                is_r16_locked = all(k in locked_keys_set for k in r16_keys)
+                is_r16_locked = global_tournament_lock or all(k in locked_keys_set for k in r16_keys)
                 
                 if is_r16_locked:
-                    st.markdown("<div class='lock-badge-banner'>🔒 Round of 16 Selections Locked</div>", unsafe_allow_html=True)
+                    if global_tournament_lock:
+                        st.markdown("<div class='lock-badge-banner'>🔒 Round of 16 Selections Locked (Tournament Started)</div>", unsafe_allow_html=True)
+                    else:
+                        st.markdown("<div class='lock-badge-banner'>🔒 Round of 16 Selections Locked</div>", unsafe_allow_html=True)
                     
                 for m_id, (h, a) in o_r16.items():
                     user_preds[m_id] = render_match_card(h, a, m_id.replace("_", " "), m_id, disabled=is_r16_locked, score_mode=False, scores_dict=user_preds)
@@ -1332,10 +1372,13 @@ elif app_tab == "📝 Submit Predictions":
                     "Match_99": (get_ko_prev_r16("Match_91"), get_ko_prev_r16("Match_92")), "Match_100": (get_ko_prev_r16("Match_95"), get_ko_prev_r16("Match_96"))
                 }
                 qf_keys = list(o_qf.keys())
-                is_qf_locked = all(k in locked_keys_set for k in qf_keys)
+                is_qf_locked = global_tournament_lock or all(k in locked_keys_set for k in qf_keys)
                 
                 if is_qf_locked:
-                    st.markdown("<div class='lock-badge-banner'>🔒 Quarter-Final Selections Locked</div>", unsafe_allow_html=True)
+                    if global_tournament_lock:
+                        st.markdown("<div class='lock-badge-banner'>🔒 Quarter-Final Selections Locked (Tournament Started)</div>", unsafe_allow_html=True)
+                    else:
+                        st.markdown("<div class='lock-badge-banner'>🔒 Quarter-Final Selections Locked</div>", unsafe_allow_html=True)
                     
                 for m_id, (h, a) in o_qf.items():
                     user_preds[m_id] = render_match_card(h, a, m_id.replace("_", " "), m_id, disabled=is_qf_locked, score_mode=False, scores_dict=user_preds)
@@ -1362,10 +1405,13 @@ elif app_tab == "📝 Submit Predictions":
                 sf2_h, sf2_a = get_ko_prev_qf("Match_99"), get_ko_prev_qf("Match_100")
                 
                 finals_keys = ["Match_101", "Match_102", "Match_103", "Match_104"]
-                is_finals_locked = all(k in locked_keys_set for k in finals_keys)
+                is_finals_locked = global_tournament_lock or all(k in locked_keys_set for k in finals_keys)
                 
                 if is_finals_locked:
-                    st.markdown("<div class='lock-badge-banner'>🔒 Finals Selections Locked</div>", unsafe_allow_html=True)
+                    if global_tournament_lock:
+                        st.markdown("<div class='lock-badge-banner'>🔒 Finals Selections Locked (Tournament Started)</div>", unsafe_allow_html=True)
+                    else:
+                        st.markdown("<div class='lock-badge-banner'>🔒 Finals Selections Locked</div>", unsafe_allow_html=True)
                 
                 sf1_opts = ["Select Winner", sf1_h, sf1_a]
                 curr_sf1 = user_preds.get("Match_101", "Select Winner")
