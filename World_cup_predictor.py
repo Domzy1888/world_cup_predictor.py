@@ -702,6 +702,17 @@ def run_standings_engine(scores_dict):
             ascending=[False, False, False, False, False, False]
         ).reset_index(drop=True)
         
+        # Apply manual tie-breaker reordering if saved in session state
+        tb_lock_key = f"tb_locked_{g_name}"
+        tb_order_key = f"tb_order_{g_name}"
+        if st.session_state.get(tb_lock_key) and tb_order_key in st.session_state:
+            saved_order = st.session_state[tb_order_key]
+            # Ensure the saved order contains exactly the current group teams before applying
+            if sorted(saved_order) == sorted(df_g['Team'].tolist()):
+                df_g['Team'] = pd.Categorical(df_g['Team'], categories=saved_order, ordered=True)
+                df_g = df_g.sort_values(by='Team').reset_index(drop=True)
+                df_g['Team'] = df_g['Team'].astype(str)
+
         # Strip away local workspace columns prior to pushing data frames to UI render targets
         df_clean = df_g.drop(columns=['h2h_pts', 'h2h_gd', 'h2h_gf'])
         all_group_results[g_name] = df_clean
@@ -1001,12 +1012,25 @@ elif app_tab == "📝 Submit Predictions":
     # Fetch group stage completeness metrics globally for these tabs
     comp_matches, tot_matches, comp_percent = check_group_stage_completion(user_preds)
     
+    # Pre-check all groups globally to detect any pending un-finalized tie-breakers
+    has_unfinalized_tiebreaker = False
+    for g_name in GROUPS.keys():
+        g_tables, _ = run_standings_engine(user_preds)
+        df_g_check = g_tables[g_name]
+        tied_mask_check = df_g_check.duplicated(subset=['Pts', 'GD', 'GF'], keep=False)
+        if tied_mask_check.any():
+            if not st.session_state.get(f"tb_locked_{g_name}"):
+                has_unfinalized_tiebreaker = True
+                break
+
     with pred_sub_tabs[0]:
         # Progress Bar Dashboard UI Configuration
         st.markdown(f"### 📊 Overall Group Predictions Progress: {comp_percent}%")
         st.progress(comp_percent / 100.0)
         if comp_percent < 100:
             st.info(f"💡 You have completed **{comp_matches}** out of **{tot_matches}** group stage fixtures. Submit and lock all 12 groups to unlock the Knockout Stage brackets!")
+        elif has_unfinalized_tiebreaker:
+            st.warning("⚠️ Group matches predicted, but there are unfinalized tie-break scenarios. Please resolve and lock all active tie-breakers to open the Knockout Stage.")
         else:
             st.success("✅ Marvelous! All 72 group matches predicted and locked. Knockout rounds are now available.")
             
@@ -1048,7 +1072,15 @@ elif app_tab == "📝 Submit Predictions":
             # --- START OF MANUAL TIE-BREAKER OVERRIDE INJECTION ---
             tied_mask = df_display.duplicated(subset=['Pts', 'GD', 'GF'], keep=False)
             if tied_mask.any() and is_group_locked:
-                st.warning("⚠️ **Tie Break Alert:** Teams are perfectly level on point parameters, GD, and GF metrics. Arrange positions below:")
+                tb_lock_key = f"tb_locked_{selected_group}"
+                tb_order_key = f"tb_order_{selected_group}"
+                is_tb_locked = st.session_state.get(tb_lock_key, False)
+
+                st.warning(
+                    "⚠️ **Tie Break Alert:** Teams are perfectly level on point parameters, GD, and GF metrics. "
+                    "Please arrange the final positions below. Note: Final positions will be decided based on "
+                    "FIFA Fair Play points / drawing of lots. Once confirmed, lock your choices."
+                )
                 
                 tied_indices = df_display[tied_mask].index.tolist()
                 tied_teams = df_display.loc[tied_indices, 'Team'].tolist()
@@ -1061,16 +1093,42 @@ elif app_tab == "📝 Submit Predictions":
                 for i, idx in enumerate(tied_indices):
                     with override_cols[i]:
                         pos_label = f"Position {idx + 1}"
+                        
+                        # Set default dropdown selections gracefully
+                        default_team = temp_pool[0] if temp_pool else tied_teams[i]
+                        if is_tb_locked and tb_order_key in st.session_state:
+                            default_team = st.session_state[tb_order_key][idx]
+
                         chosen_team = st.selectbox(
                             f"Select {pos_label}",
-                            options=temp_pool,
+                            options=tied_teams,
+                            index=tied_teams.index(default_team) if default_team in tied_teams else 0,
                             key=f"manual_tb_{selected_group}_{idx}",
-                            format_func=lambda x: x.upper()
+                            format_func=lambda x: x.upper(),
+                            disabled=is_tb_locked
                         )
                         selected_order.append(chosen_team)
                         if chosen_team in temp_pool:
                             temp_pool.remove(chosen_team)
                 
+                st.markdown("<br />", unsafe_allow_html=True)
+                if not is_tb_locked:
+                    if st.button("🔒 Lock Tie-Break Order", key=f"btn_lock_tb_{selected_group}", use_container_width=True):
+                        if len(set(selected_order)) == len(tied_indices):
+                            # Construct complete 4-team array containing the locked sequence layout
+                            full_group_order = list(df_display['Team'])
+                            for local_i, global_idx in enumerate(tied_indices):
+                                full_group_order[global_idx] = selected_order[local_i]
+                            
+                            st.session_state[tb_order_key] = full_group_order
+                            st.session_state[tb_lock_key] = True
+                            st.success("Tie-break sequence locked successfully!")
+                            st.rerun()
+                        else:
+                            st.error("Invalid Selection: Please ensure you haven't assigned the same team to multiple positions.")
+                else:
+                    st.info("🔒 Tie-break resolved. Group standings are locked.")
+
                 # If selection mapping matches layout requirements, rebuild ordering structure
                 if len(set(selected_order)) == len(tied_indices):
                     # Cache matching rows from origin layout
@@ -1086,9 +1144,9 @@ elif app_tab == "📝 Submit Predictions":
             st.dataframe(df_final_render, use_container_width=True, hide_index=True)
 
     with pred_sub_tabs[1]:
-        if comp_percent < 100:
+        if comp_percent < 100 or has_unfinalized_tiebreaker:
             st.markdown("<div style='margin-top: 20px;'></div>", unsafe_allow_html=True)
-            st.warning("⚠️ **Knockout Stage Locked:** You must complete and finalize 100% of your Group Stage predictions before you can view or make selections on the knockout rounds brackets layout.")
+            st.warning("⚠️ **Knockout Stage Locked:** You must complete 100% of your Group Stage predictions and finalize any active tie-breakers before you can view or make selections on the knockout rounds brackets layout.")
         else:
             user_calc_bracket = resolve_bracket_teams(user_preds, target_is_actual=False)
             o_r32 = user_calc_bracket["r32_pairings"]
@@ -1174,7 +1232,7 @@ elif app_tab == "📝 Submit Predictions":
                     if st.button("🔒 Lock Quarter-Final Predictions", use_container_width=True):
                         for m_key in qf_keys:
                             val = user_preds.get(m_key)
-                            if val and val != "Select Winner" and not str(val).startswith("W"):
+                            if val charity with and val != "Select Winner" and not str(val).startswith("W"):
                                 opts = o_qf[m_key]
                                 if val == opts[0]: db_save_prediction(c_uid, active_league_id, m_key, 1)
                                 elif val == opts[1]: db_save_prediction(c_uid, active_league_id, m_key, 2)
@@ -1412,7 +1470,7 @@ elif app_tab == "🛠️ Admin Dashboard" and is_league_admin:
                             if flag_val > 0:
                                 db_save_league_actual_result(active_league_id, m_id, flag_val)
                                 st.success(f"{m_id.replace('_', ' ')} progression locked!")
-                                East_rerun()
+                                st.rerun()
                     else:
                         st.markdown("<div style='color: #22c55e; font-weight: bold; padding-top: 10px;'>✅ Confirmed Locked</div>", unsafe_allow_html=True)
                 with col_ko2:
