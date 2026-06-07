@@ -392,7 +392,7 @@ FIFA_REAL_METADATA = {
     55: {"date": "28 June", "time": "12:00 AM BST", "venue": "Los Angeles"},
     56: {"date": "28 June", "time": "12:00 AM BST", "venue": "Seattle"},
     57: {"date": "29 June", "time": "8:00 PM BST", "venue": "Boston"},
-    58: {"date": "29 June", "time": "8:00 PM BST", "venue": "Philadelphia"},
+    58: {"date": "29 June", "time": "8:00 PM BST", "slate": "Philadelphia"},
     59: {"date": "29 June", "time": "12:00 AM BST", "venue": "Kansas City"},
     60: {"date": "29 June", "time": "12:00 AM BST", "venue": "Dallas"},
     61: {"date": "30 June", "time": "7:00 PM BST", "venue": "Atlanta"},
@@ -420,7 +420,7 @@ PAIRS_R32_STRUC = {
     "Match_87": ("Group K", "1st", "Wildcard_7"), "Match_88": ("Group D", "2nd", "Group G", "2nd")
 }
 
-# --- 6. DATABASE HELPER WRAPPERS ---
+-- --- 6. DATABASE HELPER WRAPPERS ---
 def db_fetch_user_predictions(user_id, league_id):
     res = supabase.table("predictions").select("match_key, score_value").eq("user_id", user_id).eq("league_id", league_id).execute()
     preds = {}
@@ -501,6 +501,28 @@ def db_save_league_actual_result(league_id, match_key, value):
 
 def db_delete_league_actual_result(league_id, match_key):
     supabase.table("actual_results").delete().eq("league_id", league_id).eq("match_key", match_key).execute()
+
+# --- PERSISTENT TIE BREAKER EXTRA DRIVERS ---
+def db_fetch_group_tie_breakers(user_id, league_id):
+    """Retrieves all locked tie breakers from the database table."""
+    try:
+        res = supabase.table("tie_breakers").select("group_name, team_order, is_locked").eq("user_id", user_id).eq("league_id", league_id).execute()
+        return res.data if res.data else []
+    except Exception:
+        return []
+
+def db_save_group_tie_breaker(user_id, league_id, group_name, team_order):
+    """Saves or updates manual level point group resolution listings inside Supabase."""
+    try:
+        supabase.table("tie_breakers").upsert({
+            "user_id": user_id,
+            "league_id": league_id,
+            "group_name": group_name,
+            "team_order": team_order,
+            "is_locked": True
+        }, on_conflict="user_id,league_id,group_name").execute()
+    except Exception as e:
+        st.error(f"Failed to persist tie-breaker structure to database: {e}")
 
 # --- NEW HELPER FUNCTION: GROUP STAGE COMPLETENESS CHECK ---
 def check_group_stage_completion(user_preds):
@@ -895,6 +917,12 @@ def calculate_user_points(user_id, league_id):
     actual = db_fetch_league_actual_results(league_id)
     points = 0
     
+    # Pre-Hydrate target user's custom tie breaker overrides into memory space context safely
+    tb_saved_records = db_fetch_group_tie_breakers(user_id, league_id)
+    for row in tb_saved_records:
+        st.session_state[f"tb_order_{row['group_name']}"] = row["team_order"]
+        st.session_state[f"tb_locked_{row['group_name']}"] = row["is_locked"]
+        
     # 1. Group Stage Verification
     for g_name, matches in CHRONO_MATCHES.items():
         for match in matches:
@@ -1008,6 +1036,15 @@ active_league_meta = leagues_dropdown_options[selected_league_name]
 active_league_id = active_league_meta["id"]
 is_league_admin = (active_league_meta["creator_id"] == c_uid)
 
+# --- HYDRATE ACTIVE PROFILE SESSION STORAGE TIE BREAKERS FROM SUPABASE ---
+if "tie_breakers_hydrated" not in st.session_state or st.session_state.get("last_league_id") != active_league_id:
+    db_tb_rows = db_fetch_group_tie_breakers(c_uid, active_league_id)
+    for row in db_tb_rows:
+        st.session_state[f"tb_order_{row['group_name']}"] = row["team_order"]
+        st.session_state[f"tb_locked_{row['group_name']}"] = row["is_locked"]
+    st.session_state["tie_breakers_hydrated"] = True
+    st.session_state["last_league_id"] = active_league_id
+
 # --- GLOBAL LIVE SPORTS TICKER INJECTION ---
 # Renders at the very top of the app workspace dashboard interface for all views
 generate_live_ticker_stream(active_league_id)
@@ -1017,8 +1054,9 @@ with col_nav1:
     st.markdown(f"👥 Active Profile: **{c_user}**")
 with col_nav2:
     if st.button("🚪 Log Out", use_container_width=True):
-        st.session_state.current_user_id = None
-        st.session_state.current_username = None
+        # Flush local memory explicitly to eliminate lingering cross-user bleeding variables
+        for key in list(st.session_state.keys()):
+            del st.session_state[key]
         st.rerun()
 
 main_tabs = ["🏆 Leaderboards", "📝 Submit Predictions", "🛡️ Create/Join a League"]
@@ -1192,6 +1230,10 @@ elif app_tab == "📝 Submit Predictions":
                             
                             st.session_state[tb_order_key] = full_group_order
                             st.session_state[tb_lock_key] = True
+                            
+                            # CRITICAL FIX: Save directly down into your Supabase database table
+                            db_save_group_tie_breaker(c_uid, active_league_id, selected_group, full_group_order)
+                            
                             st.success("Tie-break sequence locked successfully!")
                             st.rerun()
                         else:
