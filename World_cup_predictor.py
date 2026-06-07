@@ -141,6 +141,40 @@ st.markdown("""
         text-align: center;
         margin-bottom: 20px;
     }
+
+    /* MATCH CARD IMPROVEMENTS: Centered larger flags sitting above single line text */
+    .mc-team-wrapper {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        text-align: center;
+    }
+    .mc-flag {
+        font-size: 2.2rem !important;
+        line-height: 1.1 !important;
+        margin-bottom: 4px;
+        display: block;
+    }
+    .mc-name {
+        font-size: 0.85rem !important;
+        font-weight: 700 !important;
+        color: #ffffff !important;
+        white-space: nowrap !important;
+        overflow: hidden !important;
+        text-overflow: ellipsis !important;
+        width: 100%;
+        display: block;
+        text-transform: uppercase;
+    }
+    .mc-vs-block {
+        color: #94a3b8;
+        font-weight: 800;
+        font-size: 0.9rem;
+        text-align: center;
+        align-self: center;
+        margin-top: 15px; /* Pushes 'VS' downward to align better horizontally with the names below the flags */
+    }
     </style>
 """, unsafe_allow_html=True)
 
@@ -175,6 +209,15 @@ FLAGS = {
 
 def fmt_team(name):
     return FLAGS.get(name, str(name).upper()) if name else "TBD"
+
+# Helper to split flag emoji out from text name safely for custom formatting layout layers
+def split_flag_and_name(formatted_string):
+    if not formatted_string or formatted_string == "TBD":
+        return "", "TBD"
+    parts = formatted_string.split(" ", 1)
+    if len(parts) == 2:
+        return parts[0], parts[1]
+    return "", formatted_string
 
 # --- 5. DATA STRUCTURES (GROUPS & CHRONOLOGICAL FIXTURES) ---
 GROUPS = {
@@ -584,13 +627,23 @@ def render_match_card(home, away, label, key_prefix, disabled=False, score_mode=
     disp1 = fmt_team(name=home)
     disp2 = fmt_team(name=away)
     
+    # Isolate flags from the string names to render them centered above
+    flag1, name1 = split_flag_and_name(disp1)
+    flag2, name2 = split_flag_and_name(disp2)
+    
     st.markdown(f"""
         <div style="border: 1px solid rgba(255,255,255,0.2); border-radius: 10px; background: rgba(15, 23, 42, 0.8); padding: 14px; margin-top: 10px; margin-bottom: 2px;">
             <div style="text-align: center; color: #94a3b8; font-size: 0.8rem; margin-bottom: 8px; font-weight: bold; text-transform: uppercase;">{label}</div>
-            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
-                <div style="text-align: left; width: 42%; font-weight: 700; color: white; font-size: 0.95rem;">{disp1}</div>
-                <div style="color: #94a3b8; font-weight: 800; font-size: 0.9rem; width: 16%; text-align: center;">VS</div>
-                <div style="text-align: right; width: 42%; font-weight: 700; color: white; font-size: 0.95rem;">{disp2}</div>
+            <div style="display: flex; justify-content: space-between; align-items: stretch; margin-bottom: 10px;">
+                <div style="width: 42%;" class="mc-team-wrapper">
+                    <span class="mc-flag">{flag1}</span>
+                    <span class="mc-name">{name1}</span>
+                </div>
+                <div style="width: 16%;" class="mc-vs-block">VS</div>
+                <div style="width: 42%;" class="mc-team-wrapper">
+                    <span class="mc-flag">{flag2}</span>
+                    <span class="mc-name">{name2}</span>
+                </div>
             </div>
         </div>
     """, unsafe_allow_html=True)
