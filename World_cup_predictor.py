@@ -1548,4 +1548,35 @@ elif app_tab == "🛠️ Admin Dashboard" and is_league_admin:
             c_p3_1, c_p3_2 = st.columns(2)
             with c_p3_1:
                 if not is_m103_saved:
-                    if st.
+                    if st.button("📢 Lock 3rd Place Winner", key="btn_lock_m103", use_container_width=True):
+                        f_v = 1 if actual["ko_winners"]["Match_103"] == sf1_l else (2 if actual["ko_winners"]["Match_103"] == sf2_l else 0)
+                        if f_v > 0:
+                            db_save_league_actual_result(active_league_id, "Match_103_winner", sf1_l if f_v == 1 else sf2_l)
+                            st.rerun()
+                else: st.markdown("<div style='color: #22c55e; font-weight: bold;'>✅ 3rd Place Locked</div>", unsafe_allow_html=True)
+            with c_p3_2:
+                if is_m103_saved and st.button("🔓 Unlock 3rd Place Playoff", key="btn_unl_m103", use_container_width=True):
+                    db_delete_league_actual_result(active_league_id, "Match_103_winner")
+                    st.rerun()
+
+            st.markdown("<hr style='margin: 15px 0; border-top: 1px solid rgba(255,255,255,0.1);' />", unsafe_allow_html=True)
+
+            # Match 104 (Grand Final)
+            f_h = sf1_w if sf1_w else "W101"
+            f_a = sf2_w if sf2_w else "W102"
+            
+            is_m104_saved = ("Match_104" in actual["ko_winners"])
+            actual["ko_winners"]["Match_104"] = render_match_card(f_h, f_a, "🥇 Grand Final Tournament Champion", "Match_104", disabled=is_m104_saved, score_mode=False, scores_dict=actual["ko_winners"])
+            c_f_1, c_f_2 = st.columns(2)
+            with c_f_1:
+                if not is_m104_saved:
+                    if st.button("📢 Lock Grand Champion", key="btn_lock_m104", use_container_width=True):
+                        f_v = 1 if actual["ko_winners"]["Match_104"] == f_h else (2 if actual["ko_winners"]["Match_104"] == f_a else 0)
+                        if f_v > 0:
+                            db_save_league_actual_result(active_league_id, "Match_104", f_v)
+                            st.rerun()
+                else: st.markdown("<div style='color: #22c55e; font-weight: bold;'>🏆 Champion Locked</div>", unsafe_allow_html=True)
+            with c_f_2:
+                if is_m104_saved and st.button("🔓 Unlock Grand Final Champion", key="btn_unl_m104", use_container_width=True):
+                    db_delete_league_actual_result(active_league_id, "Match_104")
+                    st.rerun()
