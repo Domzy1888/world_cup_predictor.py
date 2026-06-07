@@ -175,6 +175,41 @@ st.markdown("""
         align-self: center;
         margin-top: 15px; /* Pushes 'VS' downward to align better horizontally with the names below the flags */
     }
+
+    /* LEADERBOARD TABLE CUSTOM THEME SYNERGY WITH MATCH CARDS */
+    .custom-leaderboard-table {
+        width: 100%;
+        border-collapse: collapse;
+        margin: 10px 0 25px 0;
+        font-family: sans-serif;
+        background: rgba(15, 23, 42, 0.8) !important;
+        border: 1px solid rgba(255, 255, 255, 0.2) !important;
+        border-radius: 10px;
+        overflow: hidden;
+    }
+    .custom-leaderboard-table th {
+        background-color: #2563eb !important;
+        color: #ffffff !important;
+        text-align: left;
+        font-weight: 700;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+        padding: 14px 18px;
+        font-size: 0.85rem;
+    }
+    .custom-leaderboard-table td {
+        padding: 14px 18px;
+        border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+        color: #f8fafc !important;
+        font-weight: 500;
+        font-size: 0.95rem;
+    }
+    .custom-leaderboard-table tbody tr:last-of-type td {
+        border-bottom: none;
+    }
+    .custom-leaderboard-table tbody tr:hover {
+        background: rgba(255, 255, 255, 0.05);
+    }
     </style>
 """, unsafe_allow_html=True)
 
@@ -1042,8 +1077,35 @@ if app_tab == "🏆 Leaderboards":
                 })
     df_leaderboard = pd.DataFrame(leaderboard_data)
     if not df_leaderboard.empty:
+        # Sort values cleanly first
         df_leaderboard = df_leaderboard.sort_values(by="Current Total Points", ascending=False).reset_index(drop=True)
-        st.dataframe(df_leaderboard, use_container_width=True, hide_index=False)
+        
+        # Build out clean, stylized HTML table structure synced directly to match card designs
+        table_html = """
+        <table class="custom-leaderboard-table">
+            <thead>
+                <tr>
+                    <th style="width: 15%;">Pos</th>
+                    <th style="width: 55%;">Competitor Name</th>
+                    <th style="width: 30%;">Current Total Points</th>
+                </tr>
+            </thead>
+            <tbody>
+        """
+        
+        for rank_idx, row in df_leaderboard.iterrows():
+            table_html += f"""
+                <tr>
+                    <td><b>{rank_idx + 1}</b></td>
+                    <td>{row['Competitor Name']}</td>
+                    <td style="color: #2563eb !important; font-weight: 700;">{row['Current Total Points']} PTS</td>
+                </tr>
+            """
+            
+        table_html += "</tbody></table>"
+        st.markdown(table_html, unsafe_allow_html=True)
+    else:
+        st.info("No competitors currently found in this league environment standings.")
 
 # --- 13. CREATE / JOIN LEAGUE HUB ---
 elif app_tab == "🛡️ Create/Join a League":
