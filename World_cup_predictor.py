@@ -160,7 +160,7 @@ except Exception as e:
 # --- 4. GLOBAL TEAMS & FLAGS MAP ---
 FLAGS = {
     "Mexico": "🇲🇽 MEXICO", "South Africa": "🇿🇦 SOUTH AFRICA", "Rep. of Korea": "🇰🇷 REP. OF KOREA", "Czech Rep.": "🇨🇿 CZECH REP.",
-    "Canada": "🇨🇦 CANADA", "Bosnia/Herzeg.": "🇧🇦 BOSNIA/HERZEG.", "Qatar": "🇶🇦 QATAR", "Switzerland": "🇨🇭 SWITZERLAND",
+    "Canada": "🇨🇦 CANADA", "Bosnia/Herzeg Mom.": "🇧🇦 BOSNIA/HERZEG.", "Bosnia/Herzeg.": "🇧🇦 BOSNIA/HERZEG.", "Qatar": "🇶🇦 QATAR", "Switzerland": "🇨🇭 SWITZERLAND",
     "Brazil": "🇧🇷 BRAZIL", "Morocco": "🇲🇦 MOROCCO", "Haiti": "🇲🇹 HAITI", "Scotland": "🏴󠁧󠁢󠁳󠁣󠁴󠁿 SCOTLAND",
     "USA": "🇺🇸 USA", "Paraguay": "🇵🇾 PARAGUAY", "Australia": "🇦🇺 AUSTRALIA", "Turkey": "🇹🇷 TURKEY",
     "Germany": "🇩🇪 GERMANY", "Curaçao": "🇨🇼 CURAÇAO", "Ivory Coast": "🇨🇮 IVORY COAST", "Ecuador": "🇪🇨 ECUADOR",
@@ -291,8 +291,6 @@ CHRONO_MATCHES = {
     ]
 }
 
-# Real-world official FIFA structural data corresponding to your ID keys.
-# Time-zone conversion handled directly to match UK Summer Time (BST)
 FIFA_REAL_METADATA = {
     1: {"date": "11 June", "time": "8:30 PM BST", "venue": "Mexico City"},
     2: {"date": "11 June", "time": "11:00 PM BST", "venue": "Los Angeles"},
@@ -623,8 +621,12 @@ def render_match_card(home, away, label, key_prefix, disabled=False, score_mode=
 def run_standings_engine(scores_dict):
     all_group_results = {}
     third_place_pool = []
+    
+    # Step 1: Compute baseline statistics for all groups
     for g_name, teams in GROUPS.items():
         standings = {t: {"Group": g_name, "Pts": 0, "GD": 0, "GF": 0} for t in teams}
+        
+        # Accumulate scores from predictions/results
         for match in CHRONO_MATCHES[g_name]:
             m_id = match["id"]
             home = match["home"]
@@ -648,16 +650,76 @@ def run_standings_engine(scores_dict):
             else:
                 standings[home]["Pts"] += 1
                 standings[away]["Pts"] += 1
+                
         df_g = pd.DataFrame.from_dict(standings, orient='index').reset_index().rename(columns={'index': 'Team'})
-        df_g = df_g.sort_values(by=["Pts", "GD", "GF"], ascending=False).reset_index(drop=True)
-        all_group_results[g_name] = df_g
-        if len(df_g) >= 3: third_place_pool.append(df_g.iloc[2].to_dict())
+        
+        # Initialize FIFA-compliant Head-to-Head mini-league helper sorting variables
+        df_g['h2h_pts'] = 0
+        df_g['h2h_gd'] = 0
+        df_g['h2h_gf'] = 0
+        
+        # Detect group point clusters to resolve ties via historical matches played between tied entities
+        point_clusters = df_g.groupby('Pts')
+        for pts, cluster in point_clusters:
+            if len(cluster) > 1:
+                tied_teams = cluster['Team'].tolist()
+                
+                # Filter matches played strictly between the deadlocked teams
+                for match in CHRONO_MATCHES[g_name]:
+                    if match["home"] in tied_teams and match["away"] in tied_teams:
+                        m_id = match["id"]
+                        kh, ka = f"Match_{m_id}_h", f"Match_{m_id}_a"
+                        h_score = scores_dict.get(kh, 0)
+                        a_score = scores_dict.get(ka, 0)
+                        try:
+                            h_score = int(h_score)
+                            a_score = int(a_score)
+                        except:
+                            h_score, a_score = 0, 0
+                        
+                        # Apply mini-league points, goal difference, and goals for variables
+                        if h_score > a_score:
+                            df_g.loc[df_g['Team'] == match["home"], 'h2h_pts'] += 3
+                            df_g.loc[df_g['Team'] == match["home"], 'h2h_gd'] += (h_score - a_score)
+                            df_g.loc[df_g['Team'] == match["home"], 'h2h_gf'] += h_score
+                            df_g.loc[df_g['Team'] == match["away"], 'h2h_gd'] += (a_score - h_score)
+                            df_g.loc[df_g['Team'] == match["away"], 'h2h_gf'] += a_score
+                        elif a_score > h_score:
+                            df_g.loc[df_g['Team'] == match["away"], 'h2h_pts'] += 3
+                            df_g.loc[df_g['Team'] == match["away"], 'h2h_gd'] += (a_score - h_score)
+                            df_g.loc[df_g['Team'] == match["away"], 'h2h_gf'] += a_score
+                            df_g.loc[df_g['Team'] == match["home"], 'h2h_gd'] += (h_score - a_score)
+                            df_g.loc[df_g['Team'] == match["home"], 'h2h_gf'] += h_score
+                        else:
+                            df_g.loc[df_g['Team'] == match["home"], 'h2h_pts'] += 1
+                            df_g.loc[df_g['Team'] == match["home"], 'h2h_gf'] += h_score
+                            df_g.loc[df_g['Team'] == match["away"], 'h2h_pts'] += 1
+                            df_g.loc[df_g['Team'] == match["away"], 'h2h_gf'] += a_score
+
+        # Strict sorting execution order: Points -> H2H Points -> H2H GD -> H2H GF -> Global GD -> Global GF
+        df_g = df_g.sort_values(
+            by=["Pts", "h2h_pts", "h2h_gd", "h2h_gf", "GD", "GF"], 
+            ascending=[False, False, False, False, False, False]
+        ).reset_index(drop=True)
+        
+        # Strip away local workspace columns prior to pushing data frames to UI render targets
+        df_clean = df_g.drop(columns=['h2h_pts', 'h2h_gd', 'h2h_gf'])
+        all_group_results[g_name] = df_clean
+        
+        if len(df_clean) >= 3: 
+            third_place_pool.append(df_clean.iloc[2].to_dict())
+            
+    # Step 2: Resolve 3rd place wildcard layout (Exempt from H2H sorting metrics)
     wildcard_df = pd.DataFrame(third_place_pool)
     if not wildcard_df.empty:
         wildcard_df = wildcard_df.sort_values(by=["Pts", "GD", "GF"], ascending=False).reset_index(drop=True)
         adv_wildcards = list(wildcard_df.head(8)["Team"])
-    else: adv_wildcards = []
-    while len(adv_wildcards) < 8: adv_wildcards.append(f"Wildcard Slot {len(adv_wildcards)+1}")
+    else: 
+        adv_wildcards = []
+        
+    while len(adv_wildcards) < 8: 
+        adv_wildcards.append(f"Wildcard Slot {len(adv_wildcards)+1}")
+        
     return all_group_results, adv_wildcards
 
 def resolve_bracket_teams(scores_dict, target_is_actual=False, actual_results_obj=None):
@@ -1266,27 +1328,3 @@ elif app_tab == "🛠️ Admin Dashboard" and is_league_admin:
                         if st.button("📢 Lock Knockout Winner", key=f"btn_ko_{m_id}", use_container_width=True):
                             flag_val = 1 if actual["ko_winners"][m_id] == h else (2 if actual["ko_winners"][m_id] == a else 0)
                             if flag_val > 0:
-                                db_save_league_actual_result(active_league_id, m_id, flag_val)
-                                st.success(f"{m_id.replace('_', ' ')} progression locked!")
-                                st.rerun()
-                    else:
-                        st.markdown("<div style='color: #22c55e; font-weight: bold; padding-top: 10px;'>✅ Confirmed Locked</div>", unsafe_allow_html=True)
-                with col_ko2:
-                    if is_ko_saved:
-                        if st.button("🔓 Reset / Unlock Winner", key=f"btn_unl_ko_{m_id}", use_container_width=True):
-                            db_delete_league_actual_result(active_league_id, m_id)
-                            st.warning(f"{m_id.replace('_', ' ')} status cleared.")
-                            st.rerun()
-                st.markdown("<hr style='margin: 15px 0; border: 0; border-top: 1px solid rgba(255,255,255,0.1);' />", unsafe_allow_html=True)
-
-        # --- ADMIN WORKSPACE: QUARTER-FINALS ---
-        with adm_ko_tabs[2]:
-            def get_adm_ko_prev_r16(m_key):
-                val = actual["ko_winners"].get(m_key)
-                if str(val) == "1": return adm_r16.get(m_key, ("",""))[0]
-                if str(val) == "2": return adm_r16.get(m_key, ("",""))[1]
-                if val and not (str(val).startswith("W") and "_" not in str(val)): return str(val)
-                return f"W{m_key.split('_')[1]}"
-
-            # Fallback handling block to close out code logically
-            st.info("Select items above to pass structural variables forward down the tournament architecture.")
