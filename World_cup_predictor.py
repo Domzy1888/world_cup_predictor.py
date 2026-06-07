@@ -1043,9 +1043,47 @@ elif app_tab == "📝 Submit Predictions":
         with col_table:
             st.subheader("Simulated Group Table")
             u_results, _ = run_standings_engine(user_preds)
-            df_display = u_results[selected_group][["Team", "Pts", "GD", "GF"]].copy()
-            df_display["Team"] = df_display["Team"].apply(fmt_team)
-            st.dataframe(df_display, use_container_width=True, hide_index=True)
+            df_display = u_results[selected_group].copy()
+            
+            # --- START OF MANUAL TIE-BREAKER OVERRIDE INJECTION ---
+            tied_mask = df_display.duplicated(subset=['Pts', 'GD', 'GF'], keep=False)
+            if tied_mask.any() and is_group_locked:
+                st.warning("⚠️ **Tie Break Alert:** Teams are perfectly level on point parameters, GD, and GF metrics. Arrange positions below:")
+                
+                tied_indices = df_display[tied_mask].index.tolist()
+                tied_teams = df_display.loc[tied_indices, 'Team'].tolist()
+                
+                selected_order = []
+                temp_pool = tied_teams.copy()
+                
+                # Render positional selectbox dropdown interfaces side by side
+                override_cols = st.columns(len(tied_indices))
+                for i, idx in enumerate(tied_indices):
+                    with override_cols[i]:
+                        pos_label = f"Position {idx + 1}"
+                        chosen_team = st.selectbox(
+                            f"Select {pos_label}",
+                            options=temp_pool,
+                            key=f"manual_tb_{selected_group}_{idx}",
+                            format_func=lambda x: x.upper()
+                        )
+                        selected_order.append(chosen_team)
+                        if chosen_team in temp_pool:
+                            temp_pool.remove(chosen_team)
+                
+                # If selection mapping matches layout requirements, rebuild ordering structure
+                if len(set(selected_order)) == len(tied_indices):
+                    # Cache matching rows from origin layout
+                    cached_rows = {r['Team']: r for _, r in df_display[df_display['Team'].isin(tied_teams)].iterrows()}
+                    for local_i, global_idx in enumerate(tied_indices):
+                        target_team = selected_order[local_i]
+                        for col in df_display.columns:
+                            df_display.at[global_idx, col] = cached_rows[target_team][col]
+            # --- END OF MANUAL TIE-BREAKER OVERRIDE INJECTION ---
+
+            df_final_render = df_display[["Team", "Pts", "GD", "GF"]].copy()
+            df_final_render["Team"] = df_final_render["Team"].apply(fmt_team)
+            st.dataframe(df_final_render, use_container_width=True, hide_index=True)
 
     with pred_sub_tabs[1]:
         if comp_percent < 100:
@@ -1374,7 +1412,7 @@ elif app_tab == "🛠️ Admin Dashboard" and is_league_admin:
                             if flag_val > 0:
                                 db_save_league_actual_result(active_league_id, m_id, flag_val)
                                 st.success(f"{m_id.replace('_', ' ')} progression locked!")
-                                st.rerun()
+                                East_rerun()
                     else:
                         st.markdown("<div style='color: #22c55e; font-weight: bold; padding-top: 10px;'>✅ Confirmed Locked</div>", unsafe_allow_html=True)
                 with col_ko2:
