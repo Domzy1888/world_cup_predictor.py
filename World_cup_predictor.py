@@ -420,7 +420,7 @@ PAIRS_R32_STRUC = {
     "Match_87": ("Group K", "1st", "Wildcard_7"), "Match_88": ("Group D", "2nd", "Group G", "2nd")
 }
 
--- --- 6. DATABASE HELPER WRAPPERS ---
+# --- 6. DATABASE HELPER WRAPPERS ---
 def db_fetch_user_predictions(user_id, league_id):
     res = supabase.table("predictions").select("match_key, score_value").eq("user_id", user_id).eq("league_id", league_id).execute()
     preds = {}
