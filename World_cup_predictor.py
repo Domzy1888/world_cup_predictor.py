@@ -446,7 +446,7 @@ DYNAMIC_R32_CONFIG = {
     "Match_78": {"home": ("Group E", "2nd"), "away": ("Group I", "2nd")},
     "Match_79": {"home": ("Group A", "1st"), "away_lookup": "3-CEFHI"},
     "Match_80": {"home": ("Group L", "1st"), "away_lookup": "3-EHIJK"},
-    "Match_81": {"home": ("Group D", "1st"), "away_lookup": "3-FGHIK"},
+    "Match_81": {"home": ("Group D", "1st"), "away_lookup": "3-BEFIJ"},
     "Match_82": {"home": ("Group G", "1st"), "away_lookup": "3-AEHIJ"},
     "Match_83": {"home": ("Group K", "2nd"), "away": ("Group L", "2nd")},
     "Match_84": {"home": ("Group H", "2nd"), "away": ("Group J", "2nd")},
