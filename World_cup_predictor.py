@@ -71,7 +71,7 @@ st.markdown(
     unsafe_allow_html=True
 )
 
-# Unified Main Application Styling & Background Setup
+# Unified Main Application Styling, Background & Match Card Setup
 st.markdown("""
     <style>
     /* Background Image setup */
@@ -161,8 +161,6 @@ st.markdown("""
         text-align: center;
         margin-bottom: 20px;
     }
-    </style>
-""", unsafe_allow_html=True)
 
     /* MATCH CARD IMPROVEMENTS: Centered larger flags sitting above single line text */
     .mc-team-wrapper {
