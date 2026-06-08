@@ -76,7 +76,7 @@ st.markdown("""
     /* Background Image setup */
     .stApp {
         background: linear-gradient(rgba(15, 23, 42, 0.2), rgba(15, 23, 42, 0.4)),
-                    url("https://cdn-media.theathletic.com/cdn-cgi/image/width=1000%2cquality=70%2cformat=auto/https://cdn-media.theathletic.com/vwYC1qZfTwfm_3qmyXkIC5Rja_1440x960.jpg");
+                    url("[cdn-media.theathletic.com](https://cdn-media.theathletic.com/cdn-cgi/image/width=1000%2cquality=70%2cformat=auto/https://cdn-media.theathletic.com/vwYC1qZfTwfm_3qmyXkIC5Rja_1440x960.jpg)");
         background-size: cover;
         background-position: center;
         background-attachment: fixed;
@@ -220,7 +220,7 @@ except Exception as e:
 FLAGS = {
     "Mexico": "🇲🇽 MEXICO", "South Africa": "🇿🇦 SOUTH AFRICA", "Rep. of Korea": "🇰🇷 REP. OF KOREA", "Czech Rep.": "🇨🇿 CZECH REP.",
     "Canada": "🇨🇦 CANADA", "Bosnia/Herzeg Mom.": "🇧🇦 BOSNIA/HERZEG.", "Bosnia/Herzeg.": "🇧🇦 BOSNIA/HERZEG.", "Qatar": "🇶🇦 QATAR", "Switzerland": "🇨🇭 SWITZERLAND",
-    "Brazil": "🇧🇷 BRAZIL", "Morocco": "🇲🇦 MOROCCO", "Haiti": "🇲🇹 HAITI", "Scotland": "🏴󠁧󠁢󠁳󠁣󠁴󠁿 SCOTLAND",
+    "Brazil": "🇧🇷 BRAZIL", "Morocco": "🇲🇦 MOROCCO", "Haiti": "🇲🇹 HAITI", "Scotland": "🏴 SCOTLAND",
     "USA": "🇺🇸 USA", "Paraguay": "🇵🇾 PARAGUAY", "Australia": "🇦🇺 AUSTRALIA", "Turkey": "🇹🇷 TURKEY",
     "Germany": "🇩🇪 GERMANY", "Curaçao": "🇨🇼 CURAÇAO", "Ivory Coast": "🇨🇮 IVORY COAST", "Ecuador": "🇪🇨 ECUADOR",
     "Netherlands": "🇳🇱 NETHERLANDS", "Japan": "🇯🇵 JAPAN", "Sweden": "🇸🇪 SWEDEN", "Tunisia": "🇹🇳 TUNISIA",
@@ -229,7 +229,7 @@ FLAGS = {
     "France": "🇫🇷 FRANCE", "Senegal": "🇸🇳 SENEGAL", "Iraq": "🇮🇶 IRAQ", "Norway": "🇳🇴 NORWAY",
     "Argentina": "🇦🇷 ARGENTINA", "Algeria": "🇩🇿 ALGERIA", "Austria": "🇦🇹 AUSTRIA", "Jordan": "🇯🇴 JORDAN",
     "Portugal": "🇵🇹 PORTUGAL", "DR Congo": "🇨🇩 DR CONGO", "Uzbekistan": "🇺🇿 UZBEKISTAN", "Colombia": "🇨🇴 COLOMBIA",
-    "England": "🏴󠁧󠁢󠁥󠁮󠁧󠁿 ENGLAND", "Croatia": "🇭🇷 CROATIA", "Ghana": "🇬🇭 GHANA", "Panama": "🇵🇦 PANAMA"
+    "England": "🏴 ENGLAND", "Croatia": "🇭🇷 CROATIA", "Ghana": "🇬🇭 GHANA", "Panama": "🇵🇦 PANAMA"
 }
 
 def fmt_team(name):
@@ -867,6 +867,43 @@ def run_standings_engine(scores_dict):
         
     return all_group_results, adv_wildcards
 
+# NEW: helper to build full 12-team 3rd-place league and code
+def build_full_third_place_table(scores_dict):
+    """
+    Returns:
+      - full_wildcards_df: 12-row DataFrame of all 3rd-place teams
+      - top8_df: 8-row DataFrame of qualified third-place teams
+      - combo_code: 8-letter alphabetical code (e.g. 'BKLEDAFC')
+    """
+    all_group_results, top8_list = run_standings_engine(scores_dict)
+
+    third_place_rows = []
+    for g_name, df_g in all_group_results.items():
+        if len(df_g) >= 3:
+            row = df_g.iloc[2].copy()
+            third_place_rows.append(row.to_dict())
+
+    if not third_place_rows:
+        return pd.DataFrame(), pd.DataFrame(), ""
+
+    full_wildcards_df = pd.DataFrame(third_place_rows)
+    full_wildcards_df = full_wildcards_df.sort_values(
+        by=["Pts", "GD", "GF"], ascending=False
+    ).reset_index(drop=True)
+
+    top8_df = pd.DataFrame(top8_list)
+    top8_teams = set(top8_df["Team"].tolist()) if not top8_df.empty else set()
+    full_wildcards_df["Qualifies (Top 8)"] = full_wildcards_df["Team"].isin(top8_teams)
+
+    qualifying_group_letters = []
+    for row in top8_list:
+        g_letter = row["Group"].replace("Group ", "").strip()
+        qualifying_group_letters.append(g_letter)
+    qualifying_group_letters.sort()
+    combo_code = "".join(qualifying_group_letters)
+
+    return full_wildcards_df, top8_df, combo_code
+
 def resolve_bracket_teams(scores_dict, target_is_actual=False, actual_results_obj=None):
     if target_is_actual and actual_results_obj is not None:
         g_scores = actual_results_obj["group"]
@@ -989,7 +1026,9 @@ def resolve_bracket_teams(scores_dict, target_is_actual=False, actual_results_ob
         "sf": sf_teams,
         "finalists": finalists,
         "champ": champ,
-        "third": third
+        "third": third,
+        "third_place_top8": qualifying_wildcards,
+        "third_place_code": combination_lookup_string
     }
 
 def calculate_user_points(user_id, league_id):
@@ -1209,7 +1248,8 @@ elif app_tab == "📝 Submit Predictions":
     user_preds = db_fetch_user_predictions(c_uid, active_league_id)
     locked_keys_set = db_fetch_locked_status(c_uid, active_league_id)
     
-    pred_sub_tabs = st.tabs(["Group Matches", "Knockout Rounds"])
+    # NEW: insert 3rd-Place League tab in the middle
+    pred_sub_tabs = st.tabs(["Group Matches", "3rd‑Place League", "Knockout Rounds"])
     
     # Fetch group stage completeness metrics globally for these tabs
     comp_matches, tot_matches, comp_percent = check_group_stage_completion(user_preds)
@@ -1360,7 +1400,66 @@ elif app_tab == "📝 Submit Predictions":
             df_final_render["Team"] = df_final_render["Team"].apply(fmt_team)
             st.dataframe(df_final_render, use_container_width=True, hide_index=True)
 
+    # NEW TAB: 3rd-Place League
     with pred_sub_tabs[1]:
+        st.subheader("🌍 3rd‑Place League Rankings")
+
+        if comp_percent < 100 or has_unfinalized_tiebreaker:
+            st.info(
+                "You must complete all group stage score predictions "
+                "and finalize any active tie-breakers before the 3rd‑place "
+                "league can be accurately calculated."
+            )
+        else:
+            # Build the 12-team 3rd-place league
+            full_wildcards_df, top8_df, combo_code_table = build_full_third_place_table(user_preds)
+
+            if full_wildcards_df.empty:
+                st.warning("No 3rd‑place data available yet.")
+            else:
+                # Style: highlight top 8 green
+                def highlight_top8(row):
+                    if row["Qualifies (Top 8)"]:
+                        return ["background-color: #14532d; color: #bbf7d0; font-weight: 700;"] * len(row)
+                    return [""] * len(row)
+
+                df_display = full_wildcards_df.copy()
+                df_display["Team"] = df_display["Team"].apply(fmt_team)
+
+                st.markdown("#### All 12 Third‑Place Teams")
+                st.dataframe(
+                    df_display[["Team", "Group", "Pts", "GD", "GF", "Qualifies (Top 8)"]]
+                    .style.apply(highlight_top8, axis=1),
+                    use_container_width=True,
+                    hide_index=True,
+                )
+
+                if not top8_df.empty:
+                    st.markdown("#### Qualified 3rd‑Place Teams (Top 8)")
+                    df_top8 = top8_df.copy()
+                    df_top8["Team"] = df_top8["Team"].apply(fmt_team)
+                    st.dataframe(
+                        df_top8[["Team", "Group", "Pts", "GD", "GF"]],
+                        use_container_width=True,
+                        hide_index=True,
+                    )
+
+                # Get the exact code used by the bracket engine for consistency
+                user_bracket_view = resolve_bracket_teams(user_preds, target_is_actual=False)
+                combo_code = user_bracket_view.get("third_place_code", combo_code_table)
+
+                st.markdown("---")
+                if combo_code:
+                    st.session_state["third_place_code"] = combo_code
+                    group_letters_human = ", ".join(list(combo_code))
+                    st.markdown(
+                        f"**Third‑Place Qualifier Code (alphabetical by group):** `{combo_code}`  \n"
+                        f"*Groups represented:* {group_letters_human}"
+                    )
+                else:
+                    st.info("Third‑place qualifier code not available yet.")
+
+    with pred_sub_tabs[2]:
         if comp_percent < 100 or has_unfinalized_tiebreaker:
             st.markdown("<div style='margin-top: 20px;'></div>", unsafe_allow_html=True)
             st.warning("⚠️ **Knockout Stage Locked:** You must complete 100% of your Group Stage predictions and finalize any active tie-breakers before you can view or make selections on the knockout rounds brackets layout.")
@@ -1790,6 +1889,7 @@ elif app_tab == "🛠️ Admin Dashboard" and is_league_admin:
                     db_delete_league_actual_result(active_league_id, "Match_103_winner")
                     st.rerun()
 
+            st.markdown("<hr style='margin: 15px 0; border-top: 1px solid rgba(255,
             st.markdown("<hr style='margin: 15px 0; border-top: 1px solid rgba(255,255,255,0.1);' />", unsafe_allow_html=True)
 
             # Match 104 (Grand Final)
