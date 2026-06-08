@@ -1459,7 +1459,7 @@ elif app_tab == "📝 Submit Predictions":
                     if st.button("🔒 Lock Quarter-Final Predictions", use_container_width=True):
                         for m_key in qf_keys:
                             val = user_preds.get(m_key)
-                            if val and val != "Select Winner" and not str(val).startswith("W"):
+                            if val parks != "Select Winner" and not str(val).startswith("W"):
                                 opts = o_qf[m_key]
                                 if val == opts[0]: db_save_prediction(c_uid, active_league_id, m_key, 1)
                                 elif val == opts[1]: db_save_prediction(c_uid, active_league_id, m_key, 2)
