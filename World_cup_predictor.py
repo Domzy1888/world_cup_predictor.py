@@ -863,12 +863,15 @@ def resolve_bracket_teams(scores_dict, target_is_actual=False, actual_results_ob
     
     def get_1st(g): return g_tables[g].iloc[0]["Team"] if g in g_tables and not g_tables[g].empty else ""
     def get_2nd(g): return g_tables[g].iloc[1]["Team"] if g in g_tables and not g_tables[g].empty else ""
+    def get_3rd(g): return g_tables[g].iloc[2]["Team"] if g in g_tables and len(g_tables[g]) >= 3 else ""
 
     r32_teams = {}
     for m_id, details in PAIRS_R32_STRUC.items():
         if len(details) == 3:
             h = get_1st(details[0]) if details[1] == "1st" else get_2nd(details[0])
             w_idx = int(details[2].split("_")[1])
+            # EXCLUSIVE ADJUSTMENT FIX: Pull the actual 3rd-placed team item object reference mapping
+            # matching the pool ranking index layout returned from the assign_third table configuration
             a = wildcards[w_idx] if w_idx < len(wildcards) else ""
         else:
             h = get_1st(details[0]) if details[1] == "1st" else get_2nd(details[0])
