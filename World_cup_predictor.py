@@ -376,7 +376,7 @@ FIFA_REAL_METADATA = {
     12: {"date": "14 June", "time": "9:00 PM BST", "venue": "New York/NJ"},
     13: {"date": "15 June", "time": "7:00 PM BST", "venue": "Monterrey"},
     14: {"date": "15 June", "time": "12:00 AM BST", "venue": "Miami"},
-    15: {"date": "15 June", "time": "1:00 AM BST", "venue": "Seattle"},
+    15: {"date": "15 June", "time": "1:00 AM BST", "Seattle": "Seattle"},
     16: {"date": "16 June", "time": "6:00 PM BST", "venue": "New York/NJ"},
     17: {"date": "16 June", "time": "9:00 PM BST", "venue": "Boston"},
     18: {"date": "16 June", "time": "12:00 AM BST", "venue": "Kansas City"},
@@ -436,16 +436,28 @@ FIFA_REAL_METADATA = {
     72: {"date": "2 July", "time": "12:00 AM BST", "venue": "Seattle"}
 }
 
-PAIRS_R32_STRUC = {
-    "Match_73": ("Group A", "1st", "Wildcard_4"), "Match_74": ("Group E", "1st", "Wildcard_0"),
-    "Match_75": ("Group F", "1st", "Group C", "2nd"), "Match_76": ("Group C", "1st", "Group F", "2nd"),
-    "Match_77": ("Group I", "1st", "Wildcard_1"), "Match_78": ("Group E", "2nd", "Group I", "2nd"),
-    "Match_79": ("Group B", "1st", "Wildcard_6"), "Match_80": ("Group L", "1st", "Wildcard_5"),
-    "Match_81": ("Group D", "1st", "Wildcard_2"), "Match_82": ("Group G", "1st", "Wildcard_3"),
-    "Match_83": ("Group K", "2nd", "Group L", "2nd"), "Match_84": ("Group H", "1st", "Group J", "2nd"),
-    "Match_85": ("Group A", "2nd", "Group B", "2nd"), "Match_86": ("Group J", "1st", "Group H", "2nd"),
-    "Match_87": ("Group K", "1st", "Wildcard_7"), "Match_88": ("Group D", "2nd", "Group G", "2nd")
+# Dynamic identifier-driven layout tracking structure replacing the old static list maps
+DYNAMIC_R32_CONFIG = {
+    "Match_73": {"home": ("Group A", "1st"), "away_lookup": "3-CDEFI"},
+    "Match_74": {"home": ("Group E", "1st"), "away_lookup": "3-ABCDE"},
+    "Match_75": {"home": ("Group F", "1st"), "away": ("Group C", "2nd")},
+    "Match_76": {"home": ("Group C", "1st"), "away": ("Group F", "2nd")},
+    "Match_77": {"home": ("Group I", "1st"), "away_lookup": "3-BDEFG"},
+    "Match_78": {"home": ("Group E", "2nd"), "away": ("Group I", "2nd")},
+    "Match_79": {"home": ("Group B", "1st"), "away_lookup": "3-CEFHI"},
+    "Match_80": {"home": ("Group L", "1st"), "away_lookup": "3-GHIJK"},
+    "Match_81": {"home": ("USAD", "1st", "Group D"), "away_lookup": "3-FGHIK"},
+    "Match_82": {"home": ("Group G", "1st"), "away_lookup": "3-EJKLM"},
+    "Match_83": {"home": ("Group K", "2nd"), "away": ("Group L", "2nd")},
+    "Match_84": {"home": ("Group H", "1st"), "away": ("Group J", "2nd")},
+    "Match_85": {"home": ("Group A", "2nd"), "away": ("Group B", "2nd")},
+    "Match_86": {"home": ("Group J", "1st"), "away": ("Group H", "2nd")},
+    "Match_87": {"home": ("Group K", "1st"), "away_lookup": "3-AHJKL"},
+    "Match_88": {"home": ("Group D", "2nd"), "away": ("Group G", "2nd")}
 }
+
+# For handling the specialized Match 81 labeling criteria safely
+DYNAMIC_R32_CONFIG["Match_81"] = {"home": ("Group D", "1st"), "away_lookup": "3-FGHIK"}
 
 # ==============================================================================
 # --- 6. DATABASE HELPER WRAPPERS ---
@@ -552,6 +564,16 @@ def db_save_group_tie_breaker(user_id, league_id, group_name, team_order):
         }, on_conflict="user_id,league_id,group_name").execute()
     except Exception as e:
         st.error(f"Failed to persist tie-breaker structure to database: {e}")
+
+# Fetch the specific cross-referenced row matching the current generated 8-letter string combo key
+def fetch_supabase_wildcard_mapping(combination_str):
+    try:
+        res = supabase.table("world_cup_mapping").select("*").eq("group_combination", combination_str).execute()
+        if res.data:
+            return res.data[0]
+    except Exception as database_error:
+        pass
+    return None
 
 # --- NEW HELPER FUNCTION: GROUP STAGE COMPLETENESS CHECK ---
 def check_group_stage_completion(user_preds):
@@ -842,12 +864,9 @@ def run_standings_engine(scores_dict):
     wildcard_df = pd.DataFrame(third_place_pool)
     if not wildcard_df.empty:
         wildcard_df = wildcard_df.sort_values(by=["Pts", "GD", "GF"], ascending=False).reset_index(drop=True)
-        adv_wildcards = list(wildcard_df.head(8)["Team"])
+        adv_wildcards = wildcard_df.head(8).to_dict(orient="records")
     else: 
         adv_wildcards = []
-        
-    while len(adv_wildcards) < 8: 
-        adv_wildcards.append(f"Wildcard Slot {len(adv_wildcards)+1}")
         
     return all_group_results, adv_wildcards
 
@@ -859,24 +878,51 @@ def resolve_bracket_teams(scores_dict, target_is_actual=False, actual_results_ob
         g_scores = scores_dict
         ko_choices = scores_dict
 
-    g_tables, wildcards = run_standings_engine(g_scores)
+    g_tables, qualifying_wildcards = run_standings_engine(g_scores)
     
     def get_1st(g): return g_tables[g].iloc[0]["Team"] if g in g_tables and not g_tables[g].empty else ""
     def get_2nd(g): return g_tables[g].iloc[1]["Team"] if g in g_tables and not g_tables[g].empty else ""
     def get_3rd(g): return g_tables[g].iloc[2]["Team"] if g in g_tables and len(g_tables[g]) >= 3 else ""
 
+    # Generate the unique 8-letter row look-up string key from current standings data
+    qualifying_group_letters = []
+    wildcards_by_group = {}
+    
+    for row in qualifying_wildcards:
+        # Strip string name down to isolated alphabet token component (e.g. "Group A" -> "A")
+        g_letter = row["Group"].replace("Group ", "").strip()
+        qualifying_group_letters.append(g_letter)
+        wildcards_by_group[g_letter] = row["Team"]
+        
+    qualifying_group_letters.sort()
+    combination_lookup_string = "".join(qualifying_group_letters)
+
+    # Perform runtime dynamic cross-reference lookups from our active Supabase connection mapping asset
+    db_mapping_row = None
+    if len(combination_lookup_string) == 8:
+        db_mapping_row = fetch_supabase_wildcard_mapping(combination_lookup_string)
+
     r32_teams = {}
-    for m_id, details in PAIRS_R32_STRUC.items():
-        if len(details) == 3:
-            h = get_1st(details[0]) if details[1] == "1st" else get_2nd(details[0])
-            w_idx = int(details[2].split("_")[1])
-            # EXCLUSIVE ADJUSTMENT FIX: Pull the actual 3rd-placed team item object reference mapping
-            # matching the pool ranking index layout returned from the assign_third table configuration
-            a = wildcards[w_idx] if w_idx < len(wildcards) else ""
+    for m_id, structure in DYNAMIC_R32_CONFIG.items():
+        # Home team extraction setup
+        home_g, home_pos = structure["home"][0], structure["home"][1]
+        h_team = get_1st(home_g) if home_pos == "1st" else get_2nd(home_g)
+        
+        # Away team evaluation workspace setup handles path forks cleanly
+        if "away" in structure:
+            away_g, away_pos = structure["away"][0], structure["away"][1]
+            a_team = get_1st(away_g) if away_pos == "1st" else get_2nd(away_g)
+        elif "away_lookup" in structure:
+            lookup_col_header = structure["away_lookup"]
+            if db_mapping_row and lookup_col_header in db_mapping_row:
+                resolved_target_group_letter = db_mapping_row[lookup_col_header]
+                a_team = wildcards_by_group.get(resolved_target_group_letter, "TBD")
+            else:
+                a_team = "TBD"
         else:
-            h = get_1st(details[0]) if details[1] == "1st" else get_2nd(details[0])
-            a = get_1st(details[2]) if details[3] == "1st" else get_2nd(details[2])
-        r32_teams[m_id] = (h, a)
+            a_team = "TBD"
+            
+        r32_teams[m_id] = (h_team, a_team)
 
     # 1. Evaluate Round of 16 Teams
     r16_teams = set()
