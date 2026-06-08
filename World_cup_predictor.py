@@ -438,21 +438,21 @@ FIFA_REAL_METADATA = {
 
 # Dynamic identifier-driven layout tracking structure replacing the old static list maps
 DYNAMIC_R32_CONFIG = {
-    "Match_73": {"home": ("Group A", "1st"), "away_lookup": "3-CDEFI"},
-    "Match_74": {"home": ("Group E", "1st"), "away_lookup": "3-ABCDE"},
+    "Match_73": {"home": ("Group A", "2nd"), "away": "Group B", "2nd")},
+    "Match_74": {"home": ("Group E", "1st"), "away_lookup": "3-ABCDF"},
     "Match_75": {"home": ("Group F", "1st"), "away": ("Group C", "2nd")},
     "Match_76": {"home": ("Group C", "1st"), "away": ("Group F", "2nd")},
-    "Match_77": {"home": ("Group I", "1st"), "away_lookup": "3-BDEFG"},
+    "Match_77": {"home": ("Group I", "1st"), "away_lookup": "3-CDFGH"},
     "Match_78": {"home": ("Group E", "2nd"), "away": ("Group I", "2nd")},
-    "Match_79": {"home": ("Group B", "1st"), "away_lookup": "3-CEFHI"},
-    "Match_80": {"home": ("Group L", "1st"), "away_lookup": "3-GHIJK"},
-    "Match_81": {"home": ("USAD", "1st", "Group D"), "away_lookup": "3-FGHIK"},
-    "Match_82": {"home": ("Group G", "1st"), "away_lookup": "3-EJKLM"},
+    "Match_79": {"home": ("Group A", "1st"), "away_lookup": "3-CEFHI"},
+    "Match_80": {"home": ("Group L", "1st"), "away_lookup": "3-EHIJK"},
+    "Match_81": {"home": ("Group D", "1st"), "away_lookup": "3-BEFIJ"},
+    "Match_82": {"home": ("Group G", "1st"), "away_lookup": "3-AEHIJ"},
     "Match_83": {"home": ("Group K", "2nd"), "away": ("Group L", "2nd")},
-    "Match_84": {"home": ("Group H", "1st"), "away": ("Group J", "2nd")},
-    "Match_85": {"home": ("Group A", "2nd"), "away": ("Group B", "2nd")},
+    "Match_84": {"home": ("Group H", "2nd"), "away": ("Group J", "2nd")},
+    "Match_85": {"home": ("Group B", "1st"), "away_lookup": "3-EFGIJ"},
     "Match_86": {"home": ("Group J", "1st"), "away": ("Group H", "2nd")},
-    "Match_87": {"home": ("Group K", "1st"), "away_lookup": "3-AHJKL"},
+    "Match_87": {"home": ("Group K", "1st"), "away_lookup": "3-DEIJL"},
     "Match_88": {"home": ("Group D", "2nd"), "away": ("Group G", "2nd")}
 }
 
