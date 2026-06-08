@@ -446,7 +446,7 @@ DYNAMIC_R32_CONFIG = {
     "Match_78": {"home": ("Group E", "2nd"), "away": ("Group I", "2nd")},
     "Match_79": {"home": ("Group A", "1st"), "away_lookup": "3-CEFHI"},
     "Match_80": {"home": ("Group L", "1st"), "away_lookup": "3-EHIJK"},
-    "Match_81": {"home": ("Group D", "1st"), "away_lookup": "3-BEFIJ"},
+    "Match_81": {"home": ("Group D", "1st"), "away_lookup": "3-FGHIK"},
     "Match_82": {"home": ("Group G", "1st"), "away_lookup": "3-AEHIJ"},
     "Match_83": {"home": ("Group K", "2nd"), "away": ("Group L", "2nd")},
     "Match_84": {"home": ("Group H", "2nd"), "away": ("Group J", "2nd")},
@@ -455,9 +455,6 @@ DYNAMIC_R32_CONFIG = {
     "Match_87": {"home": ("Group K", "1st"), "away_lookup": "3-DEIJL"},
     "Match_88": {"home": ("Group D", "2nd"), "away": ("Group G", "2nd")}
 }
-
-# For handling the specialized Match 81 labeling criteria safely
-DYNAMIC_R32_CONFIG["Match_81"] = {"home": ("Group D", "1st"), "away_lookup": "3-FGHIK"}
 
 # ==============================================================================
 # --- 6. DATABASE HELPER WRAPPERS ---
@@ -1017,7 +1014,7 @@ def calculate_user_points(user_id, league_id):
             if p_h is not None and p_a is not None and a_h is not None and a_a is not None:
                 if int(p_h) == int(a_h) and int(p_a) == int(a_a): 
                     points += 3  
-                elif (int(p_h) > int(p_a) and int(a_h) > int(a_a)) or (int(p_a) > int(p_h) and int(a_a) > int(a_a)) or (int(p_h) == int(p_a) and int(a_h) == int(a_a)): 
+                elif (int(p_h) > int(p_a) and int(a_h) > int(a_a)) or (int(p_a) > int(p_h) and int(a_a) > int(a_h)) or (int(p_h) == int(p_a) and int(a_h) == int(a_a)): 
                     points += 1  
 
     # 2. Team-Based Progression Check
