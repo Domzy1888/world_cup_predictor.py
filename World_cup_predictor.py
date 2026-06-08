@@ -76,10 +76,14 @@ st.markdown("""
     /* Background Image setup */
     .stApp {
         background: linear-gradient(rgba(15, 23, 42, 0.2), rgba(15, 23, 42, 0.4)),
-                    url("[cdn-media.theathletic.com](https://cdn-media.theathletic.com/cdn-cgi/image/width=1000%2cquality=70%2cformat=auto/https://cdn-media.theathletic.com/vwYC1qZfTwfm_3qmyXkIC5Rja_1440x960.jpg)");
+                    url("https://cdn-media.theathletic.com/cdn-cgi/image/width=1000,quality=70,format=auto/https://cdn-media.theathletic.com/vwYC1qZfTwfm_3qmyXkIC5Rja_1440x960.jpg");
         background-size: cover;
         background-position: center;
         background-attachment: fixed;
+    }
+    </style>
+""", unsafe_allow_html=True)
+
     }
     
     /* Main body typography - Explicitly isolated only to the main content panel */
