@@ -1889,7 +1889,6 @@ elif app_tab == "🛠️ Admin Dashboard" and is_league_admin:
                     db_delete_league_actual_result(active_league_id, "Match_103_winner")
                     st.rerun()
 
-            st.markdown("<hr style='margin: 15px 0; border-top: 1px solid rgba(255,
             st.markdown("<hr style='margin: 15px 0; border-top: 1px solid rgba(255,255,255,0.1);' />", unsafe_allow_html=True)
 
             # Match 104 (Grand Final)
