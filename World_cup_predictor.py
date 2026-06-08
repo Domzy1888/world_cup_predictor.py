@@ -1466,11 +1466,10 @@ elif app_tab == "📝 Submit Predictions":
         else:
             user_calc_bracket = resolve_bracket_teams(user_preds, target_is_actual=False)
             o_r32 = user_calc_bracket["r32_pairings"]
-            
             # --- DEBUG: 3rd-place R32 mapping (focus on Match_74) ---
-with st.expander("🔍 Debug 3rd-Place R32 Mapping"):
-    combo_code = user_calc_bracket.get("third_place_code", "")
-    st.write("Third-place code:", combo_code or "(none)")
+    with st.expander("🔍 Debug 3rd-Place R32 Mapping"):
+        combo_code = user_calc_bracket.get("third_place_code", "")
+        st.write("Third-place code:", combo_code or "(none)")
 
     if combo_code:
         mapping_row = fetch_supabase_wildcard_mapping(combo_code)
