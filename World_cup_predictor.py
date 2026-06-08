@@ -1467,6 +1467,40 @@ elif app_tab == "📝 Submit Predictions":
             user_calc_bracket = resolve_bracket_teams(user_preds, target_is_actual=False)
             o_r32 = user_calc_bracket["r32_pairings"]
             
+            # --- DEBUG: 3rd-place R32 mapping (focus on Match_74) ---
+with st.expander("🔍 Debug 3rd-Place R32 Mapping"):
+    combo_code = user_calc_bracket.get("third_place_code", "")
+    st.write("Third-place code:", combo_code or "(none)")
+
+    if combo_code:
+        mapping_row = fetch_supabase_wildcard_mapping(combo_code)
+        st.write("Supabase row:", mapping_row if mapping_row else "(no row found)")
+
+        # Rebuild wildcards_by_group from the same engine
+        _, qualifying_wildcards = run_standings_engine(user_preds)
+        wildcards_by_group = {
+            row["Group"].replace("Group ", "").strip(): row["Team"]
+            for row in qualifying_wildcards
+        }
+        st.write("Wildcards by group:", wildcards_by_group)
+
+        # Focus specifically on Match_74
+        m_id = "Match_74"
+        structure = DYNAMIC_R32_CONFIG[m_id]
+        lookup_col = structure.get("away_lookup")
+        st.write("Match_74 away_lookup key:", lookup_col)
+
+        if mapping_row and lookup_col in mapping_row:
+            gl = mapping_row[lookup_col]
+            team = wildcards_by_group.get(gl, "TBD")
+            st.write("→ Group letter from matrix:", repr(gl))
+            st.write("→ Team selected for Match_74:", team)
+        else:
+            st.write("→ Mapping row missing or column not found for Match_74")
+    else:
+        st.write("No 3rd-place code computed yet.")
+
+            
             ko_tabs = st.tabs(["Round of 32", "Round of 16", "Quarter-Finals", "Finals"])
             
             with ko_tabs[0]:
