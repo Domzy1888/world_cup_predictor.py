@@ -879,7 +879,6 @@ def resolve_bracket_teams(scores_dict, target_is_actual=False, actual_results_ob
     
     def get_1st(g): return g_tables[g].iloc[0]["Team"] if g in g_tables and not g_tables[g].empty else ""
     def get_2nd(g): return g_tables[g].iloc[1]["Team"] if g in g_tables and not g_tables[g].empty else ""
-    def get_3rd(g): return g_tables[g].iloc[2]["Team"] if g in g_tables and len(g_tables[g]) >= 3 else ""
 
     # Generate the unique 8-letter row look-up string key from current standings data
     qualifying_group_letters = []
@@ -1459,7 +1458,7 @@ elif app_tab == "📝 Submit Predictions":
                     if st.button("🔒 Lock Quarter-Final Predictions", use_container_width=True):
                         for m_key in qf_keys:
                             val = user_preds.get(m_key)
-                            if val parks != "Select Winner" and not str(val).startswith("W"):
+                            if val and val != "Select Winner" and not str(val).startswith("W"):
                                 opts = o_qf[m_key]
                                 if val == opts[0]: db_save_prediction(c_uid, active_league_id, m_key, 1)
                                 elif val == opts[1]: db_save_prediction(c_uid, active_league_id, m_key, 2)
