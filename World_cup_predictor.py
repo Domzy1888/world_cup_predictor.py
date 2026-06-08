@@ -377,7 +377,7 @@ FIFA_REAL_METADATA = {
     12: {"date": "14 June", "time": "9:00 PM BST", "venue": "New York/NJ"},
     13: {"date": "15 June", "time": "7:00 PM BST", "venue": "Monterrey"},
     14: {"date": "15 June", "time": "12:00 AM BST", "venue": "Miami"},
-    15: {"date": "15 June", "time": "1:00 AM BST", "Seattle": "Seattle"},
+    15: {"date": "15 June", "time": "1:00 AM BST", "venue": "Seattle"},
     16: {"date": "16 June", "time": "6:00 PM BST", "venue": "New York/NJ"},
     17: {"date": "16 June", "time": "9:00 PM BST", "venue": "Boston"},
     18: {"date": "16 June", "time": "12:00 AM BST", "venue": "Kansas City"},
