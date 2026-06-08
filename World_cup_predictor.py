@@ -565,7 +565,7 @@ def db_save_group_tie_breaker(user_id, league_id, group_name, team_order):
 # Fetch the specific cross-referenced row matching the current generated 8-letter string combo key
 def fetch_supabase_wildcard_mapping(combination_str):
     try:
-        res = supabase.table("world_cup_mapping").select("*").eq("group_combination", combination_str).execute()
+        res = supabase.table("assign_third").select("*").eq("group_combination", combination_str).execute()
         if res.data:
             return res.data[0]
     except Exception as database_error:
