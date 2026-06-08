@@ -1318,6 +1318,12 @@ elif app_tab == "📝 Submit Predictions":
             u_results, _ = run_standings_engine(user_preds)
             df_display = u_results[selected_group].copy()
             
+            # CRITICAL FIX: Ensure values are calculated as numbers and sorted according to strict FIFA rules
+            df_display['Pts'] = pd.to_numeric(df_display['Pts'])
+            df_display['GD'] = pd.to_numeric(df_display['GD'])
+            df_display['GF'] = pd.to_numeric(df_display['GF'])
+            df_display = df_display.sort_values(by=['Pts', 'GD', 'GF'], ascending=[False, False, False]).reset_index(drop=True)
+            
             # --- START OF MANUAL TIE-BREAKER OVERRIDE INJECTION ---
             tied_mask = df_display.duplicated(subset=['Pts', 'GD', 'GF'], keep=False)
             if tied_mask.any() and is_group_locked:
