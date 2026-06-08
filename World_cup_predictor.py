@@ -220,7 +220,7 @@ except Exception as e:
 FLAGS = {
     "Mexico": "🇲🇽 MEXICO", "South Africa": "🇿🇦 SOUTH AFRICA", "Rep. of Korea": "🇰🇷 REP. OF KOREA", "Czech Rep.": "🇨🇿 CZECH REP.",
     "Canada": "🇨🇦 CANADA", "Bosnia/Herzeg Mom.": "🇧🇦 BOSNIA/HERZEG.", "Bosnia/Herzeg.": "🇧🇦 BOSNIA/HERZEG.", "Qatar": "🇶🇦 QATAR", "Switzerland": "🇨🇭 SWITZERLAND",
-    "Brazil": "🇧🇷 BRAZIL", "Morocco": "🇲🇦 MOROCCO", "Haiti": "🇲🇹 HAITI", "Scotland": "🏴 SCOTLAND",
+    "Brazil": "🇧🇷 BRAZIL", "Morocco": "🇲🇦 MOROCCO", "Haiti": "🇲🇹 HAITI", "Scotland": "🏴󠁧󠁢󠁳󠁣󠁴󠁿 SCOTLAND",
     "USA": "🇺🇸 USA", "Paraguay": "🇵🇾 PARAGUAY", "Australia": "🇦🇺 AUSTRALIA", "Turkey": "🇹🇷 TURKEY",
     "Germany": "🇩🇪 GERMANY", "Curaçao": "🇨🇼 CURAÇAO", "Ivory Coast": "🇨🇮 IVORY COAST", "Ecuador": "🇪🇨 ECUADOR",
     "Netherlands": "🇳🇱 NETHERLANDS", "Japan": "🇯🇵 JAPAN", "Sweden": "🇸🇪 SWEDEN", "Tunisia": "🇹🇳 TUNISIA",
@@ -229,7 +229,7 @@ FLAGS = {
     "France": "🇫🇷 FRANCE", "Senegal": "🇸🇳 SENEGAL", "Iraq": "🇮🇶 IRAQ", "Norway": "🇳🇴 NORWAY",
     "Argentina": "🇦🇷 ARGENTINA", "Algeria": "🇩🇿 ALGERIA", "Austria": "🇦🇹 AUSTRIA", "Jordan": "🇯🇴 JORDAN",
     "Portugal": "🇵🇹 PORTUGAL", "DR Congo": "🇨🇩 DR CONGO", "Uzbekistan": "🇺🇿 UZBEKISTAN", "Colombia": "🇨🇴 COLOMBIA",
-    "England": "🏴 ENGLAND", "Croatia": "🇭🇷 CROATIA", "Ghana": "🇬🇭 GHANA", "Panama": "🇵🇦 PANAMA"
+    "England": "🏴󠁧󠁢󠁥󠁮󠁧󠁿 ENGLAND", "Croatia": "🇭🇷 CROATIA", "Ghana": "🇬🇭 GHANA", "Panama": "🇵🇦 PANAMA"
 }
 
 def fmt_team(name):
@@ -1466,7 +1466,7 @@ elif app_tab == "📝 Submit Predictions":
         else:
             user_calc_bracket = resolve_bracket_teams(user_preds, target_is_actual=False)
             o_r32 = user_calc_bracket["r32_pairings"]
-            # --- DEBUG: 3rd-place R32 mapping (focus on Match_74) ---
+            # --- DEBUG: 3rd-place R32 mapping (focus on Match_81) ---
             with st.expander("🔍 Debug 3rd-Place R32 Mapping"):
                 combo_code = user_calc_bracket.get("third_place_code", "")
                 st.write("Third-place code:", combo_code or "(none)")
@@ -1480,18 +1480,18 @@ elif app_tab == "📝 Submit Predictions":
                         for row in qualifying_wildcards
                     }
                     st.write("Wildcards by group:", wildcards_by_group)
-                    # Focus specifically on Match_74
-                    m_id = "Match_74"
+                    # Focus specifically on Match_81
+                    m_id = "Match_81"
                     structure = DYNAMIC_R32_CONFIG[m_id]
                     lookup_col = structure.get("away_lookup")
-                    st.write("Match_74 away_lookup key:", lookup_col)
+                    st.write("Match_81 away_lookup key:", lookup_col)
                     if mapping_row and lookup_col in mapping_row:
                         gl = mapping_row[lookup_col]
                         team = wildcards_by_group.get(gl, "TBD")
                         st.write("→ Group letter from matrix:", repr(gl))
-                        st.write("→ Team selected for Match_74:", team)
+                        st.write("→ Team selected for Match_81:", team)
                     else:
-                        st.write("→ Mapping row missing or column not found for Match_74")
+                        st.write("→ Mapping row missing or column not found for Match_81")
                 else:
                     st.write("No 3rd-place code computed yet.")
             ko_tabs = st.tabs(["Round of 32", "Round of 16", "Quarter-Finals", "Finals"])
