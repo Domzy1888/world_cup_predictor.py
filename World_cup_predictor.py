@@ -438,7 +438,7 @@ FIFA_REAL_METADATA = {
 
 # Dynamic identifier-driven layout tracking structure replacing the old static list maps
 DYNAMIC_R32_CONFIG = {
-    "Match_73": {"home": ("Group A", "2nd"), "away": "Group B", "2nd")},
+    "Match_73": {"home": ("Group A", "2nd"), "away": ("Group B", "2nd")},
     "Match_74": {"home": ("Group E", "1st"), "away_lookup": "3-ABCDF"},
     "Match_75": {"home": ("Group F", "1st"), "away": ("Group C", "2nd")},
     "Match_76": {"home": ("Group C", "1st"), "away": ("Group F", "2nd")},
