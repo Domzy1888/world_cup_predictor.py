@@ -845,15 +845,19 @@ def run_standings_engine(scores_dict):
         tb_order_key = f"tb_order_{g_name}"
         if st.session_state.get(tb_lock_key) and tb_order_key in st.session_state:
             saved_order = st.session_state[tb_order_key]
-            # Ensure the saved order contains exactly the current group teams before applying
             if sorted(saved_order) == sorted(df_g['Team'].tolist()):
                 df_g['Team'] = pd.Categorical(df_g['Team'], categories=saved_order, ordered=True)
-                # FIXED: Explicitly added ascending=True to keep custom ordering layout consistent
                 df_g = df_g.sort_values(by='Team', ascending=True).reset_index(drop=True)
                 df_g['Team'] = df_g['Team'].astype(str)
+            else:
+                # Fallback safeguard sort if saved session string structure gets mismatched
+                df_g = df_g.sort_values(by=["Pts", "GD", "GF"], ascending=False).reset_index(drop=True)
+        else:
+            # Absolute baseline assurance sort to protect against fractured indexes
+            df_g = df_g.sort_values(by=["Pts", "GD", "GF"], ascending=False).reset_index(drop=True)
 
         # Strip away local workspace columns prior to pushing data frames to UI render targets
-        df_clean = df_g.drop(columns=['h2h_pts', 'h2h_gd', 'h2h_gf'])
+        df_clean = df_g.drop(columns=['h2h_pts', 'h2h_gd', 'h2h_gf']).reset_index(drop=True)
         all_group_results[g_name] = df_clean
         
         if len(df_clean) >= 3: 
