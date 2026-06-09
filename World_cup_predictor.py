@@ -922,14 +922,27 @@ def resolve_bracket_teams(scores_dict, target_is_actual=False, actual_results_ob
 
     g_tables, qualifying_wildcards = run_standings_engine(g_scores)
 
-    def get_1st(g): return g_tables[g].iloc[0]["Team"] if g in g_tables and not g_tables[g].empty else ""
-    def get_2nd(g): return g_tables[g].iloc[1]["Team"] if g in g_tables and not g_tables[g].empty else ""
+    # BULLETPROOF FIX: Pull teams based explicitly on metric sorting, ignoring visual df index layout shifting
+    def get_1st(g): 
+        if g not in g_tables or g_tables[g].empty:
+            return ""
+        # Re-sort a clean copy strictly by tournament metrics to isolate the absolute winner
+        df_metric = g_tables[g].sort_values(by=["Pts", "GD", "GF"], ascending=False).reset_index(drop=True)
+        return df_metric.iloc[0]["Team"]
+
+    def get_2nd(g): 
+        if g not in g_tables or g_tables[g].empty:
+            return ""
+        # Re-sort a clean copy strictly by tournament metrics to isolate true 2nd place
+        df_metric = g_tables[g].sort_values(by=["Pts", "GD", "GF"], ascending=False).reset_index(drop=True)
+        return df_metric.iloc[1]["Team"]
 
     # Generate the unique 8-letter row look-up string key from current standings data
     qualifying_group_letters = []
     wildcards_by_group = {}
 
     for row in qualifying_wildcards:
+        # Strip string name down to isolated alphabet token component (e.g. "Group A" -> "A")
         g_letter = row["Group"].replace("Group ", "").strip()
         qualifying_group_letters.append(g_letter)
         wildcards_by_group[g_letter] = row["Team"]
@@ -937,15 +950,18 @@ def resolve_bracket_teams(scores_dict, target_is_actual=False, actual_results_ob
     qualifying_group_letters.sort()
     combination_lookup_string = "".join(qualifying_group_letters)
 
+    # Perform runtime dynamic cross-reference lookups from our active Supabase connection mapping asset
     db_mapping_row = None
     if len(combination_lookup_string) == 8:
         db_mapping_row = fetch_supabase_wildcard_mapping(combination_lookup_string)
 
     r32_teams = {}
     for m_id, structure in DYNAMIC_R32_CONFIG.items():
+        # Home team extraction setup
         home_g, home_pos = structure["home"][0], structure["home"][1]
         h_team = get_1st(home_g) if home_pos == "1st" else get_2nd(home_g)
 
+        # Away team evaluation workspace setup handles path forks cleanly
         if "away" in structure:
             away_g, away_pos = structure["away"][0], structure["away"][1]
             a_team = get_1st(away_g) if away_pos == "1st" else get_2nd(away_g)
@@ -960,7 +976,8 @@ def resolve_bracket_teams(scores_dict, target_is_actual=False, actual_results_ob
             a_team = "TBD"
 
         r32_teams[m_id] = (h_team, a_team)
-    
+
+    # 1. Evaluate Round of 16 Teams
     r16_teams = set()
     for m in range(73, 89):
         m_key = f"Match_{m}"
@@ -969,6 +986,7 @@ def resolve_bracket_teams(scores_dict, target_is_actual=False, actual_results_ob
         if choice == "1" or choice == teams[0]: r16_teams.add(teams[0])
         elif choice == "2" or choice == teams[1]: r16_teams.add(teams[1])
 
+    # 2. Evaluate Quarter-Final Teams
     qf_pairings = {
         "Match_89": ("Match_74", "Match_77"), "Match_90": ("Match_73", "Match_75"),
         "Match_93": ("Match_83", "Match_84"), "Match_94": ("Match_81", "Match_82"),
@@ -988,6 +1006,7 @@ def resolve_bracket_teams(scores_dict, target_is_actual=False, actual_results_ob
         if choice == "1" or choice == t1: qf_teams.add(t1)
         elif choice == "2" or choice == t2: qf_teams.add(t2)
 
+    # 3. Evaluate Semi-Final Teams
     sf_pairings = {
         "Match_97": ("Match_89", "Match_90"), "Match_98": ("Match_93", "Match_94"),
         "Match_99": ("Match_91", "Match_92"), "Match_100": ("Match_95", "Match_96")
@@ -1012,6 +1031,7 @@ def resolve_bracket_teams(scores_dict, target_is_actual=False, actual_results_ob
         if choice == "1" or choice == t1: sf_teams.add(t1)
         elif choice == "2" or choice == t2: sf_teams.add(t2)
 
+    # 4. Evaluate Finalists
     f1_winner_sel = str(ko_choices.get("Match_101", ""))
     f2_winner_sel = str(ko_choices.get("Match_102", ""))
 
