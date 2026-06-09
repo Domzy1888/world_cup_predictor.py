@@ -1957,37 +1957,73 @@ elif app_tab == "🛠️ Admin Dashboard" and is_league_admin:
                     db_delete_league_actual_result(active_league_id, "Match_104")
                     st.rerun()
 
+        
+
         # --- ADMIN WORKSPACE: INDIVIDUAL CANTEEN WALL CHART DOSSIERS (NEW TAB) ---
         with adm_ko_tabs[4]:
             st.subheader("🖨️ Office Canteen Print Station")
-            st.write("Generate a tailored 2-page print dossier per user. Page 1 displays their custom Group charts, Page 2 shows their full Knockout tree.")
+            st.write("Select a teammate below to view their completed submission layout. To print it out as a clean 2-page hard copy, simply press **Ctrl + P** (Windows) or **Cmd + P** (Mac).")
 
             try:
-                # Queries user rows directly mapped under the active league context
+                # Fetch prediction rows for the active league
                 all_users_predictions = supabase.table("predictions").select("*").eq("league_id", active_league_id).execute().data
             except Exception as e:
                 all_users_predictions = []
                 st.error(f"Error connecting to data layer: {e}")
 
             if all_users_predictions:
-                user_names = [u.get("username", f"User {u.get('user_id')}") for u in all_users_predictions]
+                # FIX 1: Deduplicate usernames so each individual appears exactly once in your selector list
+                seen_users = set()
+                unique_users_data = []
+                for u in all_users_predictions:
+                    uname = u.get("username") or f"User {u.get('user_id')}"
+                    if uname not in seen_users:
+                        seen_users.add(uname)
+                        # Ensure we attach the display name directly to the record object
+                        u["_display_name"] = uname
+                        unique_users_data.append(u)
+                
+                # Render clean sorted dropdown list
+                user_names = sorted(list(seen_users))
                 selected_user = st.selectbox("🎯 Select Teammate Profile:", user_names, key="canteen_dossier_select")
                 
-                user_data = next((u for u in all_users_predictions if u.get("username") == selected_user), None)
+                # Locate all data segments belonging to this selected user to compile their complete prediction history
+                matching_user_rows = [u for u in all_users_predictions if (u.get("username") == selected_user or f"User {u.get('user_id')}" == selected_user)]
                 
-                if user_data:
-                    import json
-                    preds_dict = user_data.get("predictions_dict", {})
-                    if isinstance(preds_dict, str):
-                        try: preds_dict = json.loads(preds_dict)
-                        except: preds_dict = {}
+                # Compile unified predictions dictionary across all their records
+                preds_dict = {}
+                import json
+                for row in matching_user_rows:
+                    row_preds = row.get("predictions_dict", {})
+                    if isinstance(row_preds, str):
+                        try: row_preds = json.loads(row_preds)
+                        except: row_preds = {}
+                    if isinstance(row_preds, dict):
+                        preds_dict.update(row_preds)
 
-                    # High-Density CSS Print Injection Overrides
+                if matching_user_rows:
+                    # High-Density CSS Print Layout Engine Injection
                     st.markdown("""
                         <style>
+                        @media screen {
+                            .print-preview-container {
+                                border: 2px dashed #3b82f6;
+                                padding: 20px;
+                                border-radius: 8px;
+                                background: #111827;
+                                margin-top: 15px;
+                            }
+                            .page-separator {
+                                border-top: 3px dashed #ef4444;
+                                margin: 40px 0;
+                                text-align: center;
+                                color: #ef4444;
+                                font-weight: bold;
+                            }
+                        }
                         @media print {
-                            /* Hide navigation, background controls, select box dropdowns, and Streamlit structure layout components */
-                            header, [data-testid="stSidebar"], [data-testid="stToolbar"], footer, .stSelectbox, .stAlert, .stTabs [role="tablist"] {
+                            /* Completely strip away Streamlit web wrappers, dropdown menus, sidebars, and tab bars */
+                            header, [data-testid="stSidebar"], [data-testid="stToolbar"], footer, .stSelectbox, .stAlert, .stTabs [role="tablist"], .page-separator {
                                 display: none !important;
                             }
                             .main .block-container {
@@ -2002,7 +2038,7 @@ elif app_tab == "🛠️ Admin Dashboard" and is_league_admin:
                                 -webkit-print-color-adjust: exact !important;
                                 print-color-adjust: exact !important;
                             }
-                            /* Hard code specific sheet boundaries */
+                            /* Enforce physical page breaks on hardware print spools */
                             .print-page-1 {
                                 page-break-after: always !important;
                                 width: 100% !important;
@@ -2015,7 +2051,7 @@ elif app_tab == "🛠️ Admin Dashboard" and is_league_admin:
                             }
                         }
 
-                        /* Page 1: Grid Layout elements */
+                        /* Page 1 UI Structural Styling: Groups Grid */
                         .user-header-card {
                             background-color: #1e293b;
                             color: #ffffff;
@@ -2058,7 +2094,7 @@ elif app_tab == "🛠️ Admin Dashboard" and is_league_admin:
                         .qualified-1 { color: #16a34a; font-weight: bold; }
                         .qualified-2 { color: #1e40af; font-weight: bold; }
 
-                        /* Page 2: Flexbox Bracket Trees */
+                        /* Page 2 UI Structural Styling: Knockout Bracket Chart Connection */
                         .bracket-container {
                             display: flex;
                             justify-content: space-between;
@@ -2073,14 +2109,14 @@ elif app_tab == "🛠️ Admin Dashboard" and is_league_admin:
                             display: flex;
                             flex-direction: column;
                             justify-content: space-around;
-                            height: 480px;
+                            height: 490px;
                         }
                         .bracket-node {
                             background: #1e293b;
                             padding: 5px;
                             border-radius: 4px;
                             border-left: 3px solid #3b82f6;
-                            width: 135px;
+                            width: 140px;
                             font-size: 10px;
                         }
                         .round-header {
@@ -2093,18 +2129,21 @@ elif app_tab == "🛠️ Admin Dashboard" and is_league_admin:
                         </style>
                     """, unsafe_allow_html=True)
 
-                    st.info(f"📋 Displaying layout map for **{selected_user}**. Press **Ctrl + P** (or **Cmd + P**), select **Landscape**, and check **Background Graphics**.")
+                    st.info(f"📋 **Viewing Preview Map below for {selected_user}**. Ready to print? Press **Ctrl + P** or **Cmd + P** now.")
 
-                    # ================= PAGE 1: GROUP STANDINGS =================
+                    # Wrapper shell to containerize look on-screen
+                    st.markdown('<div class="print-preview-container">', unsafe_allow_html=True)
+
+                    # ================= PAGE 1: GROUP STANDINGS GENERATION =================
                     groups_list = ['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I', 'J', 'K', 'L']
                     
                     html_page1 = f"""
                     <div class="print-page-1">
                         <div class="user-header-card">
-                            <h2 style="margin:0; padding:0;">🏆 2026 World Cup Predictions Sheet</h2>
-                            <h3 style="margin:5px 0 0 0; color:#cbd5e1;">User Entry: {selected_user} (Page 1/2)</h3>
+                            <h2 style="margin:0; padding:0; font-family:sans-serif;">🏆 2026 World Cup Predictions Dossier</h2>
+                            <h3 style="margin:5px 0 0 0; color:#cbd5e1; font-family:sans-serif;">Teammate Sheet: {selected_user} (Page 1/2)</h3>
                         </div>
-                        <h4 style="color:#334155; margin-bottom:10px; border-bottom:2px solid #334155; font-family:sans-serif;">Predicted Group Advancements</h4>
+                        <h4 style="color:#f8fafc; margin-top:0; margin-bottom:10px; border-bottom:2px solid #3b82f6; font-family:sans-serif; padding-bottom:3px;">Predicted Group Stage Standings</h4>
                         <div class="groups-grid">
                     """
                     
@@ -2127,16 +2166,18 @@ elif app_tab == "🛠️ Admin Dashboard" and is_league_admin:
                     html_page1 += "</div></div>"
                     st.write(html_page1, unsafe_allow_html=True)
 
-                    # ================= PAGE 2: KNOCKOUT BRACKET PATHWAY =================
+                    # Dynamic Screen Divider (Visible only in web app browser, vanishes automatically on paper prints)
+                    st.markdown('<div class="page-separator">✂️ PAGE BREAK (HARD COPY WILL SPLIT HERE) ✂️</div>', unsafe_allow_html=True)
+
+                    # ================= PAGE 2: KNOCKOUT BRACKET PATHWAY GENERATION =================
                     html_page2 = f"""
                     <div class="print-page-2">
-                        <div class="user-header-card" style="background-color: #0f172a;">
-                            <h2 style="margin:0; padding:0; color:#facc15;">🌿 Knockout Stage Bracket Path</h2>
-                            <h3 style="margin:5px 0 0 0; color:#94a3b8;">User Entry: {selected_user} (Page 2/2)</h3>
+                        <div class="user-header-card" style="background-color: #0f172a; border: 1px solid #3b82f6;">
+                            <h2 style="margin:0; padding:0; color:#facc15; font-family:sans-serif;">🌿 Knockout Stage Bracket Path</h2>
+                            <h3 style="margin:5px 0 0 0; color:#94a3b8; font-family:sans-serif;">Teammate Sheet: {selected_user} (Page 2/2)</h3>
                         </div>
                         
                         <div class="bracket-container">
-                            <!-- LEFT ROUND OF 16 -->
                             <div class="bracket-column">
                                 <div class="round-header">Round of 16</div>
                                 <div class="bracket-node">🏠 {preds_dict.get('Match_81_home', 'TBD')[:11]}<br> ⚽ {preds_dict.get('Match_81_away', 'TBD')[:11]}</div>
@@ -2145,24 +2186,21 @@ elif app_tab == "🛠️ Admin Dashboard" and is_league_admin:
                                 <div class="bracket-node">🏠 {preds_dict.get('Match_84_home', 'TBD')[:11]}<br> ⚽ {preds_dict.get('Match_84_away', 'TBD')[:11]}</div>
                             </div>
                             
-                            <!-- LEFT QUARTER FINALS -->
                             <div class="bracket-column">
                                 <div class="round-header">Quarter-Finals</div>
                                 <div class="bracket-node">QF 1 Winner:<br><b>{preds_dict.get('Match_97', 'TBD')[:12]}</b></div>
                                 <div class="bracket-node">QF 2 Winner:<br><b>{preds_dict.get('Match_98', 'TBD')[:12]}</b></div>
                             </div>
                             
-                            <!-- LEFT SEMI FINAL -->
                             <div class="bracket-column">
                                 <div class="round-header">Semi-Finals</div>
                                 <div class="bracket-node">SF 1 Winner:<br><span style="color:#facc15;">{preds_dict.get('Match_101', 'TBD')[:12]}</span></div>
                             </div>
 
-                            <!-- CENTRAL CHAMPION PODIUM BOX -->
                             <div class="bracket-column">
                                 <div class="round-header" style="color:#facc15; font-size:13px;">🥇 CHAMPION</div>
                                 <div class="bracket-node" style="background:#78350f; border:2px solid #facc15; padding:12px; width:150px; text-align:center;">
-                                    <span style="font-size:13px; font-weight:bold; color:#fef3c7;">{preds_dict.get('Match_104', 'TBD').upper()}</span>
+                                    <span style="font-size:13px; font-weight:bold; color:#fef3c7;">{str(preds_dict.get('Match_104', 'TBD')).upper()}</span>
                                 </div>
                                 
                                 <div class="round-header" style="color:#38bdf8; margin-top:15px;">🥉 3rd PLACE</div>
@@ -2171,20 +2209,17 @@ elif app_tab == "🛠️ Admin Dashboard" and is_league_admin:
                                 </div>
                             </div>
 
-                            <!-- RIGHT SEMI FINAL -->
                             <div class="bracket-column">
                                 <div class="round-header">Semi-Finals</div>
                                 <div class="bracket-node">SF 2 Winner:<br><span style="color:#facc15;">{preds_dict.get('Match_102', 'TBD')[:12]}</span></div>
                             </div>
                             
-                            <!-- RIGHT QUARTER FINALS -->
                             <div class="bracket-column">
                                 <div class="round-header">Quarter-Finals</div>
                                 <div class="bracket-node">QF 3 Winner:<br><b>{preds_dict.get('Match_99', 'TBD')[:12]}</b></div>
                                 <div class="bracket-node">QF 4 Winner:<br><b>{preds_dict.get('Match_100', 'TBD')[:12]}</b></div>
                             </div>
 
-                            <!-- RIGHT ROUND OF 16 -->
                             <div class="bracket-column">
                                 <div class="round-header">Round of 16</div>
                                 <div class="bracket-node">🏠 {preds_dict.get('Match_85_home', 'TBD')[:11]}<br> ⚽ {preds_dict.get('Match_85_away', 'TBD')[:11]}</div>
@@ -2196,6 +2231,7 @@ elif app_tab == "🛠️ Admin Dashboard" and is_league_admin:
                     </div>
                     """
                     st.write(html_page2, unsafe_allow_html=True)
+                    
+                    st.markdown('</div>', unsafe_allow_html=True)
             else:
                 st.warning("No submission logs found in this league context.")
-
