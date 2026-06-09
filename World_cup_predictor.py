@@ -848,11 +848,19 @@ def run_standings_engine(scores_dict):
             # Ensure the saved order contains exactly the current group teams before applying
             if sorted(saved_order) == sorted(df_g['Team'].tolist()):
                 df_g['Team'] = pd.Categorical(df_g['Team'], categories=saved_order, ordered=True)
-                df_g = df_g.sort_values(by='Team').reset_index(drop=True)
+                # FIXED: Explicitly added ascending=True to keep custom ordering layout consistent
+                df_g = df_g.sort_values(by='Team', ascending=True).reset_index(drop=True)
                 df_g['Team'] = df_g['Team'].astype(str)
+            else:
+                # Fallback safeguard sort if saved session string structure gets mismatched
+                df_g = df_g.sort_values(by=["Pts", "GD", "GF"], ascending=False).reset_index(drop=True)
+        else:
+            # Absolute baseline assurance sort to protect against fractured indexes
+            df_g = df_g.sort_values(by=["Pts", "GD", "GF"], ascending=False).reset_index(drop=True)
 
         # Strip away local workspace columns prior to pushing data frames to UI render targets
         df_clean = df_g.drop(columns=['h2h_pts', 'h2h_gd', 'h2h_gf'])
+        df_clean = df_g.drop(columns=['h2h_pts', 'h2h_gd', 'h2h_gf']).reset_index(drop=True)
         all_group_results[g_name] = df_clean
 
         if len(df_clean) >= 3: 
@@ -957,7 +965,6 @@ def resolve_bracket_teams(scores_dict, target_is_actual=False, actual_results_ob
             a_team = "TBD"
 
         r32_teams[m_id] = (h_team, a_team)
-
     # 1. Evaluate Round of 16 Teams
     r16_teams = set()
     for m in range(73, 89):
@@ -1719,7 +1726,8 @@ elif app_tab == "🛠️ Admin Dashboard" and is_league_admin:
     with admin_tabs[1]:
         actual_calc_bracket = resolve_bracket_teams(None, target_is_actual=True, actual_results_obj=actual)
 
-        adm_ko_tabs = st.tabs(["Round of 32", "Round of 16", "Quarter-Finals", "Finals"])
+        # Added a 5th tab: "🖨️ User Print Dossiers"
+        adm_ko_tabs = st.tabs(["Round of 32", "Round of 16", "Quarter-Finals", "Finals", "🖨️ User Print Dossiers"])
 
         # --- ADMIN WORKSPACE: ROUND OF 32 ---
         with adm_ko_tabs[0]:
@@ -1897,16 +1905,10 @@ elif app_tab == "🛠️ Admin Dashboard" and is_league_admin:
 
             st.markdown("<hr style='margin: 15px 0; border-top: 1px solid rgba(255,255,255,0.1);' />", unsafe_allow_html=True)
 
-            # Match 103 (3rd Place Playoff)
             # --- DYNAMICALLY RESOLVE SEMIFINAL WINNERS & LOSERS ---
             sf1_winner_saved = actual["ko_winners"].get("Match_101")
             sf2_winner_saved = actual["ko_winners"].get("Match_102")
 
-            sf1_w = sf1_h if str(sf1_winner_saved) == "1" else (sf1_a if str(sf1_winner_saved) == "2" else None)
-            sf1_l = sf1_a if str(sf1_winner_saved) == "1" else (sf1_h if str(sf1_winner_saved) == "2" else "L97")
-            
-            sf2_w = sf2_h if str(sf2_winner_saved) == "1" else (sf2_a if str(sf2_winner_saved) == "2" else None)
-            sf2_l = sf2_a if str(sf2_winner_saved) == "1" else (sf2_h if str(sf2_winner_saved) == "2" else "L98")
             # Resolve Match 101 Outcome
             if str(sf1_winner_saved) == "1" or sf1_winner_saved == sf1_h:
                 sf1_w, sf1_l = sf1_h, sf1_a
@@ -1915,7 +1917,6 @@ elif app_tab == "🛠️ Admin Dashboard" and is_league_admin:
             else:
                 sf1_w, sf1_l = None, "TBD (Loser SF1)"
 
-            is_m103_saved = (actual.get("third_place") != "")
             # Resolve Match 102 Outcome
             if str(sf2_winner_saved) == "1" or sf2_winner_saved == sf2_h:
                 sf2_w, sf2_l = sf2_h, sf2_a
@@ -1925,7 +1926,7 @@ elif app_tab == "🛠️ Admin Dashboard" and is_league_admin:
                 sf2_w, sf2_l = None, "TBD (Loser SF2)"
 
             # Match 103 (3rd Place Playoff)
-            is_m103_saved = (actual.get("third_place") != "" and actual.get("third_place") is not None) or ("Match_103" in actual["ko_winners"])
+            is_m103_saved = ("Match_103" in actual["ko_winners"])
             actual["ko_winners"]["Match_103"] = render_match_card(sf1_l, sf2_l, "🥉 3rd Place Playoff Winner", "Match_103", disabled=is_m103_saved, score_mode=False, scores_dict=actual["ko_winners"])
             c_p3_1, c_p3_2 = st.columns(2)
             with c_p3_1:
@@ -1933,22 +1934,17 @@ elif app_tab == "🛠️ Admin Dashboard" and is_league_admin:
                     if st.button("📢 Lock 3rd Place Winner", key="btn_lock_m103", use_container_width=True):
                         f_v = 1 if actual["ko_winners"]["Match_103"] == sf1_l else (2 if actual["ko_winners"]["Match_103"] == sf2_l else 0)
                         if f_v > 0:
-                            db_save_league_actual_result(active_league_id, "Match_103_winner", sf1_l if f_v == 1 else sf2_l)
-                            # Save numeric index back to engine map to handle layout dependencies
                             db_save_league_actual_result(active_league_id, "Match_103", f_v)
                             st.rerun()
                 else: st.markdown("<div style='color: #22c55e; font-weight: bold;'>✅ 3rd Place Locked</div>", unsafe_allow_html=True)
             with c_p3_2:
                 if is_m103_saved and st.button("🔓 Unlock 3rd Place Playoff", key="btn_unl_m103", use_container_width=True):
-                    db_delete_league_actual_result(active_league_id, "Match_103_winner")
                     db_delete_league_actual_result(active_league_id, "Match_103")
                     st.rerun()
 
             st.markdown("<hr style='margin: 15px 0; border-top: 1px solid rgba(255,255,255,0.1);' />", unsafe_allow_html=True)
 
             # Match 104 (Grand Final)
-            f_h = sf1_w if sf1_w else "W101"
-            f_a = sf2_w if sf2_w else "W102"
             f_h = sf1_w if sf1_w else "TBD (Winner SF1)"
             f_a = sf2_w if sf2_w else "TBD (Winner SF2)"
 
@@ -1967,3 +1963,151 @@ elif app_tab == "🛠️ Admin Dashboard" and is_league_admin:
                 if is_m104_saved and st.button("🔓 Unlock Grand Final Champion", key="btn_unl_m104", use_container_width=True):
                     db_delete_league_actual_result(active_league_id, "Match_104")
                     st.rerun()
+
+
+
+                        # --- ADMIN WORKSPACE: INDIVIDUAL CANTEEN WALL CHART DOSSIERS (NATIVE REWRITE) ---
+        with adm_ko_tabs[4]:
+            st.title("🖨️ Office Canteen Print Station")
+            st.write("Select a teammate below to review their full submission sheet. To print out a clean copy for the wall, press **Ctrl + P** (Windows) or **Cmd + P** (Mac).")
+
+            try:
+                # Fetch prediction rows for the active league
+                all_users_predictions = supabase.table("predictions").select("*").eq("league_id", active_league_id).execute().data
+            except Exception as e:
+                all_users_predictions = []
+                st.error(f"Error connecting to data layer: {e}")
+
+            if all_users_predictions:
+                # Deduplicate usernames so each individual appears exactly once in the dropdown
+                seen_users = set()
+                for u in all_users_predictions:
+                    uname = u.get("username") or f"User {u.get('user_id')}"
+                    seen_users.add(uname)
+
+                user_names = sorted(list(seen_users))
+                selected_user = st.selectbox("🎯 Select Teammate Profile:", user_names, key="canteen_dossier_select_native")
+
+                # Filter down to the selected user's rows
+                matching_user_rows = [u for u in all_users_predictions if (u.get("username") == selected_user or f"User {u.get('user_id')}" == selected_user)]
+
+                # Consolidate predictions dictionary data across rows
+                preds_dict = {}
+                import json
+                for row in matching_user_rows:
+                    row_preds = row.get("predictions_dict", {})
+                    if isinstance(row_preds, str):
+                        try: row_preds = json.loads(row_preds)
+                        except: row_preds = {}
+                    if isinstance(row_preds, dict):
+                        preds_dict.update(row_preds)
+
+                if matching_user_rows:
+                    # Inject standard CSS to hide web menus during a system print command
+                    st.markdown("""
+                        <style>
+                        @media print {
+                            header, [data-testid="stSidebar"], [data-testid="stToolbar"], footer, .stSelectbox, .stAlert, .stTabs [role="tablist"] {
+                                display: none !important;
+                            }
+                            .main .block-container { padding: 0px !important; max-width: 100% !important; }
+                        }
+                        </style>
+                    """, unsafe_allow_html=True)
+
+                    st.success(f"📋 Now showing full sheets for: **{selected_user}**")
+
+                    # =================================================================
+                    # PAGE 1: COMPLETED GROUPS & SCORE STANDINGS
+                    # =================================================================
+                    st.markdown("---")
+                    st.header(f"🏆 2026 World Cup Dossier — {selected_user}")
+                    st.subheader("📄 PAGE 1: Predicted Group Stage Standings")
+
+                    # 12 Groups total (A through L) spread across balanced rows
+                    groups_list = ['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I', 'J', 'K', 'L']
+
+                    # Display groups in clean grids of 3 columns per row
+                    for chunk_idx in range(0, len(groups_list), 3):
+                        current_chunk = groups_list[chunk_idx:chunk_idx + 3]
+                        cols = st.columns(3)
+
+                        for i, g in enumerate(current_chunk):
+                            with cols[i]:
+                                # Create a clean visible box container using st.container
+                                with st.container(border=True):
+                                    st.markdown(f"### 🏟️ GROUP {g}")
+
+                                    # Fetch positions predicted by user
+                                    p1 = preds_dict.get(f"Group_{g}_1", "—")
+                                    p2 = preds_dict.get(f"Group_{g}_2", "—")
+                                    p3 = preds_dict.get(f"Group_{g}_3", "—")
+                                    p4 = preds_dict.get(f"Group_{g}_4", "—")
+
+                                    st.markdown(f"🟢 **1st:** {p1}")
+                                    st.markdown(f"🔵 **2nd:** {p2}")
+                                    st.markdown(f"⚪ **3rd:** {p3}")
+                                    st.markdown(f"❌ **4th:** {p4}")
+
+                    # =================================================================
+                    # PAGE 2: KNOCKOUT PREDICTIONS
+                    # =================================================================
+                    st.markdown("<br><br>", unsafe_allow_html=True)
+                    st.markdown("---")
+                    st.header(f"🌿 Knockout Stage Bracket — {selected_user}")
+                    st.subheader("📄 PAGE 2: Knockout Bracket Paths & Final Standings")
+
+                    ko_cols = st.columns(3)
+
+                    with ko_cols[0]:
+                        st.markdown("### 🏟️ Left Side Bracket")
+                        with st.container(border=True):
+                            st.markdown("**Round of 16 Matches**")
+                            st.write(f"M81: {preds_dict.get('Match_81_home', 'TBD')} vs {preds_dict.get('Match_81_away', 'TBD')}")
+                            st.write(f"M82: {preds_dict.get('Match_82_home', 'TBD')} vs {preds_dict.get('Match_82_away', 'TBD')}")
+                            st.write(f"M83: {preds_dict.get('Match_83_home', 'TBD')} vs {preds_dict.get('Match_83_away', 'TBD')}")
+                            st.write(f"M84: {preds_dict.get('Match_84_home', 'TBD')} vs {preds_dict.get('Match_84_away', 'TBD')}")
+
+                        with st.container(border=True):
+                            st.markdown("**Quarter Finals**")
+                            st.write(f"QF 1 Winner: **{preds_dict.get('Match_97', 'TBD')}**")
+                            st.write(f"QF 2 Winner: **{preds_dict.get('Match_98', 'TBD')}**")
+
+                        with st.container(border=True):
+                            st.markdown("**Semi Final**")
+                            st.write(f"SF 1 Winner: ✨ **{preds_dict.get('Match_101', 'TBD')}**")
+
+                    with ko_cols[1]:
+                        st.markdown("### 👑 Final Podium")
+                        with st.container(border=True):
+                            st.markdown("### 🥇 TOURNAMENT CHAMPION")
+                            champ = str(preds_dict.get('Match_104', '🥉 TBD')).upper()
+                            st.subheader(f"🏆 {champ}")
+
+                        with st.container(border=True):
+                            st.markdown("#### 🥉 3rd Place Playoff Winner")
+                            st.write(f"Third Place: **{preds_dict.get('Match_103', 'TBD')}**")
+
+                    with ko_cols[2]:
+                        st.markdown("### 🏟️ Right Side Bracket")
+                        with st.container(border=True):
+                            st.markdown("**Round of 16 Matches**")
+                            st.write(f"M85: {preds_dict.get('Match_85_home', 'TBD')} vs {preds_dict.get('Match_85_away', 'TBD')}")
+                            st.write(f"M86: {preds_dict.get('Match_86_home', 'TBD')} vs {preds_dict.get('Match_86_away', 'TBD')}")
+                            st.write(f"M87: {preds_dict.get('Match_87_home', 'TBD')} vs {preds_dict.get('Match_87_away', 'TBD')}")
+                            st.write(f"M88: {preds_dict.get('Match_88_home', 'TBD')} vs {preds_dict.get('Match_88_away', 'TBD')}")
+
+                        with st.container(border=True):
+                            st.markdown("**Quarter Finals**")
+                            st.write(f"QF 3 Winner: **{preds_dict.get('Match_99', 'TBD')}**")
+                            st.write(f"QF 4 Winner: **{preds_dict.get('Match_100', 'TBD')}**")
+
+                        with st.container(border=True):
+                            st.markdown("**Semi Final**")
+                            st.write(f"SF 2 Winner: ✨ **{preds_dict.get('Match_102', 'TBD')}**")
+
+                    st.markdown("---")
+            else:
+                st.warning("No submission logs found in this league context.")
+
+~
