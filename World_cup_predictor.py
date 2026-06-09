@@ -2110,4 +2110,3 @@ elif app_tab == "🛠️ Admin Dashboard" and is_league_admin:
             else:
                 st.warning("No submission logs found in this league context.")
 
-~
