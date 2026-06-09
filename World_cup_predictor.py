@@ -1918,7 +1918,7 @@ elif app_tab == "🛠️ Admin Dashboard" and is_league_admin:
                 sf2_w, sf2_l = None, "TBD (Loser SF2)"
 
             # Match 103 (3rd Place Playoff)
-            is_m103_saved = (actual.get("third_place") != "" and actual.get("third_place") is not None) or ("Match_103" in actual["ko_winners"])
+            is_m103_saved = ("Match_103" in actual["ko_winners"])
             actual["ko_winners"]["Match_103"] = render_match_card(sf1_l, sf2_l, "🥉 3rd Place Playoff Winner", "Match_103", disabled=is_m103_saved, score_mode=False, scores_dict=actual["ko_winners"])
             c_p3_1, c_p3_2 = st.columns(2)
             with c_p3_1:
@@ -1926,14 +1926,13 @@ elif app_tab == "🛠️ Admin Dashboard" and is_league_admin:
                     if st.button("📢 Lock 3rd Place Winner", key="btn_lock_m103", use_container_width=True):
                         f_v = 1 if actual["ko_winners"]["Match_103"] == sf1_l else (2 if actual["ko_winners"]["Match_103"] == sf2_l else 0)
                         if f_v > 0:
-                            db_save_league_actual_result(active_league_id, "Match_103_winner", sf1_l if f_v == 1 else sf2_l)
-                            # Save numeric index back to engine map to handle layout dependencies
+                            # FIXED: Removed 'Match_103_winner' to prevent database constraint exceptions
                             db_save_league_actual_result(active_league_id, "Match_103", f_v)
                             st.rerun()
                 else: st.markdown("<div style='color: #22c55e; font-weight: bold;'>✅ 3rd Place Locked</div>", unsafe_allow_html=True)
             with c_p3_2:
                 if is_m103_saved and st.button("🔓 Unlock 3rd Place Playoff", key="btn_unl_m103", use_container_width=True):
-                    db_delete_league_actual_result(active_league_id, "Match_103_winner")
+                    # FIXED: Clean deletion tracking matching standard database keys
                     db_delete_league_actual_result(active_league_id, "Match_103")
                     st.rerun()
 
@@ -1958,4 +1957,3 @@ elif app_tab == "🛠️ Admin Dashboard" and is_league_admin:
                 if is_m104_saved and st.button("🔓 Unlock Grand Final Champion", key="btn_unl_m104", use_container_width=True):
                     db_delete_league_actual_result(active_league_id, "Match_104")
                     st.rerun()
-
