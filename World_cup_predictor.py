@@ -1897,17 +1897,28 @@ elif app_tab == "🛠️ Admin Dashboard" and is_league_admin:
 
             st.markdown("<hr style='margin: 15px 0; border-top: 1px solid rgba(255,255,255,0.1);' />", unsafe_allow_html=True)
 
-            # Match 103 (3rd Place Playoff)
+            # --- DYNAMICALLY RESOLVE SEMIFINAL WINNERS & LOSERS ---
             sf1_winner_saved = actual["ko_winners"].get("Match_101")
             sf2_winner_saved = actual["ko_winners"].get("Match_102")
             
-            sf1_w = sf1_h if str(sf1_winner_saved) == "1" else (sf1_a if str(sf1_winner_saved) == "2" else None)
-            sf1_l = sf1_a if str(sf1_winner_saved) == "1" else (sf1_h if str(sf1_winner_saved) == "2" else "L97")
-            
-            sf2_w = sf2_h if str(sf2_winner_saved) == "1" else (sf2_a if str(sf2_winner_saved) == "2" else None)
-            sf2_l = sf2_a if str(sf2_winner_saved) == "1" else (sf2_h if str(sf2_winner_saved) == "2" else "L98")
+            # Resolve Match 101 Outcome
+            if str(sf1_winner_saved) == "1" or sf1_winner_saved == sf1_h:
+                sf1_w, sf1_l = sf1_h, sf1_a
+            elif str(sf1_winner_saved) == "2" or sf1_winner_saved == sf1_a:
+                sf1_w, sf1_l = sf1_a, sf1_h
+            else:
+                sf1_w, sf1_l = None, "TBD (Loser SF1)"
 
-            is_m103_saved = (actual.get("third_place") != "")
+            # Resolve Match 102 Outcome
+            if str(sf2_winner_saved) == "1" or sf2_winner_saved == sf2_h:
+                sf2_w, sf2_l = sf2_h, sf2_a
+            elif str(sf2_winner_saved) == "2" or sf2_winner_saved == sf2_a:
+                sf2_w, sf2_l = sf2_a, sf2_h
+            else:
+                sf2_w, sf2_l = None, "TBD (Loser SF2)"
+
+            # Match 103 (3rd Place Playoff)
+            is_m103_saved = (actual.get("third_place") != "" and actual.get("third_place") is not None) or ("Match_103" in actual["ko_winners"])
             actual["ko_winners"]["Match_103"] = render_match_card(sf1_l, sf2_l, "🥉 3rd Place Playoff Winner", "Match_103", disabled=is_m103_saved, score_mode=False, scores_dict=actual["ko_winners"])
             c_p3_1, c_p3_2 = st.columns(2)
             with c_p3_1:
@@ -1916,18 +1927,21 @@ elif app_tab == "🛠️ Admin Dashboard" and is_league_admin:
                         f_v = 1 if actual["ko_winners"]["Match_103"] == sf1_l else (2 if actual["ko_winners"]["Match_103"] == sf2_l else 0)
                         if f_v > 0:
                             db_save_league_actual_result(active_league_id, "Match_103_winner", sf1_l if f_v == 1 else sf2_l)
+                            # Save numeric index back to engine map to handle layout dependencies
+                            db_save_league_actual_result(active_league_id, "Match_103", f_v)
                             st.rerun()
                 else: st.markdown("<div style='color: #22c55e; font-weight: bold;'>✅ 3rd Place Locked</div>", unsafe_allow_html=True)
             with c_p3_2:
                 if is_m103_saved and st.button("🔓 Unlock 3rd Place Playoff", key="btn_unl_m103", use_container_width=True):
                     db_delete_league_actual_result(active_league_id, "Match_103_winner")
+                    db_delete_league_actual_result(active_league_id, "Match_103")
                     st.rerun()
 
             st.markdown("<hr style='margin: 15px 0; border-top: 1px solid rgba(255,255,255,0.1);' />", unsafe_allow_html=True)
 
             # Match 104 (Grand Final)
-            f_h = sf1_w if sf1_w else "W101"
-            f_a = sf2_w if sf2_w else "W102"
+            f_h = sf1_w if sf1_w else "TBD (Winner SF1)"
+            f_a = sf2_w if sf2_w else "TBD (Winner SF2)"
             
             is_m104_saved = ("Match_104" in actual["ko_winners"])
             actual["ko_winners"]["Match_104"] = render_match_card(f_h, f_a, "🥇 Grand Final Tournament Champion", "Match_104", disabled=is_m104_saved, score_mode=False, scores_dict=actual["ko_winners"])
@@ -1944,3 +1958,4 @@ elif app_tab == "🛠️ Admin Dashboard" and is_league_admin:
                 if is_m104_saved and st.button("🔓 Unlock Grand Final Champion", key="btn_unl_m104", use_container_width=True):
                     db_delete_league_actual_result(active_league_id, "Match_104")
                     st.rerun()
+
