@@ -848,7 +848,6 @@ def run_standings_engine(scores_dict):
             # Ensure the saved order contains exactly the current group teams before applying
             if sorted(saved_order) == sorted(df_g['Team'].tolist()):
                 df_g['Team'] = pd.Categorical(df_g['Team'], categories=saved_order, ordered=True)
-                # FIXED: Explicitly added ascending=True to keep custom ordering layout consistent
                 df_g = df_g.sort_values(by='Team', ascending=True).reset_index(drop=True)
                 df_g['Team'] = df_g['Team'].astype(str)
             else:
@@ -858,8 +857,7 @@ def run_standings_engine(scores_dict):
             # Absolute baseline assurance sort to protect against fractured indexes
             df_g = df_g.sort_values(by=["Pts", "GD", "GF"], ascending=False).reset_index(drop=True)
 
-        # Strip away local workspace columns prior to pushing data frames to UI render targets
-        df_clean = df_g.drop(columns=['h2h_pts', 'h2h_gd', 'h2h_gf'])
+        # FIXED: Removed duplicate drop line to ensure df_g's sorted structure carries over cleanly
         df_clean = df_g.drop(columns=['h2h_pts', 'h2h_gd', 'h2h_gf']).reset_index(drop=True)
         all_group_results[g_name] = df_clean
 
@@ -965,6 +963,7 @@ def resolve_bracket_teams(scores_dict, target_is_actual=False, actual_results_ob
             a_team = "TBD"
 
         r32_teams[m_id] = (h_team, a_team)
+    
     # 1. Evaluate Round of 16 Teams
     r16_teams = set()
     for m in range(73, 89):
