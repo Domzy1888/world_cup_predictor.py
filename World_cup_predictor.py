@@ -1719,7 +1719,8 @@ elif app_tab == "🛠️ Admin Dashboard" and is_league_admin:
     with admin_tabs[1]:
         actual_calc_bracket = resolve_bracket_teams(None, target_is_actual=True, actual_results_obj=actual)
         
-        adm_ko_tabs = st.tabs(["Round of 32", "Round of 16", "Quarter-Finals", "Finals"])
+        # Added a 5th tab: "🖨️ User Print Dossiers"
+        adm_ko_tabs = st.tabs(["Round of 32", "Round of 16", "Quarter-Finals", "Finals", "🖨️ User Print Dossiers"])
         
         # --- ADMIN WORKSPACE: ROUND OF 32 ---
         with adm_ko_tabs[0]:
@@ -1926,13 +1927,11 @@ elif app_tab == "🛠️ Admin Dashboard" and is_league_admin:
                     if st.button("📢 Lock 3rd Place Winner", key="btn_lock_m103", use_container_width=True):
                         f_v = 1 if actual["ko_winners"]["Match_103"] == sf1_l else (2 if actual["ko_winners"]["Match_103"] == sf2_l else 0)
                         if f_v > 0:
-                            # FIXED: Removed 'Match_103_winner' to prevent database constraint exceptions
                             db_save_league_actual_result(active_league_id, "Match_103", f_v)
                             st.rerun()
                 else: st.markdown("<div style='color: #22c55e; font-weight: bold;'>✅ 3rd Place Locked</div>", unsafe_allow_html=True)
             with c_p3_2:
                 if is_m103_saved and st.button("🔓 Unlock 3rd Place Playoff", key="btn_unl_m103", use_container_width=True):
-                    # FIXED: Clean deletion tracking matching standard database keys
                     db_delete_league_actual_result(active_league_id, "Match_103")
                     st.rerun()
 
@@ -1957,3 +1956,246 @@ elif app_tab == "🛠️ Admin Dashboard" and is_league_admin:
                 if is_m104_saved and st.button("🔓 Unlock Grand Final Champion", key="btn_unl_m104", use_container_width=True):
                     db_delete_league_actual_result(active_league_id, "Match_104")
                     st.rerun()
+
+        # --- ADMIN WORKSPACE: INDIVIDUAL CANTEEN WALL CHART DOSSIERS (NEW TAB) ---
+        with adm_ko_tabs[4]:
+            st.subheader("🖨️ Office Canteen Print Station")
+            st.write("Generate a tailored 2-page print dossier per user. Page 1 displays their custom Group charts, Page 2 shows their full Knockout tree.")
+
+            try:
+                # Queries user rows directly mapped under the active league context
+                all_users_predictions = supabase.table("predictions").select("*").eq("league_id", active_league_id).execute().data
+            except Exception as e:
+                all_users_predictions = []
+                st.error(f"Error connecting to data layer: {e}")
+
+            if all_users_predictions:
+                user_names = [u.get("username", f"User {u.get('user_id')}") for u in all_users_predictions]
+                selected_user = st.selectbox("🎯 Select Teammate Profile:", user_names, key="canteen_dossier_select")
+                
+                user_data = next((u for u in all_users_predictions if u.get("username") == selected_user), None)
+                
+                if user_data:
+                    import json
+                    preds_dict = user_data.get("predictions_dict", {})
+                    if isinstance(preds_dict, str):
+                        try: preds_dict = json.loads(preds_dict)
+                        except: preds_dict = {}
+
+                    # High-Density CSS Print Injection Overrides
+                    st.markdown("""
+                        <style>
+                        @media print {
+                            /* Hide navigation, background controls, select box dropdowns, and Streamlit structure layout components */
+                            header, [data-testid="stSidebar"], [data-testid="stToolbar"], footer, .stSelectbox, .stAlert, .stTabs [role="tablist"] {
+                                display: none !important;
+                            }
+                            .main .block-container {
+                                padding: 0px !important;
+                                max-width: 100% !important;
+                            }
+                            body {
+                                background-color: #ffffff !important;
+                                color: #000000 !important;
+                            }
+                            * {
+                                -webkit-print-color-adjust: exact !important;
+                                print-color-adjust: exact !important;
+                            }
+                            /* Hard code specific sheet boundaries */
+                            .print-page-1 {
+                                page-break-after: always !important;
+                                width: 100% !important;
+                                display: block !important;
+                            }
+                            .print-page-2 {
+                                page-break-before: always !important;
+                                width: 100% !important;
+                                display: block !important;
+                            }
+                        }
+
+                        /* Page 1: Grid Layout elements */
+                        .user-header-card {
+                            background-color: #1e293b;
+                            color: #ffffff;
+                            padding: 12px;
+                            border-radius: 6px;
+                            margin-bottom: 15px;
+                            text-align: center;
+                        }
+                        .groups-grid {
+                            display: grid;
+                            grid-template-columns: repeat(4, 1fr);
+                            gap: 10px;
+                            margin-bottom: 20px;
+                        }
+                        .group-box {
+                            border: 1px solid #cbd5e1;
+                            border-radius: 4px;
+                            background: #f8fafc;
+                            padding: 6px;
+                            font-family: sans-serif;
+                            color: #000000;
+                        }
+                        .group-title {
+                            background: #334155;
+                            color: white;
+                            text-align: center;
+                            font-weight: bold;
+                            font-size: 11px;
+                            padding: 2px 0;
+                            border-radius: 3px;
+                            margin-bottom: 4px;
+                        }
+                        .team-row {
+                            display: flex;
+                            justify-content: space-between;
+                            font-size: 11px;
+                            padding: 2px 4px;
+                            border-bottom: 1px dashed #e2e8f0;
+                        }
+                        .qualified-1 { color: #16a34a; font-weight: bold; }
+                        .qualified-2 { color: #1e40af; font-weight: bold; }
+
+                        /* Page 2: Flexbox Bracket Trees */
+                        .bracket-container {
+                            display: flex;
+                            justify-content: space-between;
+                            align-items: center;
+                            background: #0f172a;
+                            padding: 15px;
+                            border-radius: 6px;
+                            color: white;
+                            font-family: monospace;
+                        }
+                        .bracket-column {
+                            display: flex;
+                            flex-direction: column;
+                            justify-content: space-around;
+                            height: 480px;
+                        }
+                        .bracket-node {
+                            background: #1e293b;
+                            padding: 5px;
+                            border-radius: 4px;
+                            border-left: 3px solid #3b82f6;
+                            width: 135px;
+                            font-size: 10px;
+                        }
+                        .round-header {
+                            font-size: 11px;
+                            color: #94a3b8;
+                            text-align: center;
+                            font-weight: bold;
+                            margin-bottom: 4px;
+                        }
+                        </style>
+                    """, unsafe_allow_html=True)
+
+                    st.info(f"📋 Displaying layout map for **{selected_user}**. Press **Ctrl + P** (or **Cmd + P**), select **Landscape**, and check **Background Graphics**.")
+
+                    # ================= PAGE 1: GROUP STANDINGS =================
+                    groups_list = ['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I', 'J', 'K', 'L']
+                    
+                    html_page1 = f"""
+                    <div class="print-page-1">
+                        <div class="user-header-card">
+                            <h2 style="margin:0; padding:0;">🏆 2026 World Cup Predictions Sheet</h2>
+                            <h3 style="margin:5px 0 0 0; color:#cbd5e1;">User Entry: {selected_user} (Page 1/2)</h3>
+                        </div>
+                        <h4 style="color:#334155; margin-bottom:10px; border-bottom:2px solid #334155; font-family:sans-serif;">Predicted Group Advancements</h4>
+                        <div class="groups-grid">
+                    """
+                    
+                    for g in groups_list:
+                        g1 = preds_dict.get(f"Group_{g}_1", "—")
+                        g2 = preds_dict.get(f"Group_{g}_2", "—")
+                        g3 = preds_dict.get(f"Group_{g}_3", "—")
+                        g4 = preds_dict.get(f"Group_{g}_4", "—")
+                        
+                        html_page1 += f"""
+                            <div class="group-box">
+                                <div class="group-title">GROUP {g}</div>
+                                <div class="team-row qualified-1"><span>1st</span> <span>{g1}</span></div>
+                                <div class="team-row qualified-2"><span>2nd</span> <span>{g2}</span></div>
+                                <div class="team-row" style="color:#64748b;"><span>3rd</span> <span>{g3}</span></div>
+                                <div class="team-row" style="color:#94a3b8; border:none;"><span>4th</span> <span>{g4}</span></div>
+                            </div>
+                        """
+                        
+                    html_page1 += "</div></div>"
+                    st.write(html_page1, unsafe_allow_html=True)
+
+                    # ================= PAGE 2: KNOCKOUT BRACKET PATHWAY =================
+                    html_page2 = f"""
+                    <div class="print-page-2">
+                        <div class="user-header-card" style="background-color: #0f172a;">
+                            <h2 style="margin:0; padding:0; color:#facc15;">🌿 Knockout Stage Bracket Path</h2>
+                            <h3 style="margin:5px 0 0 0; color:#94a3b8;">User Entry: {selected_user} (Page 2/2)</h3>
+                        </div>
+                        
+                        <div class="bracket-container">
+                            <!-- LEFT ROUND OF 16 -->
+                            <div class="bracket-column">
+                                <div class="round-header">Round of 16</div>
+                                <div class="bracket-node">🏠 {preds_dict.get('Match_81_home', 'TBD')[:11]}<br> ⚽ {preds_dict.get('Match_81_away', 'TBD')[:11]}</div>
+                                <div class="bracket-node">🏠 {preds_dict.get('Match_82_home', 'TBD')[:11]}<br> ⚽ {preds_dict.get('Match_82_away', 'TBD')[:11]}</div>
+                                <div class="bracket-node">🏠 {preds_dict.get('Match_83_home', 'TBD')[:11]}<br> ⚽ {preds_dict.get('Match_83_away', 'TBD')[:11]}</div>
+                                <div class="bracket-node">🏠 {preds_dict.get('Match_84_home', 'TBD')[:11]}<br> ⚽ {preds_dict.get('Match_84_away', 'TBD')[:11]}</div>
+                            </div>
+                            
+                            <!-- LEFT QUARTER FINALS -->
+                            <div class="bracket-column">
+                                <div class="round-header">Quarter-Finals</div>
+                                <div class="bracket-node">QF 1 Winner:<br><b>{preds_dict.get('Match_97', 'TBD')[:12]}</b></div>
+                                <div class="bracket-node">QF 2 Winner:<br><b>{preds_dict.get('Match_98', 'TBD')[:12]}</b></div>
+                            </div>
+                            
+                            <!-- LEFT SEMI FINAL -->
+                            <div class="bracket-column">
+                                <div class="round-header">Semi-Finals</div>
+                                <div class="bracket-node">SF 1 Winner:<br><span style="color:#facc15;">{preds_dict.get('Match_101', 'TBD')[:12]}</span></div>
+                            </div>
+
+                            <!-- CENTRAL CHAMPION PODIUM BOX -->
+                            <div class="bracket-column">
+                                <div class="round-header" style="color:#facc15; font-size:13px;">🥇 CHAMPION</div>
+                                <div class="bracket-node" style="background:#78350f; border:2px solid #facc15; padding:12px; width:150px; text-align:center;">
+                                    <span style="font-size:13px; font-weight:bold; color:#fef3c7;">{preds_dict.get('Match_104', 'TBD').upper()}</span>
+                                </div>
+                                
+                                <div class="round-header" style="color:#38bdf8; margin-top:15px;">🥉 3rd PLACE</div>
+                                <div class="bracket-node" style="background:#1e3a8a; border:1px solid #38bdf8; width:150px; text-align:center; padding:8px;">
+                                    <span style="color:#bfdbfe; font-weight:bold;">{preds_dict.get('Match_103', 'TBD')}</span>
+                                </div>
+                            </div>
+
+                            <!-- RIGHT SEMI FINAL -->
+                            <div class="bracket-column">
+                                <div class="round-header">Semi-Finals</div>
+                                <div class="bracket-node">SF 2 Winner:<br><span style="color:#facc15;">{preds_dict.get('Match_102', 'TBD')[:12]}</span></div>
+                            </div>
+                            
+                            <!-- RIGHT QUARTER FINALS -->
+                            <div class="bracket-column">
+                                <div class="round-header">Quarter-Finals</div>
+                                <div class="bracket-node">QF 3 Winner:<br><b>{preds_dict.get('Match_99', 'TBD')[:12]}</b></div>
+                                <div class="bracket-node">QF 4 Winner:<br><b>{preds_dict.get('Match_100', 'TBD')[:12]}</b></div>
+                            </div>
+
+                            <!-- RIGHT ROUND OF 16 -->
+                            <div class="bracket-column">
+                                <div class="round-header">Round of 16</div>
+                                <div class="bracket-node">🏠 {preds_dict.get('Match_85_home', 'TBD')[:11]}<br> ⚽ {preds_dict.get('Match_85_away', 'TBD')[:11]}</div>
+                                <div class="bracket-node">🏠 {preds_dict.get('Match_86_home', 'TBD')[:11]}<br> ⚽ {preds_dict.get('Match_86_away', 'TBD')[:11]}</div>
+                                <div class="bracket-node">🏠 {preds_dict.get('Match_87_home', 'TBD')[:11]}<br> ⚽ {preds_dict.get('Match_87_away', 'TBD')[:11]}</div>
+                                <div class="bracket-node">🏠 {preds_dict.get('Match_88_home', 'TBD')[:11]}<br> ⚽ {preds_dict.get('Match_88_away', 'TBD')[:11]}</div>
+                            </div>
+                        </div>
+                    </div>
+                    """
+                    st.write(html_page2, unsafe_allow_html=True)
+            else:
+                st.warning("No submission logs found in this league context.")
+
