@@ -574,26 +574,18 @@ def fetch_supabase_wildcard_mapping(combination_str):
     return None
 
 # --- NEW HELPER FUNCTION: GROUP STAGE COMPLETENESS CHECK ---
-def check_group_lock_completion(c_uid, league_id):
-    locked_keys = db_fetch_locked_status(c_uid, league_id)
+def check_group_stage_completion(user_preds):
+    total_group_matches = 72
+    completed_matches = 0
 
-    completed_groups = 0
-    total_groups = len(GROUPS)
+    for mid in range(1, total_group_matches + 1):
+        kh = f"Match_{mid}_h"
+        ka = f"Match_{mid}_a"
+        if user_preds.get(kh) is not None and user_preds.get(ka) is not None:
+            completed_matches += 1
 
-    for g_name in GROUPS.keys():
-        group_match_ids = [m["id"] for m in CHRONO_MATCHES[g_name]]
-
-        group_keys = (
-            [f"Match_{mid}_h" for mid in group_match_ids] +
-            [f"Match_{mid}_a" for mid in group_match_ids]
-        )
-
-        if all(k in locked_keys for k in group_keys):
-            completed_groups += 1
-
-    percent = int((completed_groups / total_groups) * 100)
-
-    return completed_groups, total_groups, percent
+    percent = int((completed_matches / total_group_matches) * 100)
+    return completed_matches, total_group_matches, percent
 
 # --- NEW TICKER WORKSPACE ENGINE ---
 def generate_live_ticker_stream(league_id):
@@ -1257,10 +1249,7 @@ elif app_tab == "📝 Submit Predictions":
     pred_sub_tabs = st.tabs(["Group Matches", "3rd‑Place League", "Knockout Rounds"])
 
     # Fetch group stage completeness metrics globally for these tabs
-    comp_matches, tot_matches, comp_percent = check_group_lock_completion(
-    c_uid,
-    active_league_id
-)
+    comp_matches, tot_matches, comp_percent = check_group_stage_completion(user_preds)
 
     # Pre-check all groups globally to detect any pending un-finalized tie-breakers
     has_unfinalized_tiebreaker = False
@@ -1278,12 +1267,7 @@ elif app_tab == "📝 Submit Predictions":
         st.markdown(f"### 📊 Overall Group Predictions Progress: {comp_percent}%")
         st.progress(comp_percent / 100.0)
         if comp_percent < 100:
-            st.info(
-    f"💡 You have locked **{comp_matches}** of "
-    f"**{tot_matches}** groups. "
-    f"Lock all 12 groups to unlock the "
-    f"Knockout Stage brackets!"
-)
+            st.info(f"💡 You have completed **{comp_matches}** out of **{tot_matches}** group stage fixtures. Submit and lock all 12 groups to unlock the Knockout Stage brackets!")
         elif has_unfinalized_tiebreaker:
             st.warning("⚠️ Group matches predicted, but there are unfinalized tie-break scenarios. Please resolve and lock all active tie-breakers to open the Knockout Stage.")
         else:
