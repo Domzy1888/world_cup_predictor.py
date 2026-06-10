@@ -1296,18 +1296,116 @@ elif app_tab == "📝 Submit Predictions":
                         key_prefix=f"Match_{match['id']}", disabled=is_group_locked, score_mode=True, scores_dict=user_preds
                     )
             else:
-                with st.form(key=f"form_{selected_group}", clear_on_submit=False):
-                    for match in CHRONO_MATCHES[selected_group]:
-                        user_preds = render_match_card(
-                            home=match["home"], away=match["away"], label=f"Match #{match['id']}", 
-                            key_prefix=f"Match_{match['id']}", disabled=is_group_locked, score_mode=True, scores_dict=user_preds
-                        )
-                    if st.form_submit_button(f"🔒 Finalize & Lock {selected_group} Predictions", use_container_width=True):
-                        for match in CHRONO_MATCHES[selected_group]:
-                            db_save_prediction(c_uid, active_league_id, f"Match_{match['id']}_h", user_preds[f"Match_{match['id']}_h"])
-                            db_save_prediction(c_uid, active_league_id, f"Match_{match['id']}_a", user_preds[f"Match_{match['id']}_a"])
-                        db_lock_predictions(c_uid, active_league_id, group_keys)
-                        st.rerun()
+
+    preview_key = f"group_preview_ready_{selected_group}"
+
+    with st.form(key=f"form_{selected_group}", clear_on_submit=False):
+
+        for match in CHRONO_MATCHES[selected_group]:
+            user_preds = render_match_card(
+                home=match["home"],
+                away=match["away"],
+                label=f"Match #{match['id']}",
+                key_prefix=f"Match_{match['id']}",
+                disabled=False,
+                score_mode=True,
+                scores_dict=user_preds
+            )
+
+        preview_clicked = st.form_submit_button(
+            f"📊 Update {selected_group} Table",
+            use_container_width=True
+        )
+
+        if preview_clicked:
+
+            # Save predictions only
+            # DO NOT lock anything yet
+
+            for match in CHRONO_MATCHES[selected_group]:
+                db_save_prediction(
+                    c_uid,
+                    active_league_id,
+                    f"Match_{match['id']}_h",
+                    user_preds[f"Match_{match['id']}_h"]
+                )
+
+                db_save_prediction(
+                    c_uid,
+                    active_league_id,
+                    f"Match_{match['id']}_a",
+                    user_preds[f"Match_{match['id']}_a"]
+                )
+
+            # Clear any stale tie-break decisions
+            st.session_state.pop(
+                f"tb_locked_{selected_group}",
+                None
+            )
+
+            st.session_state.pop(
+                f"tb_order_{selected_group}",
+                None
+            )
+
+            st.session_state[preview_key] = True
+
+            st.success(
+                "Group table updated. Review standings before locking."
+            )
+
+            st.rerun()
+
+    if st.session_state.get(preview_key, False):
+
+        preview_results, _ = run_standings_engine(
+            db_fetch_user_predictions(
+                c_uid,
+                active_league_id
+            )
+        )
+
+        preview_df = preview_results[selected_group]
+
+        preview_df["Pts"] = pd.to_numeric(preview_df["Pts"])
+        preview_df["GD"] = pd.to_numeric(preview_df["GD"])
+        preview_df["GF"] = pd.to_numeric(preview_df["GF"])
+
+        tie_exists = preview_df.duplicated(
+            subset=["Pts", "GD", "GF"],
+            keep=False
+        ).any()
+
+        st.markdown("---")
+
+        if tie_exists:
+            st.warning(
+                "Tie-break detected. Resolve final standings "
+                "before group can be locked."
+            )
+        else:
+
+            st.success(
+                "No tie-break detected. Group can now be locked."
+            )
+
+            if st.button(
+                f"🔒 Lock {selected_group} Predictions",
+                use_container_width=True,
+                key=f"lock_group_{selected_group}"
+            ):
+
+                db_lock_predictions(
+                    c_uid,
+                    active_league_id,
+                    group_keys
+                )
+
+                st.success(
+                    f"{selected_group} successfully locked."
+                )
+
+                st.rerun()
 
         with col_table:
             st.subheader("Simulated Group Table")
