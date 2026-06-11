@@ -1317,10 +1317,6 @@ elif app_tab == "🛡️ Create/Join a League":
 elif app_tab == "📝 Submit Predictions":
     st.header(f"📝 Match Setup — {selected_league_name}")
 
-    # Display tournament lockout warning if time has run out
-    if is_match_locked(m_id):
-        st.markdown("<div class='lock-badge-banner'>🔒 Tournament Started: All setup inputs are locked as read-only.</div>", unsafe_allow_html=True)
-
     user_preds = db_fetch_user_predictions(c_uid, active_league_id)
     locked_keys_set = db_fetch_locked_status(c_uid, active_league_id)
 
