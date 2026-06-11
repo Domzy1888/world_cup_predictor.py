@@ -16,22 +16,34 @@ st.set_page_config(
     layout="wide"
 )
 
-def is_tournament_locked():
+def is_match_locked(match_id):
     """
-    Returns True if the current time has passed the tournament kickoff:
-    Thursday, June 11, 2026, at 5:00 PM UK Time (Europe/London).
+    Checks the lock status based on match type.
+    Group Stages (1-72) lock at 8:00 PM tonight.
+    Knockout Matches (73+) lock based on FIFA_REAL_METADATA.
     """
-    try:
-        uk_tz = pytz.timezone('Europe/London')
-        deadline = uk_tz.localize(datetime(2026, 6, 11, 17, 0, 0))
-        now_uk = datetime.now(uk_tz)
-        return now_uk >= deadline
-    except Exception:
-        # Fallback safeguard
-        return False
+    uk_tz = pytz.timezone('Europe/London')
+    now_uk = datetime.now(uk_tz)
+    
+    # 1. Group Stage Deadline (8 PM tonight, June 11, 2026)
+    group_deadline = uk_tz.localize(datetime(2026, 6, 11, 20, 0, 0))
+    
+    # 2. Check Group Stage
+    if 1 <= match_id <= 72:
+        return now_uk >= group_deadline
+    
+    # 3. Check Knockout Stages (73+)
+    meta = FIFA_REAL_METADATA.get(match_id)
+    if meta:
+        # Assuming your meta stores 'date' (YYYY-MM-DD) and 'time' (HH:MM)
+        deadline_str = f"{meta['date']} {meta['time']}"
+        match_deadline = uk_tz.localize(datetime.strptime(deadline_str, "%Y-%m-%d %H:%M"))
+        return now_uk >= match_deadline
+        
+    return False
 
 # Evaluate global tournament lockout status
-global_tournament_lock = is_tournament_locked()
+is_match_locked(m_id) = is_tournament_locked()
 
 # Comprehensive sidebar override to forcefully darken all navigation text elements
 st.markdown(
@@ -1309,7 +1321,7 @@ elif app_tab == "📝 Submit Predictions":
     st.header(f"📝 Match Setup — {selected_league_name}")
 
     # Display tournament lockout warning if time has run out
-    if global_tournament_lock:
+    if is_match_locked(m_id):
         st.markdown("<div class='lock-badge-banner'>🔒 Tournament Started: All setup inputs are locked as read-only.</div>", unsafe_allow_html=True)
 
     user_preds = db_fetch_user_predictions(c_uid, active_league_id)
@@ -1363,12 +1375,12 @@ elif app_tab == "📝 Submit Predictions":
         group_keys = [f"Match_{mid}_h" for mid in group_match_ids] + [f"Match_{mid}_a" for mid in group_match_ids]
 
         # Combine local lock status with global lockout status
-        is_group_locked = global_tournament_lock or any(k in locked_keys_set for k in group_keys)
+        is_group_locked = is_match_locked(m_id) or any(k in locked_keys_set for k in group_keys)
 
         col_input, col_table = st.columns([1, 1])
         with col_input:
             if is_group_locked:
-                if global_tournament_lock:
+                if is_match_locked(m_id):
                     st.markdown(f"<div class='lock-badge-banner'>🔒 {selected_group} Locked (Tournament Started)</div>", unsafe_allow_html=True)
                 else:
                     st.markdown(f"<div class='lock-badge-banner'>🔒 {selected_group} Locked In</div>", unsafe_allow_html=True)
@@ -1410,9 +1422,9 @@ elif app_tab == "📝 Submit Predictions":
                 tb_order_key = f"tb_order_{selected_group}"
 
                 # Force true if tournament level lockout condition evaluates true
-                is_tb_locked = global_tournament_lock or st.session_state.get(tb_lock_key, False)
+                is_tb_locked = is_match_locked(m_id) or st.session_state.get(tb_lock_key, False)
 
-                if global_tournament_lock:
+                if is_match_locked(m_id):
                     st.info("🔒 Tie-break sequence completed. Standings locked due to tournament initialization rules.")
                 else:
                     st.warning(
@@ -1435,7 +1447,7 @@ elif app_tab == "📝 Submit Predictions":
 
                         # Set default dropdown selections gracefully
                         default_team = temp_pool[0] if temp_pool else tied_teams[i]
-                        if (is_tb_locked or global_tournament_lock) and tb_order_key in st.session_state:
+                        if (is_tb_locked or is_match_locked(m_id)) and tb_order_key in st.session_state:
                             default_team = st.session_state[tb_order_key][idx]
 
                         chosen_team = st.selectbox(
@@ -1469,7 +1481,7 @@ elif app_tab == "📝 Submit Predictions":
                             st.rerun()
                         else:
                             st.error("Invalid Selection: Please ensure you haven't assigned the same team to multiple positions.")
-                elif not global_tournament_lock:
+                elif not is_match_locked(m_id):
                     st.info("🔒 Tie-break resolved. Group standings are locked.")
 
                 # If selection mapping matches layout requirements, rebuild ordering structure
@@ -1601,10 +1613,10 @@ elif app_tab == "📝 Submit Predictions":
 
             with ko_tabs[0]:
                 r32_keys = list(o_r32.keys())
-                is_r32_locked = global_tournament_lock or all(k in locked_keys_set for k in r32_keys)
+                is_r32_locked = is_match_locked(m_id) or all(k in locked_keys_set for k in r32_keys)
 
                 if is_r32_locked:
-                    if global_tournament_lock:
+                    if is_match_locked(m_id):
                         st.markdown("<div class='lock-badge-banner'>🔒 Round of 32 Selections Locked (Tournament Started)</div>", unsafe_allow_html=True)
                     else:
                         st.markdown("<div class='lock-badge-banner'>🔒 Round of 32 Selections Locked</div>", unsafe_allow_html=True)
@@ -1638,10 +1650,10 @@ elif app_tab == "📝 Submit Predictions":
                     "Match_95": (get_ko_prev("Match_86"), get_ko_prev("Match_88")), "Match_96": (get_ko_prev("Match_85"), get_ko_prev("Match_87"))
                 }
                 r16_keys = list(o_r16.keys())
-                is_r16_locked = global_tournament_lock or all(k in locked_keys_set for k in r16_keys)
+                is_r16_locked = is_match_locked(m_id) or all(k in locked_keys_set for k in r16_keys)
 
                 if is_r16_locked:
-                    if global_tournament_lock:
+                    if is_match_locked(m_id):
                         st.markdown("<div class='lock-badge-banner'>🔒 Round of 16 Selections Locked (Tournament Started)</div>", unsafe_allow_html=True)
                     else:
                         st.markdown("<div class='lock-badge-banner'>🔒 Round of 16 Selections Locked</div>", unsafe_allow_html=True)
@@ -1672,10 +1684,10 @@ elif app_tab == "📝 Submit Predictions":
                     "Match_99": (get_ko_prev_r16("Match_91"), get_ko_prev_r16("Match_92")), "Match_100": (get_ko_prev_r16("Match_95"), get_ko_prev_r16("Match_96"))
                 }
                 qf_keys = list(o_qf.keys())
-                is_qf_locked = global_tournament_lock or all(k in locked_keys_set for k in qf_keys)
+                is_qf_locked = is_match_locked(m_id) or all(k in locked_keys_set for k in qf_keys)
 
                 if is_qf_locked:
-                    if global_tournament_lock:
+                    if is_match_locked(m_id):
                         st.markdown("<div class='lock-badge-banner'>🔒 Quarter-Final Selections Locked (Tournament Started)</div>", unsafe_allow_html=True)
                     else:
                         st.markdown("<div class='lock-badge-banner'>🔒 Quarter-Final Selections Locked</div>", unsafe_allow_html=True)
@@ -1705,10 +1717,10 @@ elif app_tab == "📝 Submit Predictions":
                 sf2_h, sf2_a = get_ko_prev_qf("Match_99"), get_ko_prev_qf("Match_100")
 
                 finals_keys = ["Match_101", "Match_102", "Match_103", "Match_104"]
-                is_finals_locked = global_tournament_lock or all(k in locked_keys_set for k in finals_keys)
+                is_finals_locked = is_match_locked(m_id) or all(k in locked_keys_set for k in finals_keys)
 
                 if is_finals_locked:
-                    if global_tournament_lock:
+                    if is_match_locked(m_id):
                         st.markdown("<div class='lock-badge-banner'>🔒 Finals Selections Locked (Tournament Started)</div>", unsafe_allow_html=True)
                     else:
                         st.markdown("<div class='lock-badge-banner'>🔒 Finals Selections Locked</div>", unsafe_allow_html=True)
