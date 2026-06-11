@@ -621,10 +621,19 @@ def check_group_stage_completion(user_preds):
     percent = int((completed_matches / total_group_matches) * 100)
     return completed_matches, total_group_matches, percent
 
-# --- NEW TICKER WORKSPACE ENGINE (DYNAMIC ALL ROUNDS) ---
+# --- FINAL TICKER WORKSPACE ENGINE (DYNAMIC ALL ROUNDS + DISPLAY STRINGS) ---
 def generate_live_ticker_stream(league_id):
     # Fetch existing official admin results
     actual = db_fetch_league_actual_results(league_id)
+
+    # Helper: Fetch custom display string from the new table
+    def get_display_text(mid):
+        try:
+            res = supabase.table("actual_display_strings").select("display_text")\
+                .eq("league_id", league_id).eq("match_key", f"Match_{mid}").execute()
+            return res.data[0]["display_text"] if res.data else None
+        except:
+            return None
 
     # 1. Start with our baseline group stage match data
     flat_matches = {}
@@ -632,7 +641,7 @@ def generate_live_ticker_stream(league_id):
         for f in fixtures:
             flat_matches[int(f["id"])] = {"home": f["home"], "away": f["away"]}
 
-    # 2. Dynamically extract live knockout participants via your bracket system
+    # 2. Dynamically extract live knockout participants
     try:
         bracket = resolve_bracket_teams(None, target_is_actual=True, actual_results_obj=actual)
         r32 = bracket.get("r32_pairings", {})
@@ -643,7 +652,6 @@ def generate_live_ticker_stream(league_id):
                 return fallback
             return str(team_val).strip()
 
-        # Helper to chase down winners up the branch lines
         def get_match_winner_name(m_id):
             choice = str(ko_choices.get(f"Match_{m_id}", ""))
             if choice == "1" or choice == "2":
@@ -651,7 +659,6 @@ def generate_live_ticker_stream(league_id):
                     pair = r32.get(f"Match_{m_id}", ("TBD", "TBD"))
                     return clean_slot(pair[0] if choice == "1" else pair[1], f"Winner M{m_id}")
                 else:
-                    # Look up structural parents for higher tiers
                     parents = {
                         89: (74, 77), 90: (73, 75), 91: (76, 78), 92: (79, 80),
                         93: (83, 84), 94: (81, 82), 95: (86, 88), 96: (85, 87),
@@ -661,155 +668,92 @@ def generate_live_ticker_stream(league_id):
                     if m_id in parents:
                         p1, p2 = parents[m_id]
                         return get_match_winner_name(p1 if choice == "1" else p2)
-            elif choice != "":
-                return choice
+            elif choice != "": return choice
             return f"Winner M{m_id}"
 
-        # Helper to chase down runners up for the 3rd place game
         def get_match_loser_name(m_id):
             choice = str(ko_choices.get(f"Match_{m_id}", ""))
             if choice == "1" or choice == "2":
                 opposite = "2" if choice == "1" else "1"
                 parents = {101: (97, 98), 102: (99, 100)}
                 p1, p2 = parents.get(m_id, (0, 0))
-                if p1:
-                    return get_match_winner_name(p1 if opposite == "1" else p2)
+                if p1: return get_match_winner_name(p1 if opposite == "1" else p2)
             return f"Loser M{m_id}"
 
-        # Populate Matches 73 to 104 dynamically
         for m in range(73, 105):
             m_key = f"Match_{m}"
             if m <= 88:
                 pair = r32.get(m_key, ("TBD", "TBD"))
-                h = clean_slot(pair[0], f"{m_key}_H")
-                a = clean_slot(pair[1], f"{m_key}_A")
-            elif m in [89, 90, 91, 92, 93, 94, 95, 96]:  # Round of 16
-                pairings_r16 = {
-                    89: (74, 77), 90: (73, 75), 91: (76, 78), 92: (79, 80),
-                    93: (83, 84), 94: (81, 82), 95: (86, 88), 96: (85, 87)
-                }
-                p1, p2 = pairings_r16[m]
+                h, a = clean_slot(pair[0], f"{m_key}_H"), clean_slot(pair[1], f"{m_key}_A")
+            elif m in [89, 90, 91, 92, 93, 94, 95, 96]:
+                p1, p2 = {89:(74,77), 90:(73,75), 91:(76,78), 92:(79,80), 93:(83,84), 94:(81,82), 95:(86,88), 96:(85,87)}[m]
                 h, a = get_match_winner_name(p1), get_match_winner_name(p2)
-            elif m in [97, 98, 99, 100]:  # Quarter-Finals
-                pairings_qf = {97: (89, 90), 98: (93, 94), 99: (91, 92), 100: (95, 96)}
-                p1, p2 = pairings_qf[m]
+            elif m in [97, 98, 99, 100]:
+                p1, p2 = {97:(89,90), 98:(93,94), 99:(91,92), 100:(95,96)}[m]
                 h, a = get_match_winner_name(p1), get_match_winner_name(p2)
-            elif m in [101, 102]:  # Semi-Finals
-                pairings_sf = {101: (97, 98), 102: (99, 100)}
-                p1, p2 = pairings_sf[m]
+            elif m in [101, 102]:
+                p1, p2 = {101:(97,98), 102:(99,100)}[m]
                 h, a = get_match_winner_name(p1), get_match_winner_name(p2)
-            elif m == 103:  # 3rd Place Match
-                h, a = get_match_loser_name(101), get_match_loser_name(102)
-            elif m == 104:  # The Final
-                h, a = get_match_winner_name(101), get_match_winner_name(102)
-
+            elif m == 103: h, a = get_match_loser_name(101), get_match_loser_name(102)
+            elif m == 104: h, a = get_match_winner_name(101), get_match_winner_name(102)
             flat_matches[m] = {"home": h, "away": a}
     except Exception:
-        # Robust fallback array so landing stream never drops
         for m in range(73, 105):
-            if m not in flat_matches:
-                flat_matches[m] = {"home": f"TBD (M{m})", "away": f"TBD (M{m})"}
+            if m not in flat_matches: flat_matches[m] = {"home": f"TBD (M{m})", "away": f"TBD (M{m})"}
 
-    # 3. Master Chronological Match Sequence (Group + Complete Knockout Timeline Order)
     CHRONO_SEQUENCE = [
         1, 2, 3, 4, 8, 7, 5, 6, 10, 11, 9, 12, 14, 16, 13, 15, 17, 18, 19, 20,
         21, 22, 23, 24, 25, 26, 30, 27, 28, 29, 31, 32, 33, 34, 35, 36, 37, 38,
         39, 40, 41, 42, 43, 44, 45, 46, 47, 48, 49, 50, 51, 52, 53, 54, 55, 56,
         57, 58, 59, 60, 61, 62, 63, 64, 65, 66, 67, 68, 69, 70, 71, 72,
-        # --- Knockouts Stream Chronology ---
         73, 76, 74, 75, 78, 77, 79, 80, 82, 81, 84, 83, 85, 88, 86, 87,
         90, 89, 91, 92, 93, 94, 95, 96, 97, 98, 99, 100, 101, 102, 103, 104
     ]
 
-    # 4. Gather completed match elements
     completed_elements = []
     completed_ids = set()
-    
     for mid in CHRONO_SEQUENCE:
         if mid in flat_matches:
             kh, ka = f"Match_{mid}_h", f"Match_{mid}_a"
-            if kh in actual["group"] and ka in actual["group"]:
-                sh = actual["group"][kh]
-                sa = actual["group"][ka]
-                h_disp = FLAGS.get(flat_matches[mid]["home"], flat_matches[mid]["home"].upper())
-                a_disp = FLAGS.get(flat_matches[mid]["away"], flat_matches[mid]["away"].upper())
+            display_text = get_display_text(mid)
+            if (kh in actual["group"] and ka in actual["group"]) or (f"Match_{mid}" in actual["ko_winners"]) or display_text:
+                if display_text: output_text = display_text
+                else:
+                    sh, sa = actual["group"].get(kh, "?"), actual["group"].get(ka, "?")
+                    output_text = f"{FLAGS.get(flat_matches[mid]['home'], flat_matches[mid]['home'].upper())} {sh} - {sa} {FLAGS.get(flat_matches[mid]['away'], flat_matches[mid]['away'].upper())}"
                 completed_elements.append(
-                    f"<span style='color: #ffffff;'>💥 Match #{mid}:</span> {h_disp} "
-                    f"<span style='color: #ffffff;'>{sh} - {sa}</span> {a_disp} "
+                    f"<span style='color: #ffffff;'>💥 Match #{mid}:</span> {output_text} "
                     f"<span style='color: #ffffff; font-size: 11px; vertical-align: super;'>FT</span>"
                 )
                 completed_ids.add(mid)
 
     past_ticker_elements = completed_elements[-4:]
-
-    # 5. Build out future upcoming real matches
     upcoming_ticker_elements = []
     upcoming_count = 0
-    
     for mid in CHRONO_SEQUENCE:
         if mid in flat_matches and mid not in completed_ids:
-            h_disp = FLAGS.get(flat_matches[mid]["home"], flat_matches[mid]["home"].upper())
-            a_disp = FLAGS.get(flat_matches[mid]["away"], flat_matches[mid]["away"].upper())
             meta = FIFA_REAL_METADATA.get(mid, {"date": "TBD", "time": "TBD", "venue": "TBD"})
-
             upcoming_ticker_elements.append(
-                f"<span style='color: #ffffff;'>⏳ UPCOMING Match #{mid}:</span> {h_disp} VS {a_disp} "
+                f"<span style='color: #ffffff;'>⏳ UPCOMING Match #{mid}:</span> {FLAGS.get(flat_matches[mid]['home'], flat_matches[mid]['home'].upper())} VS {FLAGS.get(flat_matches[mid]['away'], flat_matches[mid]['away'].upper())} "
                 f"<span style='color: #ffffff; font-weight: normal; font-size: 13px;'>({meta['date']} @ {meta['time']} - {meta['venue']})</span>"
             )
             upcoming_count += 1
-            if upcoming_count >= 4:
-                break
+            if upcoming_count >= 4: break
 
     ticker_elements = past_ticker_elements + upcoming_ticker_elements
-
-    if not ticker_elements:
-        ticker_elements = ["🏆 WORLD CUP 2026 PREDICTION LEAGUE — NO ACTIVE RESULTS RECORDED"]
+    if not ticker_elements: ticker_elements = ["🏆 WORLD CUP 2026 PREDICTION LEAGUE — NO ACTIVE RESULTS RECORDED"]
 
     ticker_string = " &nbsp;&nbsp;&nbsp;&nbsp;•&nbsp;&nbsp;&nbsp;&nbsp; ".join(ticker_elements)
     marquee_html = f"""
     <style>
-        @keyframes marquee {{
-            0% {{ transform: translate3d(0, 0, 0); }}
-            100% {{ transform: translate3d(-50%, 0, 0); }}
-        }}
-        .ticker-container {{
-            width: 100%;
-            overflow: hidden;
-            background: rgba(15, 23, 42, 0.85);
-            border: 1px solid rgba(255, 255, 255, 0.15);
-            border-radius: 8px;
-            padding: 10px 0;
-            box-sizing: border-box;
-            margin-bottom: 20px;
-        }}
-        .ticker-wrapper {{
-            display: flex;
-            width: fit-content;
-        }}
-        .ticker-content {{
-            display: inline-block;
-            white-space: nowrap;
-            padding-right: 50px;
-            animation: marquee 42s linear infinite;
-            font-family: 'Helvetica Neue', Arial, sans-serif;
-            font-weight: bold;
-            font-size: 14px;
-            color: #ffffff !important;
-            letter-spacing: 0.5px;
-        }}
-        .ticker-content * {{
-            color: #ffffff !important;
-        }}
-        .ticker-content:hover {{
-            animation-play-state: paused;
-            cursor: pointer;
-        }}
+        @keyframes marquee {{ 0% {{ transform: translate3d(0, 0, 0); }} 100% {{ transform: translate3d(-50%, 0, 0); }} }}
+        .ticker-container {{ width: 100%; overflow: hidden; background: rgba(15, 23, 42, 0.85); border: 1px solid rgba(255, 255, 255, 0.15); border-radius: 8px; padding: 10px 0; box-sizing: border-box; margin-bottom: 20px; }}
+        .ticker-wrapper {{ display: flex; width: fit-content; }}
+        .ticker-content {{ display: inline-block; white-space: nowrap; padding-right: 50px; animation: marquee 42s linear infinite; font-family: 'Helvetica Neue', Arial, sans-serif; font-weight: bold; font-size: 14px; color: #ffffff !important; letter-spacing: 0.5px; }}
+        .ticker-content * {{ color: #ffffff !important; }}
+        .ticker-content:hover {{ animation-play-state: paused; cursor: pointer; }}
     </style>
-    <div class="ticker-container">
-        <div class="ticker-wrapper">
-            <div class="ticker-content">{ticker_string} &nbsp;&nbsp;&nbsp;&nbsp;•&nbsp;&nbsp;&nbsp;&nbsp; {ticker_string}</div>
-        </div>
-    </div>
+    <div class="ticker-container"><div class="ticker-wrapper"><div class="ticker-content">{ticker_string} &nbsp;&nbsp;&nbsp;&nbsp;•&nbsp;&nbsp;&nbsp;&nbsp; {ticker_string}</div></div></div>
     """
     st.components.v1.html(marquee_html, height=46)
 
