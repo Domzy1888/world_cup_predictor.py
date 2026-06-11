@@ -598,28 +598,42 @@ def generate_live_ticker_stream(league_id):
         for f in fixtures:
             flat_matches[f["id"]] = {"home": f["home"], "away": f["away"], "group": g_name}
 
-    # 2. Gather all completed dynamic results
+    # 2. Master Real-World Chronological Match Sequence (from daily schedule CSV)
+    CHRONO_SEQUENCE = [
+        1, 2, 3, 4, 8, 7, 5, 6, 10, 11, 9, 12, 14, 16, 13, 15, 17, 18, 19, 20,
+        21, 22, 23, 24, 25, 26, 30, 27, 28, 29, 31, 32, 33, 34, 35, 36, 37, 38,
+        39, 40, 41, 42, 43, 44, 45, 46, 47, 48, 49, 50, 51, 52, 53, 54, 55, 56,
+        57, 58, 59, 60, 61, 62, 63, 64, 65, 66, 67, 68, 69, 70, 71, 72
+    ]
+
+    # 3. Gather completed match elements in historical timeline order
     completed_elements = []
-    completed_ids = []
-    for mid in sorted(flat_matches.keys()):
-        kh, ka = f"Match_{mid}_h", f"Match_{mid}_a"
-        if kh in actual["group"] and ka in actual["group"]:
-            sh = actual["group"][kh]
-            sa = actual["group"][ka]
-            h_disp = FLAGS.get(flat_matches[mid]["home"], flat_matches[mid]["home"].upper())
-            a_disp = FLAGS.get(flat_matches[mid]["away"], flat_matches[mid]["away"].upper())
-            completed_elements.append(f"<span style='color: #ffffff;'>💥 Match #{mid}:</span> {h_disp} <span style='color: #ffffff;'>{sh} - {sa}</span> {a_disp} <span style='color: #ffffff; font-size: 11px; vertical-align: super;'>FT</span>")
-            completed_ids.append(mid)
+    completed_ids = set()
+    
+    for mid in CHRONO_SEQUENCE:
+        if mid in flat_matches:
+            kh, ka = f"Match_{mid}_h", f"Match_{mid}_a"
+            if kh in actual["group"] and ka in actual["group"]:
+                sh = actual["group"][kh]
+                sa = actual["group"][ka]
+                h_disp = FLAGS.get(flat_matches[mid]["home"], flat_matches[mid]["home"].upper())
+                a_disp = FLAGS.get(flat_matches[mid]["away"], flat_matches[mid]["away"].upper())
+                completed_elements.append(
+                    f"<span style='color: #ffffff;'>💥 Match #{mid}:</span> {h_disp} "
+                    f"<span style='color: #ffffff;'>{sh} - {sa}</span> {a_disp} "
+                    f"<span style='color: #ffffff; font-size: 11px; vertical-align: super;'>FT</span>"
+                )
+                completed_ids.add(mid)
 
     # Slice to strictly keep only the LAST 4 completed match results
-    # (Taking the last 4 from the end ensures we show the 4 most recent results)
     past_ticker_elements = completed_elements[-4:]
 
-    # 3. Build out future upcoming real matches
+    # 4. Build out future upcoming real matches in strict chronological order
     upcoming_ticker_elements = []
     upcoming_count = 0
-    for mid in sorted(flat_matches.keys()):
-        if mid not in completed_ids:
+    
+    for mid in CHRONO_SEQUENCE:
+        if mid in flat_matches and mid not in completed_ids:
             h_disp = FLAGS.get(flat_matches[mid]["home"], flat_matches[mid]["home"].upper())
             a_disp = FLAGS.get(flat_matches[mid]["away"], flat_matches[mid]["away"].upper())
             meta = FIFA_REAL_METADATA.get(mid, {"date": "TBD", "time": "TBD", "venue": "TBD"})
