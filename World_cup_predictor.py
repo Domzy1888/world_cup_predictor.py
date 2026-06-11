@@ -42,9 +42,6 @@ def is_match_locked(match_id):
         
     return False
 
-# Evaluate global tournament lockout status
-is_match_locked(m_id) = is_tournament_locked()
-
 # Comprehensive sidebar override to forcefully darken all navigation text elements
 st.markdown(
     """
