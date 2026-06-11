@@ -1233,7 +1233,7 @@ elif app_tab == "🛡️ Create/Join a League":
                     st.rerun()
 
 # ==============================================================================
-# --- 14. USER PREDICTIONS DESK ---
+# --- 14. USER PREDICTIONS DESK (TWO-STAGE WORKFLOW VERSION) ---
 # ==============================================================================
 elif app_tab == "📝 Submit Predictions":
     st.header(f"📝 Match Setup — {selected_league_name}")
@@ -1244,6 +1244,10 @@ elif app_tab == "📝 Submit Predictions":
 
     user_preds = db_fetch_user_predictions(c_uid, active_league_id)
     locked_keys_set = db_fetch_locked_status(c_uid, active_league_id)
+
+    # Initialize session state for tracking master league-wide knockout progression
+    if "knockouts_generated" not in st.session_state:
+        st.session_state.knockouts_generated = False
 
     # NEW: insert 3rd-Place League tab in the middle
     pred_sub_tabs = st.tabs(["Group Matches", "3rd‑Place League", "Knockout Rounds"])
@@ -1262,16 +1266,25 @@ elif app_tab == "📝 Submit Predictions":
                 has_unfinalized_tiebreaker = True
                 break
 
+    # If everything is already legally locked and there's no ongoing tiebreaker, auto-trip the state
+    if comp_percent == 100 and not has_unfinalized_tiebreaker:
+        # Check if the user has already loaded/rendered knockouts successfully before
+        if "third_place_code" in st.session_state:
+            st.session_state.knockouts_generated = True
+
     with pred_sub_tabs[0]:
         # Progress Bar Dashboard UI Configuration
         st.markdown(f"### 📊 Overall Group Predictions Progress: {comp_percent}%")
         st.progress(comp_percent / 100.0)
+        
         if comp_percent < 100:
-            st.info(f"💡 You have completed **{comp_matches}** out of **{tot_matches}** group stage fixtures. Submit and lock all 12 groups to unlock the Knockout Stage brackets!")
+            st.info(f"💡 You have completed **{comp_matches}** out of **{tot_matches}** group stage fixtures. Submit and lock all 12 groups to unlock manual tie-breakers.")
         elif has_unfinalized_tiebreaker:
-            st.warning("⚠️ Group matches predicted, but there are unfinalized tie-break scenarios. Please resolve and lock all active tie-breakers to open the Knockout Stage.")
+            st.warning("⚠️ Group matches predicted, but there are unfinalized tie-break scenarios. Please resolve and lock all active tie-breakers to open the Master Lock Gate below.")
+        elif not st.session_state.knockouts_generated:
+            st.success("✅ Marvelous! All 72 group matches predicted and locked. Please click the Master Lock button below to compile brackets.")
         else:
-            st.success("✅ Marvelous! All 72 group matches predicted and locked. Knockout rounds are now available.")
+            st.success("🔒 Standings and Tie-Breakers verified. Knockout stage brackets are fully live and updated.")
 
         st.markdown("<br />", unsafe_allow_html=True)
 
@@ -1403,15 +1416,31 @@ elif app_tab == "📝 Submit Predictions":
             df_final_render["Team"] = df_final_render["Team"].apply(fmt_team)
             st.dataframe(df_final_render, use_container_width=True, hide_index=True)
 
+        # STAGE 2 LOCK GATE SEPARATION PIECE
+        if comp_percent == 100 and not st.session_state.knockouts_generated:
+            st.markdown("---")
+            st.markdown("### 🏆 Step 2: Master Lock & Compile Knockout Phase")
+            st.info("All group stage results are recorded. Verify the final positions inside the tables above before running the compiler.")
+            
+            if has_unfinalized_tiebreaker:
+                st.error("❌ Cannot Lock Standings: One or more groups have a perfect tie that you have not resolved and locked above yet.")
+            else:
+                if st.button("🔒 Finalize Group Stage & Generate Knockouts", type="primary", use_container_width=True):
+                    st.session_state.knockouts_generated = True
+                    st.success("Success! Standings locked in. Knockout round tables and configurations have been successfully initialized below.")
+                    st.rerun()
+
     # NEW TAB: 3rd-Place League
     with pred_sub_tabs[1]:
         st.subheader("🌍 3rd‑Place League Rankings")
 
-        if comp_percent < 100 or has_unfinalized_tiebreaker:
+        # The 3rd-Place league now remains hidden until the user manually triggers Stage 2 processing
+        if comp_percent < 100 or has_unfinalized_tiebreaker or not st.session_state.knockouts_generated:
             st.info(
-                "You must complete all group stage score predictions "
-                "and finalize any active tie-breakers before the 3rd‑place "
-                "league can be accurately calculated."
+                "💡 You must complete all group stage score predictions, "
+                "finalize any active tie-breakers, and execute the master "
+                "**'Finalize Group Stage & Generate Knockouts'** button inside the Group Matches tab "
+                "before the 3rd‑place league can be generated."
             )
         else:
             # Build the 12-team 3rd-place league
@@ -1463,9 +1492,10 @@ elif app_tab == "📝 Submit Predictions":
                     st.info("Third‑place qualifier code not available yet.")
 
     with pred_sub_tabs[2]:
-        if comp_percent < 100 or has_unfinalized_tiebreaker:
+        # Knockout Rounds remain locked until explicit Stage 2 compilation is triggered
+        if comp_percent < 100 or has_unfinalized_tiebreaker or not st.session_state.knockouts_generated:
             st.markdown("<div style='margin-top: 20px;'></div>", unsafe_allow_html=True)
-            st.warning("⚠️ **Knockout Stage Locked:** You must complete 100% of your Group Stage predictions and finalize any active tie-breakers before you can view or make selections on the knockout rounds brackets layout.")
+            st.warning("⚠️ **Knockout Stage Locked:** You must complete 100% of your Group Stage predictions, lock active tie-breakers, and confirm your layout with the master finalization button before knockout brackets can unlock.")
         else:
             user_calc_bracket = resolve_bracket_teams(user_preds, target_is_actual=False)
             o_r32 = user_calc_bracket["r32_pairings"]
