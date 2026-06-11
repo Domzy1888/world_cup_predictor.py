@@ -363,6 +363,7 @@ CHRONO_MATCHES = {
 }
 
 FIFA_REAL_METADATA = {
+    # --- Group Stages ---
     1: {"date": "11 June", "time": "8:00 PM BST", "venue": "Mexico City"},
     2: {"date": "12 June", "time": "3:00 AM BST", "venue": "Guadalajara"},
     3: {"date": "12 June", "time": "8:00 PM BST", "venue": "Toronto"},
@@ -434,7 +435,40 @@ FIFA_REAL_METADATA = {
     69: {"date": "28 June", "time": "3:00 AM BST", "venue": "Kansas City"},
     70: {"date": "28 June", "time": "3:00 AM BST", "venue": "Dallas"},
     71: {"date": "28 June", "time": "12:30 AM BST", "venue": "Miami"},
-    72: {"date": "28 June", "time": "12:30 AM BST", "venue": "Atlanta"}
+    72: {"date": "28 June", "time": "12:30 AM BST", "venue": "Atlanta"},
+    # --- Knockout Rounds ---
+    73: {"date": "28 June", "time": "8:00 PM BST", "venue": "Los Angeles"},
+    76: {"date": "29 June", "time": "6:00 PM BST", "venue": "Houston"},
+    74: {"date": "29 June", "time": "9:30 PM BST", "venue": "Boston"},
+    75: {"date": "30 June", "time": "2:00 AM BST", "venue": "Monterrey"},
+    78: {"date": "30 June", "time": "6:00 PM BST", "venue": "Dallas"},
+    77: {"date": "30 June", "time": "10:00 PM BST", "venue": "New York/NJ"},
+    79: {"date": "1 July", "time": "2:00 AM BST", "venue": "Mexico City"},
+    80: {"date": "1 July", "time": "5:00 PM BST", "venue": "Atlanta"},
+    82: {"date": "1 July", "time": "9:00 PM BST", "venue": "Seattle"},
+    81: {"date": "2 July", "time": "1:00 AM BST", "venue": "San Francisco"},
+    84: {"date": "2 July", "time": "8:00 PM BST", "venue": "Los Angeles"},
+    83: {"date": "3 July", "time": "12:00 AM BST", "venue": "Toronto"},
+    85: {"date": "3 July", "time": "4:00 AM BST", "venue": "Vancouver"},
+    88: {"date": "3 July", "time": "7:00 PM BST", "venue": "Dallas"},
+    86: {"date": "3 July", "time": "11:00 PM BST", "venue": "Miami"},
+    87: {"date": "4 July", "time": "2:30 AM BST", "venue": "Kansas City"},
+    90: {"date": "4 July", "time": "6:00 PM BST", "venue": "Houston"},
+    89: {"date": "4 July", "time": "10:00 PM BST", "venue": "Philadelphia"},
+    91: {"date": "5 July", "time": "9:00 PM BST", "venue": "New York/NJ"},
+    92: {"date": "6 July", "time": "1:00 AM BST", "venue": "Mexico City"},
+    93: {"date": "6 July", "time": "8:00 PM BST", "venue": "Dallas"},
+    94: {"date": "7 July", "time": "1:00 AM BST", "venue": "Seattle"},
+    95: {"date": "7 July", "time": "5:00 PM BST", "venue": "Atlanta"},
+    96: {"date": "7 July", "time": "9:00 PM BST", "venue": "Vancouver"},
+    97: {"date": "9 July", "time": "9:00 PM BST", "venue": "Boston"},
+    98: {"date": "10 July", "time": "8:00 PM BST", "venue": "Los Angeles"},
+    99: {"date": "11 July", "time": "10:00 PM BST", "venue": "Miami"},
+    100: {"date": "12 July", "time": "2:00 AM BST", "venue": "Kansas City"},
+    101: {"date": "14 July", "time": "8:00 PM BST", "venue": "Dallas"},
+    102: {"date": "15 July", "time": "8:00 PM BST", "venue": "Atlanta"},
+    103: {"date": "18 July", "time": "10:00 PM BST", "venue": "Miami"},
+    104: {"date": "19 July", "time": "8:00 PM BST", "venue": "New York/NJ"}
 }
 
 # Dynamic identifier-driven layout tracking structure replacing the old static list maps
@@ -587,26 +621,107 @@ def check_group_stage_completion(user_preds):
     percent = int((completed_matches / total_group_matches) * 100)
     return completed_matches, total_group_matches, percent
 
-# --- NEW TICKER WORKSPACE ENGINE ---
+# --- NEW TICKER WORKSPACE ENGINE (DYNAMIC ALL ROUNDS) ---
 def generate_live_ticker_stream(league_id):
     # Fetch existing official admin results
     actual = db_fetch_league_actual_results(league_id)
 
-    # 1. Flatten our structural data matches to cross reference
+    # 1. Start with our baseline group stage match data
     flat_matches = {}
     for g_name, fixtures in CHRONO_MATCHES.items():
         for f in fixtures:
-            flat_matches[f["id"]] = {"home": f["home"], "away": f["away"], "group": g_name}
+            flat_matches[int(f["id"])] = {"home": f["home"], "away": f["away"]}
 
-    # 2. Master Real-World Chronological Match Sequence (from daily schedule CSV)
+    # 2. Dynamically extract live knockout participants via your bracket system
+    try:
+        bracket = resolve_bracket_teams(None, target_is_actual=True, actual_results_obj=actual)
+        r32 = bracket.get("r32_pairings", {})
+        ko_choices = actual.get("ko_winners", {})
+
+        def clean_slot(team_val, fallback):
+            if not team_val or str(team_val).strip() in ["", "None", "1", "2", "TBD"]:
+                return fallback
+            return str(team_val).strip()
+
+        # Helper to chase down winners up the branch lines
+        def get_match_winner_name(m_id):
+            choice = str(ko_choices.get(f"Match_{m_id}", ""))
+            if choice == "1" or choice == "2":
+                if m_id <= 88:
+                    pair = r32.get(f"Match_{m_id}", ("TBD", "TBD"))
+                    return clean_slot(pair[0] if choice == "1" else pair[1], f"Winner M{m_id}")
+                else:
+                    # Look up structural parents for higher tiers
+                    parents = {
+                        89: (74, 77), 90: (73, 75), 91: (76, 78), 92: (79, 80),
+                        93: (83, 84), 94: (81, 82), 95: (86, 88), 96: (85, 87),
+                        97: (89, 90), 98: (93, 94), 99: (91, 92), 100: (95, 96),
+                        101: (97, 98), 102: (99, 100), 104: (101, 102)
+                    }
+                    if m_id in parents:
+                        p1, p2 = parents[m_id]
+                        return get_match_winner_name(p1 if choice == "1" else p2)
+            elif choice != "":
+                return choice
+            return f"Winner M{m_id}"
+
+        # Helper to chase down runners up for the 3rd place game
+        def get_match_loser_name(m_id):
+            choice = str(ko_choices.get(f"Match_{m_id}", ""))
+            if choice == "1" or choice == "2":
+                opposite = "2" if choice == "1" else "1"
+                parents = {101: (97, 98), 102: (99, 100)}
+                p1, p2 = parents.get(m_id, (0, 0))
+                if p1:
+                    return get_match_winner_name(p1 if opposite == "1" else p2)
+            return f"Loser M{m_id}"
+
+        # Populate Matches 73 to 104 dynamically
+        for m in range(73, 105):
+            m_key = f"Match_{m}"
+            if m <= 88:
+                pair = r32.get(m_key, ("TBD", "TBD"))
+                h = clean_slot(pair[0], f"{m_key}_H")
+                a = clean_slot(pair[1], f"{m_key}_A")
+            elif m in [89, 90, 91, 92, 93, 94, 95, 96]:  # Round of 16
+                pairings_r16 = {
+                    89: (74, 77), 90: (73, 75), 91: (76, 78), 92: (79, 80),
+                    93: (83, 84), 94: (81, 82), 95: (86, 88), 96: (85, 87)
+                }
+                p1, p2 = pairings_r16[m]
+                h, a = get_match_winner_name(p1), get_match_winner_name(p2)
+            elif m in [97, 98, 99, 100]:  # Quarter-Finals
+                pairings_qf = {97: (89, 90), 98: (93, 94), 99: (91, 92), 100: (95, 96)}
+                p1, p2 = pairings_qf[m]
+                h, a = get_match_winner_name(p1), get_match_winner_name(p2)
+            elif m in [101, 102]:  # Semi-Finals
+                pairings_sf = {101: (97, 98), 102: (99, 100)}
+                p1, p2 = pairings_sf[m]
+                h, a = get_match_winner_name(p1), get_match_winner_name(p2)
+            elif m == 103:  # 3rd Place Match
+                h, a = get_match_loser_name(101), get_match_loser_name(102)
+            elif m == 104:  # The Final
+                h, a = get_match_winner_name(101), get_match_winner_name(102)
+
+            flat_matches[m] = {"home": h, "away": a}
+    except Exception:
+        # Robust fallback array so landing stream never drops
+        for m in range(73, 105):
+            if m not in flat_matches:
+                flat_matches[m] = {"home": f"TBD (M{m})", "away": f"TBD (M{m})"}
+
+    # 3. Master Chronological Match Sequence (Group + Complete Knockout Timeline Order)
     CHRONO_SEQUENCE = [
         1, 2, 3, 4, 8, 7, 5, 6, 10, 11, 9, 12, 14, 16, 13, 15, 17, 18, 19, 20,
         21, 22, 23, 24, 25, 26, 30, 27, 28, 29, 31, 32, 33, 34, 35, 36, 37, 38,
         39, 40, 41, 42, 43, 44, 45, 46, 47, 48, 49, 50, 51, 52, 53, 54, 55, 56,
-        57, 58, 59, 60, 61, 62, 63, 64, 65, 66, 67, 68, 69, 70, 71, 72
+        57, 58, 59, 60, 61, 62, 63, 64, 65, 66, 67, 68, 69, 70, 71, 72,
+        # --- Knockouts Stream Chronology ---
+        73, 76, 74, 75, 78, 77, 79, 80, 82, 81, 84, 83, 85, 88, 86, 87,
+        90, 89, 91, 92, 93, 94, 95, 96, 97, 98, 99, 100, 101, 102, 103, 104
     ]
 
-    # 3. Gather completed match elements in historical timeline order
+    # 4. Gather completed match elements
     completed_elements = []
     completed_ids = set()
     
@@ -625,10 +740,9 @@ def generate_live_ticker_stream(league_id):
                 )
                 completed_ids.add(mid)
 
-    # Slice to strictly keep only the LAST 4 completed match results
     past_ticker_elements = completed_elements[-4:]
 
-    # 4. Build out future upcoming real matches in strict chronological order
+    # 5. Build out future upcoming real matches
     upcoming_ticker_elements = []
     upcoming_count = 0
     
@@ -646,13 +760,11 @@ def generate_live_ticker_stream(league_id):
             if upcoming_count >= 4:
                 break
 
-    # Combine the subsets together (strictly maximum of 8 items total)
     ticker_elements = past_ticker_elements + upcoming_ticker_elements
 
     if not ticker_elements:
         ticker_elements = ["🏆 WORLD CUP 2026 PREDICTION LEAGUE — NO ACTIVE RESULTS RECORDED"]
 
-    # Render Marquee Component Injection Block (Slowed animation speed down by exactly 20% from 35s to 42s)
     ticker_string = " &nbsp;&nbsp;&nbsp;&nbsp;•&nbsp;&nbsp;&nbsp;&nbsp; ".join(ticker_elements)
     marquee_html = f"""
     <style>
