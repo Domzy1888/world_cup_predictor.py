@@ -1648,7 +1648,7 @@ with pred_sub_tabs[2]:
 # ==============================================================================
 # --- 15. ADMINISTRATIVE CONTROL PANEL ---
 # ==============================================================================
-elif app_tab == "🛠️ Admin Dashboard" and is_league_admin:
+ elif app_tab == "🛠️ Admin Dashboard" and is_league_admin:
     st.header(f"🛠️ {selected_league_name} Admin Control Panel")
     actual = db_fetch_league_actual_results(active_league_id)
     admin_tabs = st.tabs(["Group Stage Results", "Knockout Round Results"])
