@@ -894,10 +894,9 @@ def build_full_third_place_table(scores_dict):
     """Authoritative version: Consistently sorts 3rd place teams using explicit position filtering."""
     all_group_results, top8_list = run_standings_engine(scores_dict)
 
-    # REVISED: Explicitly filter by 'Position' column rather than relying on index 2
     third_place_rows = []
     for df in all_group_results.values():
-        # Ensure we look for the team explicitly marked as Position 3
+        # Look for the team explicitly marked as Position 3
         third_row = df[df['Position'] == 3]
         if not third_row.empty:
             third_place_rows.append(third_row.iloc[0].to_dict())
@@ -905,6 +904,7 @@ def build_full_third_place_table(scores_dict):
     if not third_place_rows:
         return pd.DataFrame(), pd.DataFrame(), ""
 
+    # Sort the filtered 3rd-place teams
     full_wildcards_df = pd.DataFrame(third_place_rows).sort_values(
         by=["Pts", "GD", "GF"], ascending=False
     ).reset_index(drop=True)
