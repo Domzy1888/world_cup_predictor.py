@@ -2000,10 +2000,46 @@ elif app_tab == "🛠️ Admin Dashboard" and is_league_admin:
 
         adm_ko_tabs = st.tabs(["Round of 32", "Round of 16", "Quarter-Finals", "Finals"])
 
-        # --- ADMIN WORKSPACE: ROUND OF 32 ---
+                # --- ADMIN WORKSPACE: ROUND OF 32 ---
         with adm_ko_tabs[0]:
-            adm_r32_pairings = actual_calc_bracket["r32_pairings"]
             st.subheader("🌳 Round of 32 Matches (Populated via Real Group Standings)")
+            
+            # --- EXACT REPLICATION OF 3RD PLACE STANDINGS UI ---
+            st.markdown("### 📊 Official Third-Place Standings Calculation")
+            
+            # 1. We look inside the object returned by the engine for the official data
+            # Adjust these keys ('third_place_table', 'lookup_string') to match your exact engine output names
+            if "third_place_table" in actual_calc_bracket:
+                admin_3rd_table = actual_calc_bracket["third_place_table"]
+                admin_combo_str = actual_calc_bracket.get("lookup_string", "UNKNOWN")
+                
+                st.write("Below is the official ranking of all third-placed teams across the 12 groups. The top 8 teams qualify for the Round of 32 layout matrix.")
+                
+                # Render the exact table structure
+                st.dataframe(
+                    admin_3rd_table,
+                    column_config={
+                        "group": "Group",
+                        "team": "Team Name",
+                        "points": "Pts",
+                        "gd": "GD",
+                        "gs": "GS",
+                        "qualified": "Status"
+                    },
+                    use_container_width=True
+                )
+                
+                st.info(f"🧬 **Generated 8-Letter Matrix String:** `{admin_combo_str}`")
+                st.caption("This 8-letter key has matched against the database lookup configuration to route the correct groups into their corresponding bracket paths below.")
+            
+            else:
+                # Fallback banner if your engine returns the data inside a different key name
+                st.warning("⚠️ Engine calculated successfully, but intermediate third-place table arrays aren't exposed in actual_calc_bracket. Displaying brackets directly.")
+            
+            st.markdown("<hr style='margin: 25px 0; border-top: 2px dashed rgba(255,255,255,0.1);' />", unsafe_allow_html=True)
+            
+            # --- ROUND OF 32 MATCH LIST ---
+            adm_r32_pairings = actual_calc_bracket["r32_pairings"]
             for m_id, (h, a) in adm_r32_pairings.items():
                 is_ko_saved = (m_id in actual["ko_winners"])
 
@@ -2033,6 +2069,7 @@ elif app_tab == "🛠️ Admin Dashboard" and is_league_admin:
                             st.warning(f"{m_id.replace('_', ' ')} status cleared.")
                             st.rerun()
                 st.markdown("<hr style='margin: 15px 0; border: 0; border-top: 1px solid rgba(255,255,255,0.1);' />", unsafe_allow_html=True)
+
 
         # --- ADMIN WORKSPACE: ROUND OF 16 ---
         with adm_ko_tabs[1]:
