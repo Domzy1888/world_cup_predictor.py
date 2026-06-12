@@ -852,8 +852,11 @@ def render_match_card(home, away, label, key_prefix, disabled=False, score_mode=
 # ==============================================================================
 # --- 9. COMPUTATION ENGINES ---
 # ==============================================================================
-@st.cache_data(ttl=600)
-def run_standings_engine(scores_dict):
+@st.cache_data
+def run_standings_engine(scores_dict, manual_tb_locks=None, manual_tb_orders=None):
+    if manual_tb_locks is None: manual_tb_locks = {}
+    if manual_tb_orders is None: manual_tb_orders = {}
+    
     all_group_results = {}
     third_place_pool = []
 
@@ -892,10 +895,10 @@ def run_standings_engine(scores_dict):
         df_g = df_g.sort_values(by=["Pts", "h2h_pts", "h2h_gd", "h2h_gf", "GD", "GF"], ascending=False).reset_index(drop=True)
 
         # Apply manual tie-breaker locks
-        tb_lock_key = f"tb_locked_{g_name}"
-        tb_order_key = f"tb_order_{g_name}"
-        if st.session_state.get(tb_lock_key) and tb_order_key in st.session_state:
-            saved_order = st.session_state[tb_order_key]
+        tb_lock_val = manual_tb_locks.get(f"tb_locked_{g_name}", False)
+        tb_order_val = manual_tb_orders.get(f"tb_order_{g_name}", [])
+        if tb_lock_val and tb_order_val:
+            saved_order = tb_order_val
             if sorted(saved_order) == sorted(df_g['Team'].tolist()):
                 df_g['Team'] = pd.Categorical(df_g['Team'], categories=saved_order, ordered=True)
                 df_g = df_g.sort_values(by='Team', ascending=True).reset_index(drop=True)
@@ -917,9 +920,10 @@ def run_standings_engine(scores_dict):
     return all_group_results, adv_wildcards
 
 
-def build_full_third_place_table(scores_dict):
+@st.cache_data
+def build_full_third_place_table(scores_dict, manual_tb_locks=None, manual_tb_orders=None):
     """Authoritative version: Consistently sorts 3rd place teams using explicit position filtering."""
-    all_group_results, top8_list = run_standings_engine(scores_dict)
+    all_group_results, top8_list = run_standings_engine(scores_dict, manual_tb_locks, manual_tb_orders)
 
     third_place_rows = []
     for df in all_group_results.values():
@@ -947,10 +951,9 @@ def build_full_third_place_table(scores_dict):
 
     return full_wildcards_df, top8_df, combo_code
 
-# ... [Keep resolve_bracket_teams and calculate_user_points here] ...
 
-
-def resolve_bracket_teams(scores_dict, target_is_actual=False, actual_results_obj=None):
+@st.cache_data
+def resolve_bracket_teams(scores_dict, target_is_actual=False, actual_results_obj=None, manual_tb_locks=None, manual_tb_orders=None):
     if target_is_actual and actual_results_obj is not None:
         g_scores = actual_results_obj["group"]
         ko_choices = actual_results_obj["ko_winners"]
@@ -958,7 +961,7 @@ def resolve_bracket_teams(scores_dict, target_is_actual=False, actual_results_ob
         g_scores = scores_dict
         ko_choices = scores_dict
 
-    g_tables, qualifying_wildcards = run_standings_engine(g_scores)
+    g_tables, qualifying_wildcards = run_standings_engine(g_scores, manual_tb_locks, manual_tb_orders)
 
     # Respect the tie-breaker/user-locked table state for the bracket representation
     def get_1st(g): 
@@ -1083,9 +1086,14 @@ def calculate_user_points(user_id, league_id):
     points = 0
 
     tb_saved_records = db_fetch_group_tie_breakers(user_id, league_id)
+    local_tb_orders = {}
+    local_tb_locks = {}
+    
     for row in tb_saved_records:
         st.session_state[f"tb_order_{row['group_name']}"] = row["team_order"]
         st.session_state[f"tb_locked_{row['group_name']}"] = row["is_locked"]
+        local_tb_orders[f"tb_order_{row['group_name']}"] = row["team_order"]
+        local_tb_locks[f"tb_locked_{row['group_name']}"] = row["is_locked"]
 
     for g_name, matches in CHRONO_MATCHES.items():
         for match in matches:
@@ -1099,8 +1107,8 @@ def calculate_user_points(user_id, league_id):
                 elif (int(p_h) > int(p_a) and int(a_h) > int(a_a)) or (int(p_a) > int(p_h) and int(a_a) > int(a_h)) or (int(p_h) == int(p_a) and int(a_h) == int(a_a)): 
                     points += 1  
 
-    user_bracket = resolve_bracket_teams(user_preds, target_is_actual=False)
-    actual_bracket = resolve_bracket_teams(None, target_is_actual=True, actual_results_obj=actual)
+    user_bracket = resolve_bracket_teams(user_preds, target_is_actual=False, manual_tb_locks=local_tb_locks, manual_tb_orders=local_tb_orders)
+    actual_bracket = resolve_bracket_teams(None, target_is_actual=True, actual_results_obj=actual, manual_tb_locks=local_tb_locks, manual_tb_orders=local_tb_orders)
 
     for team in user_bracket["r16"]:
         if team and team in actual_bracket["r16"]: points += 3
@@ -1118,6 +1126,7 @@ def calculate_user_points(user_id, league_id):
     if user_bracket["champ"] and user_bracket["champ"] == actual_bracket["champ"]: points += 25
 
     return points
+
 
 # ==============================================================================
 # --- 10. SIGN IN GATEWAY ---
