@@ -854,12 +854,12 @@ def run_standings_engine(scores_dict):
 
         df_g = pd.DataFrame.from_dict(standings, orient='index').reset_index().rename(columns={'index': 'Team'})
         
-        # H2H Logic... (retaining your existing logic here)
+        # H2H Logic... 
         df_g['h2h_pts'] = 0
         df_g['h2h_gd'] = 0
         df_g['h2h_gf'] = 0
         
-        # ... [Keep your existing H2H point_clusters logic here] ...
+        # ... [Your existing H2H point_clusters logic here] ...
 
         # Sort based on tie-breakers
         df_g = df_g.sort_values(by=["Pts", "h2h_pts", "h2h_gd", "h2h_gf", "GD", "GF"], ascending=False).reset_index(drop=True)
@@ -874,10 +874,16 @@ def run_standings_engine(scores_dict):
                 df_g = df_g.sort_values(by='Team', ascending=True).reset_index(drop=True)
                 df_g['Team'] = df_g['Team'].astype(str)
 
+        # --- ADDITION: Assign explicit Position for indexing ---
+        df_g['Position'] = range(1, len(df_g) + 1)
+        
+        # Save results, keeping Position column but dropping intermediate H2H helpers
         all_group_results[g_name] = df_g.drop(columns=['h2h_pts', 'h2h_gd', 'h2h_gf'])
 
     # Step 2: Resolve 3rd place wildcard layout
-    third_place_pool = [df.iloc[2].to_dict() for df in all_group_results.values() if len(df) >= 3]
+    # We now filter by Position 3 to be 100% accurate
+    third_place_pool = [df[df['Position'] == 3].iloc[0].to_dict() for df in all_group_results.values() if not df[df['Position'] == 3].empty]
+    
     wildcard_df = pd.DataFrame(third_place_pool).sort_values(by=["Pts", "GD", "GF"], ascending=False).reset_index(drop=True)
     adv_wildcards = wildcard_df.head(8).to_dict(orient="records")
 
