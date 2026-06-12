@@ -1796,6 +1796,7 @@ elif app_tab == "🛠️ Admin Dashboard" and is_league_admin:
                     if st.button("📢 Save Match Score", key=f"btn_pub_Match_{m_id}", use_container_width=True):
                         db_save_league_actual_result(active_league_id, kh, actual["group"][kh])
                         db_save_league_actual_result(active_league_id, ka, actual["group"][ka])
+                        st.cache_data.clear()  # Clear cache to force fresh DB fetch on rerun
                         st.success(f"Match #{m_id} score locked and live!")
                         st.rerun()
                 else:
@@ -1805,194 +1806,13 @@ elif app_tab == "🛠️ Admin Dashboard" and is_league_admin:
                     if st.button("🔓 Reset / Unlock Match Score", key=f"btn_unl_Match_{m_id}", use_container_width=True):
                         db_delete_league_actual_result(active_league_id, kh)
                         db_delete_league_actual_result(active_league_id, ka)
+                        st.cache_data.clear()  # Clear cache to force fresh DB fetch on rerun
                         st.warning(f"Match #{m_id} score cleared from records.")
                         st.rerun()
             st.markdown("<hr style='margin: 15px 0; border: 0; border-top: 1px solid rgba(255,255,255,0.1);' />", unsafe_allow_html=True)
 
     with admin_tabs[1]:
-        actual_calc_bracket = resolve_bracket_teams(None, target_is_actual=True, actual_results_obj=actual)
-
-        # Added a 5th tab: "🖨️ User Print Dossiers"
-        adm_ko_tabs = st.tabs(["Round of 32", "Round of 16", "Quarter-Finals", "Finals", "🖨️ User Print Dossiers"])
-
-        # --- ADMIN WORKSPACE: ROUND OF 32 ---
-        with adm_ko_tabs[0]:
-            adm_r32_pairings = actual_calc_bracket["r32_pairings"]
-            st.subheader("🌳 Round of 32 Matches (Populated via Real Group Standings)")
-            for m_id, (h, a) in adm_r32_pairings.items():
-                is_ko_saved = (m_id in actual["ko_winners"])
-
-                saved_winner = actual["ko_winners"].get(m_id)
-                if str(saved_winner) == "1":
-                    actual["ko_winners"][m_id] = h
-                elif str(saved_winner) == "2":
-                    actual["ko_winners"][m_id] = a
-
-                actual["ko_winners"][m_id] = render_match_card(h, a, f"Winner: {m_id.replace('_', ' ')}", m_id, disabled=is_ko_saved, score_mode=False, scores_dict=actual["ko_winners"])
-
-                col_ko1, col_ko2 = st.columns(2)
-                with col_ko1:
-                    if not is_ko_saved:
-                        if st.button("📢 Lock Knockout Winner", key=f"btn_ko_{m_id}", use_container_width=True):
-                            flag_val = 1 if actual["ko_winners"][m_id] == h else (2 if actual["ko_winners"][m_id] == a else 0)
-                            if flag_val > 0:
-                                db_save_league_actual_result(active_league_id, m_id, flag_val)
-                                st.success(f"{m_id.replace('_', ' ')} progression locked!")
-                                st.rerun()
-                    else:
-                        st.markdown("<div style='color: #22c55e; font-weight: bold; padding-top: 10px;'>✅ Confirmed Locked</div>", unsafe_allow_html=True)
-                with col_ko2:
-                    if is_ko_saved:
-                        if st.button("🔓 Reset / Unlock Winner", key=f"btn_unl_ko_{m_id}", use_container_width=True):
-                            db_delete_league_actual_result(active_league_id, m_id)
-                            st.warning(f"{m_id.replace('_', ' ')} status cleared.")
-                            st.rerun()
-                st.markdown("<hr style='margin: 15px 0; border: 0; border-top: 1px solid rgba(255,255,255,0.1);' />", unsafe_allow_html=True)
-
-        # --- ADMIN WORKSPACE: ROUND OF 16 ---
-        with adm_ko_tabs[1]:
-            def get_adm_ko_prev(m_key):
-                val = actual["ko_winners"].get(m_key)
-                if str(val) == "1": return actual_calc_bracket["r32_pairings"].get(m_key, ("",""))[0]
-                if str(val) == "2": return actual_calc_bracket["r32_pairings"].get(m_key, ("",""))[1]
-                if val and not (str(val).startswith("W") and "_" not in str(val)): return str(val)
-                return f"W{m_key.split('_')[1]}"
-
-            adm_r16 = {
-                "Match_89": (get_adm_ko_prev("Match_74"), get_adm_ko_prev("Match_77")), "Match_90": (get_adm_ko_prev("Match_73"), get_adm_ko_prev("Match_75")),
-                "Match_93": (get_adm_ko_prev("Match_83"), get_adm_ko_prev("Match_84")), "Match_94": (get_adm_ko_prev("Match_81"), get_adm_ko_prev("Match_82")),
-                "Match_91": (get_adm_ko_prev("Match_76"), get_adm_ko_prev("Match_78")), "Match_92": (get_adm_ko_prev("Match_79"), get_adm_ko_prev("Match_80")),
-                "Match_95": (get_adm_ko_prev("Match_86"), get_adm_ko_prev("Match_88")), "Match_96": (get_adm_ko_prev("Match_85"), get_adm_ko_prev("Match_87"))
-            }
-            st.subheader("🌳 Round of 16 Matches")
-            for m_id, (h, a) in adm_r16.items():
-                is_ko_saved = (m_id in actual["ko_winners"])
-
-                saved_winner = actual["ko_winners"].get(m_id)
-                if str(saved_winner) == "1":
-                    actual["ko_winners"][m_id] = h
-                elif str(saved_winner) == "2":
-                    actual["ko_winners"][m_id] = a
-
-                actual["ko_winners"][m_id] = render_match_card(h, a, f"Winner: {m_id.replace('_', ' ')}", m_id, disabled=is_ko_saved, score_mode=False, scores_dict=actual["ko_winners"])
-
-                col_ko1, col_ko2 = st.columns(2)
-                with col_ko1:
-                    if not is_ko_saved:
-                        if st.button("📢 Lock Knockout Winner", key=f"btn_ko_{m_id}", use_container_width=True):
-                            flag_val = 1 if actual["ko_winners"][m_id] == h else (2 if actual["ko_winners"][m_id] == a else 0)
-                            if flag_val > 0:
-                                db_save_league_actual_result(active_league_id, m_id, flag_val)
-                                st.success(f"{m_id.replace('_', ' ')} progression locked!")
-                                st.rerun()
-                    else:
-                        st.markdown("<div style='color: #22c55e; font-weight: bold; padding-top: 10px;'>✅ Confirmed Locked</div>", unsafe_allow_html=True)
-                with col_ko2:
-                    if is_ko_saved:
-                        if st.button("🔓 Reset / Unlock Winner", key=f"btn_unl_ko_{m_id}", use_container_width=True):
-                            db_delete_league_actual_result(active_league_id, m_id)
-                            st.warning(f"{m_id.replace('_', ' ')} status cleared.")
-                            st.rerun()
-                st.markdown("<hr style='margin: 15px 0; border: 0; border-top: 1px solid rgba(255,255,255,0.1);' />", unsafe_allow_html=True)
-
-        # --- ADMIN WORKSPACE: QUARTER-FINALS ---
-        with adm_ko_tabs[2]:
-            def get_adm_ko_prev_r16(m_key):
-                val = actual["ko_winners"].get(m_key)
-                if str(val) == "1": return adm_r16.get(m_key, ("",""))[0]
-                if str(val) == "2": return adm_r16.get(m_key, ("",""))[1]
-                if val and not (str(val).startswith("W") and "_" not in str(val)): return str(val)
-                return f"W{m_key.split('_')[1]}"
-
-            adm_qf = {
-                "Match_97": (get_adm_ko_prev_r16("Match_89"), get_adm_ko_prev_r16("Match_90")), "Match_98": (get_adm_ko_prev_r16("Match_93"), get_adm_ko_prev_r16("Match_94")),
-                "Match_99": (get_adm_ko_prev_r16("Match_91"), get_adm_ko_prev_r16("Match_92")), "Match_100": (get_adm_ko_prev_r16("Match_95"), get_adm_ko_prev_r16("Match_96"))
-            }
-            st.subheader("🌳 Quarter-Final Matches")
-            for m_id, (h, a) in adm_qf.items():
-                is_ko_saved = (m_id in actual["ko_winners"])
-
-                saved_winner = actual["ko_winners"].get(m_id)
-                if str(saved_winner) == "1":
-                    actual["ko_winners"][m_id] = h
-                elif str(saved_winner) == "2":
-                    actual["ko_winners"][m_id] = a
-
-                actual["ko_winners"][m_id] = render_match_card(h, a, f"Winner: {m_id.replace('_', ' ')}", m_id, disabled=is_ko_saved, score_mode=False, scores_dict=actual["ko_winners"])
-
-                col_ko1, col_ko2 = st.columns(2)
-                with col_ko1:
-                    if not is_ko_saved:
-                        if st.button("📢 Lock Knockout Winner", key=f"btn_ko_{m_id}", use_container_width=True):
-                            flag_val = 1 if actual["ko_winners"][m_id] == h else (2 if actual["ko_winners"][m_id] == a else 0)
-                            if flag_val > 0:
-                                db_save_league_actual_result(active_league_id, m_id, flag_val)
-                                st.success(f"{m_id.replace('_', ' ')} progression locked!")
-                                st.rerun()
-                    else:
-                        st.markdown("<div style='color: #22c55e; font-weight: bold; padding-top: 10px;'>✅ Confirmed Locked</div>", unsafe_allow_html=True)
-                with col_ko2:
-                    if is_ko_saved:
-                        if st.button("🔓 Reset / Unlock Winner", key=f"btn_unl_ko_{m_id}", use_container_width=True):
-                            db_delete_league_actual_result(active_league_id, m_id)
-                            st.warning(f"{m_id.replace('_', ' ')} status cleared.")
-                            st.rerun()
-                st.markdown("<hr style='margin: 15px 0; border: 0; border-top: 1px solid rgba(255,255,255,0.1);' />", unsafe_allow_html=True)
-
-        # ==============================================================================
-# --- 15. ADMINISTRATIVE CONTROL PANEL ---
-# ==============================================================================
-elif app_tab == "🛠️ Admin Dashboard" and is_league_admin:
-    st.header(f"🛠️ {selected_league_name} Admin Control Panel")
-    actual = db_fetch_league_actual_results(active_league_id)
-    admin_tabs = st.tabs(["Group Stage Results", "Knockout Round Results"])
-
-    with admin_tabs[0]:
-        st.subheader("📆 All Group Matches (Match Order)")
-
-        flat_chrono_list = []
-        for g_name, matches in CHRONO_MATCHES.items():
-            for m in matches:
-                flat_chrono_list.append({
-                    "id": m["id"],
-                    "home": m["home"],
-                    "away": m["away"],
-                    "group": g_name
-                })
-        flat_chrono_list = sorted(flat_chrono_list, key=lambda x: x["id"])
-
-        for match in flat_chrono_list:
-            m_id = match["id"]
-            kh, ka = f"Match_{m_id}_h", f"Match_{m_id}_a"
-
-            is_score_saved = (kh in actual["group"] and ka in actual["group"])
-
-            actual["group"] = render_match_card(
-                home=match["home"], away=match["away"], label=f"Match #{m_id} ({match['group']}) Official Score",
-                key_prefix=f"Match_{m_id}", disabled=is_score_saved, score_mode=True, scores_dict=actual["group"]
-            )
-
-            col_b1, col_b2 = st.columns(2)
-            with col_b1:
-                if not is_score_saved:
-                    if st.button("📢 Save Match Score", key=f"btn_pub_Match_{m_id}", use_container_width=True):
-                        db_save_league_actual_result(active_league_id, kh, actual["group"][kh])
-                        db_save_league_actual_result(active_league_id, ka, actual["group"][ka])
-                        st.success(f"Match #{m_id} score locked and live!")
-                        st.rerun()
-                else:
-                    st.markdown("<div style='color: #22c55e; font-weight: bold; padding-top: 10px;'>✅ Confirmed Locked</div>", unsafe_allow_html=True)
-            with col_b2:
-                if is_score_saved:
-                    if st.button("🔓 Reset / Unlock Match Score", key=f"btn_unl_Match_{m_id}", use_container_width=True):
-                        db_delete_league_actual_result(active_league_id, kh)
-                        db_delete_league_actual_result(active_league_id, ka)
-                        st.warning(f"Match #{m_id} score cleared from records.")
-                        st.rerun()
-            st.markdown("<hr style='margin: 15px 0; border: 0; border-top: 1px solid rgba(255,255,255,0.1);' />", unsafe_allow_html=True)
-
-    with admin_tabs[1]:
-        # CRITICAL FIX: Pass empty tie-breaker structures into the bracket manager for official standings
+        # Pass empty tie-breaker structures into the bracket manager for official standings
         actual_calc_bracket = resolve_bracket_teams(
             None, target_is_actual=True, actual_results_obj=actual,
             manual_tb_locks={}, manual_tb_orders={}
@@ -2000,22 +1820,19 @@ elif app_tab == "🛠️ Admin Dashboard" and is_league_admin:
 
         adm_ko_tabs = st.tabs(["Round of 32", "Round of 16", "Quarter-Finals", "Finals"])
 
-                # --- ADMIN WORKSPACE: ROUND OF 32 ---
+        # --- ADMIN WORKSPACE: ROUND OF 32 ---
         with adm_ko_tabs[0]:
             st.subheader("🌳 Round of 32 Matches (Populated via Real Group Standings)")
             
             # --- EXACT REPLICATION OF 3RD PLACE STANDINGS UI ---
             st.markdown("### 📊 Official Third-Place Standings Calculation")
             
-            # 1. We look inside the object returned by the engine for the official data
-            # Adjust these keys ('third_place_table', 'lookup_string') to match your exact engine output names
             if "third_place_table" in actual_calc_bracket:
                 admin_3rd_table = actual_calc_bracket["third_place_table"]
                 admin_combo_str = actual_calc_bracket.get("lookup_string", "UNKNOWN")
                 
                 st.write("Below is the official ranking of all third-placed teams across the 12 groups. The top 8 teams qualify for the Round of 32 layout matrix.")
                 
-                # Render the exact table structure
                 st.dataframe(
                     admin_3rd_table,
                     column_config={
@@ -2031,12 +1848,10 @@ elif app_tab == "🛠️ Admin Dashboard" and is_league_admin:
                 
                 st.info(f"🧬 **Generated 8-Letter Matrix String:** `{admin_combo_str}`")
                 st.caption("This 8-letter key has matched against the database lookup configuration to route the correct groups into their corresponding bracket paths below.")
-            
             else:
-                # Fallback banner if your engine returns the data inside a different key name
-                st.warning("⚠️ Engine calculated successfully, but intermediate third-place table arrays aren't exposed in actual_calc_bracket. Displaying brackets directly.")
+                st.warning("⚠️ Engine calculated successfully, but intermediate third-place table arrays aren't exposed in actual_calc_bracket yet. Displaying brackets directly.")
             
-            st.markdown("<hr style='margin: 25px 0; border-top: 2px dashed rgba(255,255,255,0.1);' />", unsafe_allow_html=True)
+            st.markdown("<hr style='margin: 15px 0; border-top: 2px dashed rgba(255,255,255,0.1);' />", unsafe_allow_html=True)
             
             # --- ROUND OF 32 MATCH LIST ---
             adm_r32_pairings = actual_calc_bracket["r32_pairings"]
@@ -2058,6 +1873,7 @@ elif app_tab == "🛠️ Admin Dashboard" and is_league_admin:
                             flag_val = 1 if actual["ko_winners"][m_id] == h else (2 if actual["ko_winners"][m_id] == a else 0)
                             if flag_val > 0:
                                 db_save_league_actual_result(active_league_id, m_id, flag_val)
+                                st.cache_data.clear()
                                 st.success(f"{m_id.replace('_', ' ')} progression locked!")
                                 st.rerun()
                     else:
@@ -2066,10 +1882,10 @@ elif app_tab == "🛠️ Admin Dashboard" and is_league_admin:
                     if is_ko_saved:
                         if st.button("🔓 Reset / Unlock Winner", key=f"btn_unl_ko_{m_id}", use_container_width=True):
                             db_delete_league_actual_result(active_league_id, m_id)
+                            st.cache_data.clear()
                             st.warning(f"{m_id.replace('_', ' ')} status cleared.")
                             st.rerun()
                 st.markdown("<hr style='margin: 15px 0; border: 0; border-top: 1px solid rgba(255,255,255,0.1);' />", unsafe_allow_html=True)
-
 
         # --- ADMIN WORKSPACE: ROUND OF 16 ---
         with adm_ko_tabs[1]:
@@ -2105,6 +1921,7 @@ elif app_tab == "🛠️ Admin Dashboard" and is_league_admin:
                             flag_val = 1 if actual["ko_winners"][m_id] == h else (2 if actual["ko_winners"][m_id] == a else 0)
                             if flag_val > 0:
                                 db_save_league_actual_result(active_league_id, m_id, flag_val)
+                                st.cache_data.clear()
                                 st.success(f"{m_id.replace('_', ' ')} progression locked!")
                                 st.rerun()
                     else:
@@ -2113,6 +1930,7 @@ elif app_tab == "🛠️ Admin Dashboard" and is_league_admin:
                     if is_ko_saved:
                         if st.button("🔓 Reset / Unlock Winner", key=f"btn_unl_ko_{m_id}", use_container_width=True):
                             db_delete_league_actual_result(active_league_id, m_id)
+                            st.cache_data.clear()
                             st.warning(f"{m_id.replace('_', ' ')} status cleared.")
                             st.rerun()
                 st.markdown("<hr style='margin: 15px 0; border: 0; border-top: 1px solid rgba(255,255,255,0.1);' />", unsafe_allow_html=True)
@@ -2149,6 +1967,7 @@ elif app_tab == "🛠️ Admin Dashboard" and is_league_admin:
                             flag_val = 1 if actual["ko_winners"][m_id] == h else (2 if actual["ko_winners"][m_id] == a else 0)
                             if flag_val > 0:
                                 db_save_league_actual_result(active_league_id, m_id, flag_val)
+                                st.cache_data.clear()
                                 st.success(f"{m_id.replace('_', ' ')} progression locked!")
                                 st.rerun()
                     else:
@@ -2157,6 +1976,7 @@ elif app_tab == "🛠️ Admin Dashboard" and is_league_admin:
                     if is_ko_saved:
                         if st.button("🔓 Reset / Unlock Winner", key=f"btn_unl_ko_{m_id}", use_container_width=True):
                             db_delete_league_actual_result(active_league_id, m_id)
+                            st.cache_data.clear()
                             st.warning(f"{m_id.replace('_', ' ')} status cleared.")
                             st.rerun()
                 st.markdown("<hr style='margin: 15px 0; border: 0; border-top: 1px solid rgba(255,255,255,0.1);' />", unsafe_allow_html=True)
@@ -2185,11 +2005,13 @@ elif app_tab == "🛠️ Admin Dashboard" and is_league_admin:
                         f_v = 1 if actual["ko_winners"]["Match_101"] == sf1_h else (2 if actual["ko_winners"]["Match_101"] == sf1_a else 0)
                         if f_v > 0:
                             db_save_league_actual_result(active_league_id, "Match_101", f_v)
+                            st.cache_data.clear()
                             st.rerun()
                 else: st.markdown("<div style='color: #22c55e; font-weight: bold;'>✅ SF1 Locked</div>", unsafe_allow_html=True)
             with c_sf1_2:
                 if is_m101_saved and st.button("🔓 Unlock Semi Final 1", key="btn_unl_m101", use_container_width=True):
                     db_delete_league_actual_result(active_league_id, "Match_101")
+                    st.cache_data.clear()
                     st.rerun()
 
             st.markdown("<hr style='margin: 15px 0; border-top: 1px solid rgba(255,255,255,0.1);' />", unsafe_allow_html=True)
@@ -2204,11 +2026,13 @@ elif app_tab == "🛠️ Admin Dashboard" and is_league_admin:
                         f_v = 1 if actual["ko_winners"]["Match_102"] == sf2_h else (2 if actual["ko_winners"]["Match_102"] == sf2_a else 0)
                         if f_v > 0:
                             db_save_league_actual_result(active_league_id, "Match_102", f_v)
+                            st.cache_data.clear()
                             st.rerun()
                 else: st.markdown("<div style='color: #22c55e; font-weight: bold;'>✅ SF2 Locked</div>", unsafe_allow_html=True)
             with c_sf2_2:
                 if is_m102_saved and st.button("🔓 Unlock Semi Final 2", key="btn_unl_m102", use_container_width=True):
                     db_delete_league_actual_result(active_league_id, "Match_102")
+                    st.cache_data.clear()
                     st.rerun()
 
             st.markdown("<hr style='margin: 15px 0; border-top: 1px solid rgba(255,255,255,0.1);' />", unsafe_allow_html=True)
@@ -2241,11 +2065,13 @@ elif app_tab == "🛠️ Admin Dashboard" and is_league_admin:
                         f_v = 1 if actual["ko_winners"]["Match_103"] == sf1_l else (2 if actual["ko_winners"]["Match_103"] == sf2_l else 0)
                         if f_v > 0:
                             db_save_league_actual_result(active_league_id, "Match_103", f_v)
+                            st.cache_data.clear()
                             st.rerun()
                 else: st.markdown("<div style='color: #22c55e; font-weight: bold;'>✅ 3rd Place Locked</div>", unsafe_allow_html=True)
             with c_p3_2:
                 if is_m103_saved and st.button("🔓 Unlock 3rd Place Playoff", key="btn_unl_m103", use_container_width=True):
                     db_delete_league_actual_result(active_league_id, "Match_103")
+                    st.cache_data.clear()
                     st.rerun()
 
             st.markdown("<hr style='margin: 15px 0; border-top: 1px solid rgba(255,255,255,0.1);' />", unsafe_allow_html=True)
@@ -2263,12 +2089,15 @@ elif app_tab == "🛠️ Admin Dashboard" and is_league_admin:
                         f_v = 1 if actual["ko_winners"]["Match_104"] == f_h else (2 if actual["ko_winners"]["Match_104"] == f_a else 0)
                         if f_v > 0:
                             db_save_league_actual_result(active_league_id, "Match_104", f_v)
+                            st.cache_data.clear()
                             st.rerun()
                 else: st.markdown("<div style='color: #22c55e; font-weight: bold;'>🏆 Champion Locked</div>", unsafe_allow_html=True)
             with c_f_2:
                 if is_m104_saved and st.button("🔓 Unlock Grand Final Champion", key="btn_unl_m104", use_container_width=True):
                     db_delete_league_actual_result(active_league_id, "Match_104")
+                    st.cache_data.clear()
                     st.rerun()
+
 
 
 
