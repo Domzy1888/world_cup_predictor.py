@@ -1435,20 +1435,6 @@ elif app_tab == "📝 Submit Predictions":
             df_final_render["Team"] = df_final_render["Team"].apply(fmt_team)
             st.dataframe(df_final_render, use_container_width=True, hide_index=True)
 
-        # STAGE 2 LOCK GATE SEPARATION PIECE
-        if comp_percent == 100 and not st.session_state.knockouts_generated:
-            st.markdown("---")
-            st.markdown("### 🏆 Step 2: Master Lock & Compile Knockout Phase")
-            st.info("All group stage results are recorded. Verify the final positions inside the tables above before running the compiler.")
-            
-            if has_unfinalized_tiebreaker:
-                st.error("❌ Cannot Lock Standings: One or more groups have a perfect tie that you have not resolved and locked above yet.")
-            else:
-                if st.button("🔒 Finalize Group Stage & Generate Knockouts", type="primary", use_container_width=True):
-                    st.session_state.knockouts_generated = True
-                    st.success("Success! Standings locked in. Knockout round tables and configurations have been successfully initialized below.")
-                    st.rerun()
-
     # NEW TAB: 3rd-Place League
     with pred_sub_tabs[1]:
         st.subheader("🌍 3rd‑Place League Rankings")
@@ -1506,11 +1492,15 @@ elif app_tab == "📝 Submit Predictions":
                     st.info("Third‑place qualifier code not available yet.")
 
     with pred_sub_tabs[2]:
-        # Knockout Rounds remain locked until explicit Stage 2 compilation is triggered
-        if comp_percent < 100 or has_unfinalized_tiebreaker or not st.session_state.knockouts_generated:
+        # Knockout Rounds remain active once group stage is 100% complete and tie-breakers are locked
+        if comp_percent < 100 or has_unfinalized_tiebreaker:
             st.markdown("<div style='margin-top: 20px;'></div>", unsafe_allow_html=True)
-            st.warning("⚠️ **Knockout Stage Locked:** You must complete 100% of your Group Stage predictions, lock active tie-breakers, and confirm your layout with the master finalization button before knockout brackets can unlock.")
+            st.warning(
+                "⚠️ **Knockout Stage Locked:** You must complete 100% of your Group Stage predictions "
+                "and resolve/lock all group tie-breakers before the knockout brackets will unlock."
+            )
         else:
+            # The bracket engine runs automatically now since the condition above passed
             user_calc_bracket = resolve_bracket_teams(user_preds, target_is_actual=False)
             o_r32 = user_calc_bracket["r32_pairings"]
             # --- DEBUG: 3rd-place R32 mapping (focus on Match_81) ---
