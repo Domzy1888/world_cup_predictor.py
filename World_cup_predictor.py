@@ -4,19 +4,6 @@ import hashlib
 from datetime import datetime
 import pytz
 from supabase import create_client, Client
-import time  # <--- Add this here
-
-# Bottleneck Profiler Helper
-def log_time(func_name):
-    def decorator(func):
-        def wrapper(*args, **kwargs):
-            start = time.perf_counter()
-            result = func(*args, **kwargs)
-            end = time.perf_counter()
-            print(f"DEBUG: {func_name} took {(end - start) * 1000:.2f}ms")
-            return result
-        return wrapper
-    return decorator
 
 # ==============================================================================
 # --- 1. CONFIGURATION & FULL COLOUR DARK THEME STYLING ---
@@ -28,7 +15,6 @@ st.set_page_config(
     page_icon="🏆",
     layout="wide"
 )
-
 def is_tournament_locked():
     """
     Returns True if the current time has passed the tournament kickoff:
@@ -246,11 +232,11 @@ FLAGS = {
     "England": "🏴󠁧󠁢󠁥󠁮󠁧󠁿 ENGLAND", "Croatia": "🇭🇷 CROATIA", "Ghana": "🇬🇭 GHANA", "Panama": "🇵🇦 PANAMA"
 }
 
- fmt_team(name):
+def fmt_team(name):
     return FLAGS.get(name, str(name).upper()) if name else "TBD"
 
 # Helper to split flag emoji out from text name safely for custom formatting layout layers
- split_flag_and_name(formatted_string):
+def split_flag_and_name(formatted_string):
     if not formatted_string or formatted_string == "TBD":
         return "", "TBD"
     parts = formatted_string.split(" ", 1)
@@ -507,7 +493,6 @@ DYNAMIC_R32_CONFIG = {
 # ==============================================================================
 # --- 6. DATABASE HELPER WRAPPERS ---
 # ==============================================================================
-@log_time("user predictions")
 def db_fetch_user_predictions(user_id, league_id):
     res = supabase.table("predictions").select("match_key, score_value").eq("user_id", user_id).eq("league_id", league_id).execute()
     preds = {}
@@ -561,7 +546,6 @@ def db_fetch_user_leagues(user_id):
                 })
     return leagues_list
 
-@log_time("league results")
 def db_fetch_league_actual_results(league_id):
     res = supabase.table("actual_results").select("match_key, score_value").eq("league_id", league_id).execute()
     results = {"group": {}, "ko_winners": {}, "third_place": "", "finalists": []}
@@ -623,7 +607,6 @@ def fetch_supabase_wildcard_mapping(combination_str):
     return None
 
 # --- NEW HELPER FUNCTION: GROUP STAGE COMPLETENESS CHECK ---
-@log_time("group completion")
 def check_group_stage_completion(user_preds):
     total_group_matches = 72
     completed_matches = 0
@@ -638,7 +621,6 @@ def check_group_stage_completion(user_preds):
     return completed_matches, total_group_matches, percent
 
 # --- FINAL TICKER WORKSPACE ENGINE (DYNAMIC ALL ROUNDS + DISPLAY STRINGS) ---
-@log_time("ticker")
 def generate_live_ticker_stream(league_id):
     # Fetch existing official admin results
     actual = db_fetch_league_actual_results(league_id)
@@ -785,7 +767,6 @@ if "current_username" not in st.session_state:
 # ==============================================================================
 # --- 8. UNIFIED MATCH CARD RENDERER ---
 # ==============================================================================
-@log_time("match card render")
 def render_match_card(home, away, label, key_prefix, disabled=False, score_mode=False, scores_dict=None):
     disp1 = fmt_team(name=home)
     disp2 = fmt_team(name=away)
@@ -845,7 +826,6 @@ def render_match_card(home, away, label, key_prefix, disabled=False, score_mode=
 # --- 9. COMPUTATION ENGINES ---
 # ==============================================================================
 @st.cache_data(ttl=600)
-@log_time("standings engine")
 def run_standings_engine(scores_dict):
     all_group_results = {}
     third_place_pool = []
@@ -910,7 +890,6 @@ def run_standings_engine(scores_dict):
     return all_group_results, adv_wildcards
 
 
-@log_time("third place table")
 def build_full_third_place_table(scores_dict):
     """Authoritative version: Consistently sorts 3rd place teams using explicit position filtering."""
     all_group_results, top8_list = run_standings_engine(scores_dict)
@@ -944,7 +923,6 @@ def build_full_third_place_table(scores_dict):
 # ... [Keep resolve_bracket_teams and calculate_user_points here] ...
 
 
-@log_time("resolve brackets")
 def resolve_bracket_teams(scores_dict, target_is_actual=False, actual_results_obj=None):
     if target_is_actual and actual_results_obj is not None:
         g_scores = actual_results_obj["group"]
@@ -1072,7 +1050,6 @@ def resolve_bracket_teams(scores_dict, target_is_actual=False, actual_results_ob
         "third_place_code": combination_lookup_string
     }
 
-@log_time("calculate user points")
 def calculate_user_points(user_id, league_id):
     user_preds = db_fetch_user_predictions(user_id, league_id)
     actual = db_fetch_league_actual_results(league_id)
