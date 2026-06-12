@@ -206,13 +206,18 @@ def hash_password(password):
 # ==============================================================================
 # --- 3. GLOBAL SUPABASE CONNECTION INIT ---
 # ==============================================================================
-try:
-    SUPABASE_URL = st.secrets["connections"]["supabase"]["url"]
-    SUPABASE_KEY = st.secrets["connections"]["supabase"]["key"]
-    supabase: Client = create_client(SUPABASE_URL, SUPABASE_KEY)
-except Exception as e:
-    st.error("Could not establish a connection to your Supabase database. Please double check your secrets parameters.")
-    st.stop()
+@st.cache_resource
+def init_supabase():
+    try:
+        SUPABASE_URL = st.secrets["connections"]["supabase"]["url"]
+        SUPABASE_KEY = st.secrets["connections"]["supabase"]["key"]
+        return create_client(SUPABASE_URL, SUPABASE_KEY)
+    except Exception as e:
+        st.error("Could not establish a connection to your Supabase database. Please double check your secrets parameters.")
+        st.stop()
+
+# Initialize the cached connection
+supabase = init_supabase()
 
 # ==============================================================================
 # --- 4. GLOBAL TEAMS & FLAGS MAP ---
@@ -245,6 +250,7 @@ def split_flag_and_name(formatted_string):
     return "", formatted_string
 
 # ==============================================================================
+
 # --- 5. DATA STRUCTURES (GROUPS & CHRONOLOGICAL FIXTURES) ---
 # ==============================================================================
 GROUPS = {
