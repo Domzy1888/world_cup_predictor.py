@@ -15,7 +15,6 @@ st.set_page_config(
     page_icon="🏆",
     layout="wide"
 )
-
 def is_tournament_locked():
     """
     Returns True if the current time has passed the tournament kickoff:
