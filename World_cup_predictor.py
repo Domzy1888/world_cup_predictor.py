@@ -29,7 +29,7 @@ st.set_page_config(
     layout="wide"
 )
 
-    is_tournament_locked():
+ is_tournament_locked():
     """
     Returns True if the current time has passed the tournament kickoff:
     Thursday, June 12, 2026, at 5:00 PM UK Time (Europe/London).
