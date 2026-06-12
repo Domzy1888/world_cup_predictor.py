@@ -1243,20 +1243,36 @@ app_tab = st.sidebar.radio("Main Menu Navigation", main_tabs)
 # ==============================================================================
 # --- 12. LEADERBOARD WORKSPACE ---
 # ==============================================================================
+@st.cache_data
+def get_cached_leaderboard(active_league_id, member_rows_json):
+    """Assembles and calculates scores across all league participants in a single cached pass."""
+    import json
+    rows = json.loads(member_rows_json)
+    leaderboard_data = []
+    
+    for row in rows:
+        if row.get("users"):
+            m_id = row["users"]["id"]
+            m_name = row["users"]["username"]
+            leaderboard_data.append({
+                "POS": 0,
+                "COMPETITOR NAME": m_name, 
+                "CURRENT TOTAL POINTS": calculate_user_points(m_id, active_league_id)
+            })
+    return leaderboard_data
+
 if app_tab == "🏆 Leaderboards":
     st.header(f"🏆 {selected_league_name} Standings")
     members_res = supabase.table("league_members").select("users(id, username)").eq("league_id", active_league_id).execute()
-    leaderboard_data = []
+    
     if members_res.data:
-        for row in members_res.data:
-            if row.get("users"):
-                m_id = row["users"]["id"]
-                m_name = row["users"]["username"]
-                leaderboard_data.append({
-                    "POS": 0,  # Calculated dynamically after sorting below
-                    "COMPETITOR NAME": m_name, 
-                    "CURRENT TOTAL POINTS": calculate_user_points(m_id, active_league_id)
-                })
+        import json
+        # Serialize database rows to act as a stable cache string key
+        serialized_rows = json.dumps(members_res.data, sort_keys=True)
+        leaderboard_data = get_cached_leaderboard(active_league_id, serialized_rows)
+    else:
+        leaderboard_data = []
+        
     df_leaderboard = pd.DataFrame(leaderboard_data)
     if not df_leaderboard.empty:
         # Sort and recalculate global position sequence numbers dynamically 
@@ -1287,6 +1303,7 @@ elif app_tab == "🛡️ Create/Join a League":
                     supabase.table("league_members").insert({"user_id": c_uid, "league_id": t_id}).execute()
                     st.success("Successfully registered into new League!")
                     st.rerun()
+
 
 # ==============================================================================
 # --- 14. USER PREDICTIONS DESK (TWO-STAGE WORKFLOW VERSION) ---
