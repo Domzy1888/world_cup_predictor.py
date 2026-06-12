@@ -1437,60 +1437,7 @@ elif app_tab == "📝 Submit Predictions":
                     st.rerun()
 
     # NEW TAB: 3rd-Place League
-    with pred_sub_tabs[1]:
-        st.subheader("🌍 3rd‑Place League Rankings")
-
-        # The 3rd-Place league now renders as long as predictions exist
-        if not user_preds:
-            st.info("Start predicting group scores to see the 3rd-place rankings.")
-        else:
-            # Build the 12-team 3rd-place league
-            full_wildcards_df, top8_df, combo_code_table = build_full_third_place_table(user_preds)
-
-            if full_wildcards_df.empty:
-                st.warning("No 3rd‑place data available yet.")
-            else:
-                # Style: highlight top 8 green
-                def highlight_top8(row):
-                    if row["Qualifies (Top 8)"]:
-                        return ["background-color: #14532d; color: #bbf7d0; font-weight: 700;"] * len(row)
-                    return [""] * len(row)
-
-                df_display = full_wildcards_df.copy()
-                df_display["Team"] = df_display["Team"].apply(fmt_team)
-
-                st.markdown("#### All 12 Third‑Place Teams")
-                st.dataframe(
-                    df_display[["Team", "Group", "Pts", "GD", "GF", "Qualifies (Top 8)"]]
-                    .style.apply(highlight_top8, axis=1),
-                    use_container_width=True,
-                    hide_index=True,
-                )
-
-                if not top8_df.empty:
-                    st.markdown("#### Qualified 3rd‑Place Teams (Top 8)")
-                    df_top8 = top8_df.copy()
-                    df_top8["Team"] = df_top8["Team"].apply(fmt_team)
-                    st.dataframe(
-                        df_top8[["Team", "Group", "Pts", "GD", "GF"]],
-                        use_container_width=True,
-                        hide_index=True,
-                    )
-
-                # Get the exact code used by the bracket engine for consistency
-                user_bracket_view = resolve_bracket_teams(user_preds, target_is_actual=False)
-                combo_code = user_bracket_view.get("third_place_code", combo_code_table)
-
-                st.markdown("---")
-                if combo_code:
-                    st.session_state["third_place_code"] = combo_code
-                    group_letters_human = ", ".join(list(combo_code))
-                    st.markdown(
-                        f"**Third‑Place Qualifier Code (alphabetical by group):** `{combo_code}`  \n"
-                        f"*Groups represented:* {group_letters_human}"
-                    )
-                else:
-                    st.info("Third‑place qualifier code not available yet.")
+    
 
     with pred_sub_tabs[2]:
         # Knockout Rounds remain locked until explicit Stage 2 compilation is triggered
