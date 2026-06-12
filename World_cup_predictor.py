@@ -826,6 +826,7 @@ def render_match_card(home, away, label, key_prefix, disabled=False, score_mode=
 # ==============================================================================
 # --- 9. COMPUTATION ENGINES ---
 # ==============================================================================
+@st.cache_data(ttl=600)
 def run_standings_engine(scores_dict):
     all_group_results = {}
     third_place_pool = []
