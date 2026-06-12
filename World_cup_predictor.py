@@ -1301,7 +1301,7 @@ elif app_tab == "📝 Submit Predictions":
         elif has_unfinalized_tiebreaker:
             st.warning("⚠️ Group matches predicted, but there are unfinalized tie-break scenarios. Please resolve and lock all active tie-breakers to open the Master Lock Gate below.")
         elif not st.session_state.knockouts_generated:
-            st.success("✅ Marvelous! All 72 group matches predicted and locked. Please click the Master Lock button below to compile brackets.")
+            st.success("✅ Success! All 72 group matches predicted and locked. Proceed to knockout round predictions.")
         else:
             st.success("🔒 Standings and Tie-Breakers verified. Knockout stage brackets are fully live and updated.")
 
