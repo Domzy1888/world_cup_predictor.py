@@ -2105,7 +2105,7 @@ elif app_tab == "🛠️ Admin Dashboard" and is_league_admin:
                         # --- ADMIN WORKSPACE: INDIVIDUAL CANTEEN WALL CHART DOSSIERS (NATIVE REWRITE) ---
         with adm_ko_tabs[4]:
             st.title("🖨️ Office Canteen Print Station")
-            st.write("Select a teammate below to review their full submission sheet. To print out a clean copy for the wall, press **Ctrl + P** (Windows) or **Cmd + P** (Mac).")
+            st.write("Select a teammate below to generate a compact, single-page print layout for the work canteen wall.")
 
             try:
                 # Fetch prediction rows for the active league
@@ -2139,109 +2139,99 @@ elif app_tab == "🛠️ Admin Dashboard" and is_league_admin:
                         preds_dict.update(row_preds)
 
                 if matching_user_rows:
-                    # Inject standard CSS to hide web menus during a system print command
+                    # --- INJECT CLEAN PRINT ENGINE OVERRIDES ---
+                    # This hides everything except the actual dossier content container when printing
                     st.markdown("""
                         <style>
                         @media print {
-                            header, [data-testid="stSidebar"], [data-testid="stToolbar"], footer, .stSelectbox, .stAlert, .stTabs [role="tablist"] {
+                            /* Hide sidebars, tabs, dropdowns, headers, and alerts */
+                            [data-testid="stSidebar"], 
+                            header, 
+                            footer,
+                            .stSelectbox, 
+                            .stAlert,
+                            [data-testid="stHeader"],
+                            .stTabs [role="tablist"] {
                                 display: none !important;
                             }
-                            .main .block-container { padding: 0px !important; max-width: 100% !important; }
+                            .main .block-container {
+                                padding-top: 0 !important;
+                                padding-bottom: 0 !important;
+                                max-width: 100% !important;
+                            }
+                            body {
+                                background-color: #ffffff !important;
+                                color: #000000 !important;
+                            }
+                            .canteen-container {
+                                border: 3px double #000000 !important;
+                                padding: 15px !important;
+                            }
+                        }
+                        /* Screen styling for a sleek dashboard card look */
+                        .canteen-container {
+                            background-color: rgba(255,255,255,0.02);
+                            border: 1px solid rgba(255,255,255,0.1);
+                            border-radius: 8px;
+                            padding: 20px;
+                            margin-top: 10px;
+                        }
+                        .canteen-title {
+                            text-align: center;
+                            border-bottom: 2px dashed #4f46e5;
+                            padding-bottom: 10px;
+                            margin-bottom: 15px;
                         }
                         </style>
                     """, unsafe_allow_html=True)
 
-                    st.success(f"📋 Now showing full sheets for: **{selected_user}**")
+                    st.success(f"📋 Dossier compiled for **{selected_user}**. Press **Ctrl + P** or **Cmd + P** to print.")
 
-                    # =================================================================
-                    # PAGE 1: COMPLETED GROUPS & SCORE STANDINGS
-                    # =================================================================
-                    st.markdown("---")
-                    st.header(f"🏆 2026 World Cup Dossier — {selected_user}")
-                    st.subheader("📄 PAGE 1: Predicted Group Stage Standings")
+                    # --- COMPACT DOSSIER BOX ---
+                    st.markdown(f"""
+                        <div class="canteen-container">
+                            <div class="canteen-title">
+                                <h2 style='margin:0; font-size: 22px; letter-spacing: 1px;'>🏆 OFFICE POOL WALL CHART</h2>
+                                <h3 style='margin:5px 0 0 0; color:#4f46e5; font-size: 18px;'>Player: {selected_user}</h3>
+                            </div>
+                        </div>
+                    """, unsafe_allow_html=True)
 
-                    # 12 Groups total (A through L) spread across balanced rows
-                    groups_list = ['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I', 'J', 'K', 'L']
+                    # Build side-by-side print columns
+                    print_col1, print_col2 = st.columns(2)
 
-                    # Display groups in clean grids of 3 columns per row
-                    for chunk_idx in range(0, len(groups_list), 3):
-                        current_chunk = groups_list[chunk_idx:chunk_idx + 3]
-                        cols = st.columns(3)
+                    with print_col1:
+                        st.markdown("### 🏟️ Predicted Group Standings")
+                        
+                        # Loop through groups cleanly without bulky borders
+                        groups_list = ['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I', 'J', 'K', 'L']
+                        for g in groups_list:
+                            p1 = preds_dict.get(f"Group_{g}_1", "—")
+                            p2 = preds_dict.get(f"Group_{g}_2", "—")
+                            p3 = preds_dict.get(f"Group_{g}_3", "—")
+                            p4 = preds_dict.get(f"Group_{g}_4", "—")
+                            
+                            st.markdown(f"**Group {g}:** `1st` {p1} | `2nd` {p2} | `3rd` {p3}")
 
-                        for i, g in enumerate(current_chunk):
-                            with cols[i]:
-                                # Create a clean visible box container using st.container
-                                with st.container(border=True):
-                                    st.markdown(f"### 🏟️ GROUP {g}")
-
-                                    # Fetch positions predicted by user
-                                    p1 = preds_dict.get(f"Group_{g}_1", "—")
-                                    p2 = preds_dict.get(f"Group_{g}_2", "—")
-                                    p3 = preds_dict.get(f"Group_{g}_3", "—")
-                                    p4 = preds_dict.get(f"Group_{g}_4", "—")
-
-                                    st.markdown(f"🟢 **1st:** {p1}")
-                                    st.markdown(f"🔵 **2nd:** {p2}")
-                                    st.markdown(f"⚪ **3rd:** {p3}")
-                                    st.markdown(f"❌ **4th:** {p4}")
-
-                    # =================================================================
-                    # PAGE 2: KNOCKOUT PREDICTIONS
-                    # =================================================================
-                    st.markdown("<br><br>", unsafe_allow_html=True)
-                    st.markdown("---")
-                    st.header(f"🌿 Knockout Stage Bracket — {selected_user}")
-                    st.subheader("📄 PAGE 2: Knockout Bracket Paths & Final Standings")
-
-                    ko_cols = st.columns(3)
-
-                    with ko_cols[0]:
-                        st.markdown("### 🏟️ Left Side Bracket")
-                        with st.container(border=True):
-                            st.markdown("**Round of 16 Matches**")
-                            st.write(f"M81: {preds_dict.get('Match_81_home', 'TBD')} vs {preds_dict.get('Match_81_away', 'TBD')}")
-                            st.write(f"M82: {preds_dict.get('Match_82_home', 'TBD')} vs {preds_dict.get('Match_82_away', 'TBD')}")
-                            st.write(f"M83: {preds_dict.get('Match_83_home', 'TBD')} vs {preds_dict.get('Match_83_away', 'TBD')}")
-                            st.write(f"M84: {preds_dict.get('Match_84_home', 'TBD')} vs {preds_dict.get('Match_84_away', 'TBD')}")
-
-                        with st.container(border=True):
-                            st.markdown("**Quarter Finals**")
-                            st.write(f"QF 1 Winner: **{preds_dict.get('Match_97', 'TBD')}**")
-                            st.write(f"QF 2 Winner: **{preds_dict.get('Match_98', 'TBD')}**")
-
-                        with st.container(border=True):
-                            st.markdown("**Semi Final**")
-                            st.write(f"SF 1 Winner: ✨ **{preds_dict.get('Match_101', 'TBD')}**")
-
-                    with ko_cols[1]:
-                        st.markdown("### 👑 Final Podium")
-                        with st.container(border=True):
-                            st.markdown("### 🥇 TOURNAMENT CHAMPION")
-                            champ = str(preds_dict.get('Match_104', '🥉 TBD')).upper()
-                            st.subheader(f"🏆 {champ}")
-
-                        with st.container(border=True):
-                            st.markdown("#### 🥉 3rd Place Playoff Winner")
-                            st.write(f"Third Place: **{preds_dict.get('Match_103', 'TBD')}**")
-
-                    with ko_cols[2]:
-                        st.markdown("### 🏟️ Right Side Bracket")
-                        with st.container(border=True):
-                            st.markdown("**Round of 16 Matches**")
-                            st.write(f"M85: {preds_dict.get('Match_85_home', 'TBD')} vs {preds_dict.get('Match_85_away', 'TBD')}")
-                            st.write(f"M86: {preds_dict.get('Match_86_home', 'TBD')} vs {preds_dict.get('Match_86_away', 'TBD')}")
-                            st.write(f"M87: {preds_dict.get('Match_87_home', 'TBD')} vs {preds_dict.get('Match_87_away', 'TBD')}")
-                            st.write(f"M88: {preds_dict.get('Match_88_home', 'TBD')} vs {preds_dict.get('Match_88_away', 'TBD')}")
-
-                        with st.container(border=True):
-                            st.markdown("**Quarter Finals**")
-                            st.write(f"QF 3 Winner: **{preds_dict.get('Match_99', 'TBD')}**")
-                            st.write(f"QF 4 Winner: **{preds_dict.get('Match_100', 'TBD')}**")
-
-                        with st.container(border=True):
-                            st.markdown("**Semi Final**")
-                            st.write(f"SF 2 Winner: ✨ **{preds_dict.get('Match_102', 'TBD')}**")
-
-                    st.markdown("---")
+                    with print_col2:
+                        st.markdown("### 🌳 Knockout Pathways")
+                        
+                        st.markdown("**Round of 16 Picks:**")
+                        st.write(f"• M81: {preds_dict.get('Match_81_home', 'TBD')} vs {preds_dict.get('Match_81_away', 'TBD')}")
+                        st.write(f"• M82: {preds_dict.get('Match_82_home', 'TBD')} vs {preds_dict.get('Match_82_away', 'TBD')}")
+                        st.write(f"• M85: {preds_dict.get('Match_85_home', 'TBD')} vs {preds_dict.get('Match_85_away', 'TBD')}")
+                        st.write(f"• M86: {preds_dict.get('Match_86_home', 'TBD')} vs {preds_dict.get('Match_86_away', 'TBD')}")
+                        
+                        st.markdown("---")
+                        st.markdown("**Deep Runs:**")
+                        st.write(f"• QF 1 Winner: **{preds_dict.get('Match_97', 'TBD')}**")
+                        st.write(f"• QF 2 Winner: **{preds_dict.get('Match_98', 'TBD')}**")
+                        st.write(f"• SF 1 Winner: ✨ **{preds_dict.get('Match_101', 'TBD')}**")
+                        st.write(f"• SF 2 Winner: ✨ **{preds_dict.get('Match_102', 'TBD')}**")
+                        
+                        st.markdown("---")
+                        champ = str(preds_dict.get('Match_104', 'TBD')).upper()
+                        st.markdown(f"🥇 **TOURNAMENT CHAMPION:**\n<h3 style='color:#eab308; margin:0;'>🏆 {champ}</h3>", unsafe_allow_html=True)
             else:
                 st.warning("No submission logs found in this league context.")
+
