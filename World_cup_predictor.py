@@ -22,7 +22,7 @@ def is_tournament_locked():
     """
     try:
         uk_tz = pytz.timezone('Europe/London')
-        deadline = uk_tz.localize(datetime(2026, 6, 12, 17, 0, 0))
+        deadline = uk_tz.localize(datetime(2026, 7, 12, 17, 0, 0))
         now_uk = datetime.now(uk_tz)
         return now_uk >= deadline
     except Exception:
