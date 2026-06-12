@@ -1504,14 +1504,9 @@ elif app_tab == "📝 Submit Predictions":
     with pred_sub_tabs[1]:
         st.subheader("🌍 3rd‑Place League Rankings")
 
-        # The 3rd-Place league now remains hidden until the user manually triggers Stage 2 processing
-        if comp_percent < 100 or has_unfinalized_tiebreaker or not st.session_state.knockouts_generated:
-            st.info(
-                "💡 You must complete all group stage score predictions, "
-                "finalize any active tie-breakers, and execute the master "
-                "**'Finalize Group Stage & Generate Knockouts'** button inside the Group Matches tab "
-                "before the 3rd‑place league can be generated."
-            )
+        # The 3rd-Place league now renders as long as predictions exist
+        if not user_preds:
+            st.info("Start predicting group scores to see the 3rd-place rankings.")
         else:
             # Build the 12-team 3rd-place league
             full_wildcards_df, top8_df, combo_code_table = build_full_third_place_table(user_preds)
