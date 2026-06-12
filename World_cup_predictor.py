@@ -1435,7 +1435,8 @@ elif app_tab == "📝 Submit Predictions":
                     st.success("Success! Standings locked in. Knockout round tables and configurations have been successfully initialized below.")
                     st.rerun()
 
-    # NEW TAB: 3rd-Place League
+    # --- 3rd Place tab ---
+
 with pred_sub_tabs[1]:
     st.subheader("🌍 3rd‑Place League Rankings")
 
