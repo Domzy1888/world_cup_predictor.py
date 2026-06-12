@@ -1319,6 +1319,13 @@ elif app_tab == "📝 Submit Predictions":
     user_preds = db_fetch_user_predictions(c_uid, active_league_id)
     locked_keys_set = db_fetch_locked_status(c_uid, active_league_id)
 
+    # Reconstruct local tie-breaker variables to feed the cached computation engines cleanly
+    local_tb_orders = {}
+    local_tb_locks = {}
+    for g_name in GROUPS.keys():
+        local_tb_orders[f"tb_order_{g_name}"] = st.session_state.get(f"tb_order_{g_name}", [])
+        local_tb_locks[f"tb_locked_{g_name}"] = st.session_state.get(f"tb_locked_{g_name}", False)
+
     # Initialize session state for tracking master league-wide knockout progression
     if "knockouts_generated" not in st.session_state:
         st.session_state.knockouts_generated = False
@@ -1332,11 +1339,11 @@ elif app_tab == "📝 Submit Predictions":
     # Pre-check all groups globally to detect any pending un-finalized tie-breakers
     has_unfinalized_tiebreaker = False
     for g_name in GROUPS.keys():
-        g_tables, _ = run_standings_engine(user_preds)
+        g_tables, _ = run_standings_engine(user_preds, manual_tb_locks=local_tb_locks, manual_tb_orders=local_tb_orders)
         df_g_check = g_tables[g_name]
         tied_mask_check = df_g_check.duplicated(subset=['Pts', 'GD', 'GF'], keep=False)
         if tied_mask_check.any():
-            if not st.session_state.get(f"tb_locked_{g_name}"):
+            if not local_tb_locks.get(f"tb_locked_{g_name}"):
                 has_unfinalized_tiebreaker = True
                 break
 
@@ -1398,7 +1405,7 @@ elif app_tab == "📝 Submit Predictions":
 
         with col_table:
             st.subheader("Simulated Group Table")
-            u_results, _ = run_standings_engine(user_preds)
+            u_results, _ = run_standings_engine(user_preds, manual_tb_locks=local_tb_locks, manual_tb_orders=local_tb_orders)
             df_display = u_results[selected_group].copy()
 
             # CRITICAL FIX: Ensure values are calculated as numbers and sorted according to strict FIFA rules
@@ -1414,7 +1421,7 @@ elif app_tab == "📝 Submit Predictions":
                 tb_order_key = f"tb_order_{selected_group}"
 
                 # Force true if tournament level lockout condition evaluates true
-                is_tb_locked = global_tournament_lock or st.session_state.get(tb_lock_key, False)
+                is_tb_locked = global_tournament_lock or local_tb_locks.get(tb_lock_key, False)
 
                 if global_tournament_lock:
                     st.info("🔒 Tie-break sequence completed. Standings locked due to tournament initialization rules.")
@@ -1439,8 +1446,8 @@ elif app_tab == "📝 Submit Predictions":
 
                         # Set default dropdown selections gracefully
                         default_team = temp_pool[0] if temp_pool else tied_teams[i]
-                        if (is_tb_locked or global_tournament_lock) and tb_order_key in st.session_state:
-                            default_team = st.session_state[tb_order_key][idx]
+                        if (is_tb_locked or global_tournament_lock) and local_tb_orders.get(tb_order_key):
+                            default_team = local_tb_orders[tb_order_key][idx]
 
                         chosen_team = st.selectbox(
                             f"Select {pos_label}",
@@ -1499,7 +1506,7 @@ elif app_tab == "📝 Submit Predictions":
             st.info("Start predicting group scores to see the 3rd-place rankings.")
         else:
             # Build the 12-team 3rd-place league
-            full_wildcards_df, top8_df, combo_code_table = build_full_third_place_table(user_preds)
+            full_wildcards_df, top8_df, combo_code_table = build_full_third_place_table(user_preds, manual_tb_locks=local_tb_locks, manual_tb_orders=local_tb_orders)
 
             if full_wildcards_df.empty:
                 st.warning("No 3rd‑place data available yet.")
@@ -1532,7 +1539,7 @@ elif app_tab == "📝 Submit Predictions":
                     )
 
                 # Get the exact code used by the bracket engine for consistency
-                user_bracket_view = resolve_bracket_teams(user_preds, target_is_actual=False)
+                user_bracket_view = resolve_bracket_teams(user_preds, target_is_actual=False, manual_tb_locks=local_tb_locks, manual_tb_orders=local_tb_orders)
                 combo_code = user_bracket_view.get("third_place_code", combo_code_table)
 
                 st.markdown("---")
@@ -1556,7 +1563,7 @@ elif app_tab == "📝 Submit Predictions":
             )
         else:
             # The bracket engine runs automatically now since the condition above passed
-            user_calc_bracket = resolve_bracket_teams(user_preds, target_is_actual=False)
+            user_calc_bracket = resolve_bracket_teams(user_preds, target_is_actual=False, manual_tb_locks=local_tb_locks, manual_tb_orders=local_tb_orders)
             o_r32 = user_calc_bracket["r32_pairings"]
             # --- DEBUG: 3rd-place R32 mapping (focus on Match_81) ---
             with st.expander("🔍 Debug 3rd-Place R32 Mapping"):
@@ -1566,7 +1573,7 @@ elif app_tab == "📝 Submit Predictions":
                     mapping_row = fetch_supabase_wildcard_mapping(combo_code)
                     st.write("Supabase row:", mapping_row if mapping_row else "(no row found)")
                     # Rebuild wildcards_by_group from the same engine
-                    _, qualifying_wildcards = run_standings_engine(user_preds)
+                    _, qualifying_wildcards = run_standings_engine(user_preds, manual_tb_locks=local_tb_locks, manual_tb_orders=local_tb_orders)
                     wildcards_by_group = {
                         row["Group"].replace("Group ", "").strip(): row["Team"]
                         for row in qualifying_wildcards
@@ -1658,7 +1665,7 @@ elif app_tab == "📝 Submit Predictions":
 
                 o_qf = {
                     "Match_97": (get_ko_prev_r16("Match_89"), get_ko_prev_r16("Match_90")), "Match_98": (get_ko_prev_r16("Match_93"), get_ko_prev_r16("Match_94")),
-                    "Match_99": (get_ko_prev_r16("Match_91"), get_ko_prev_r16("Match_92")), "Match_100": (get_ko_prev_r16("Match_95"), get_ko_prev_r16("Match_96"))
+                    "Match_99": (get_ko_prev_r16("Match_91"), get_ko_prev_r16("Match_92")), "Match_100": (get_ko_prev_r16("Match_95"), get_ko_prev_r16("Match_100"))
                 }
                 qf_keys = list(o_qf.keys())
                 is_qf_locked = global_tournament_lock or all(k in locked_keys_set for k in qf_keys)
@@ -1748,6 +1755,7 @@ elif app_tab == "📝 Submit Predictions":
                         db_lock_predictions(c_uid, active_league_id, finals_keys)
                         st.success("Finals brackets predictions successfully locked!")
                         st.rerun()
+
 
 # ==============================================================================
 # --- 15. ADMINISTRATIVE CONTROL PANEL ---
