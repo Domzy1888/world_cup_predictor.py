@@ -530,8 +530,18 @@ def db_fetch_locked_status(user_id, league_id):
     return locked_keys
 
 def db_lock_predictions(user_id, league_id, match_keys_list):
-    for key in match_keys_list:
-        supabase.table("predictions").update({"is_locked": True}).eq("user_id", user_id).eq("league_id", league_id).eq("match_key", key).execute()
+    """Updates all selected match keys for a user in ONE single network request."""
+    if not match_keys_list:
+        return
+    try:
+        supabase.table("predictions") \
+            .update({"is_locked": True}) \
+            .eq("user_id", user_id) \
+            .eq("league_id", league_id) \
+            .in_("match_key", match_keys_list) \
+            .execute()
+    except Exception as e:
+        st.error(f"Failed to bulk update predictions: {e}")
 
 def db_fetch_user_leagues(user_id):
     res = supabase.table("league_members").select("leagues(id, name, creator_id)").eq("user_id", user_id).execute()
@@ -596,13 +606,12 @@ def db_save_group_tie_breaker(user_id, league_id, group_name, team_order):
     except Exception as e:
         st.error(f"Failed to persist tie-breaker structure to database: {e}")
 
-# Fetch the specific cross-referenced row matching the current generated 8-letter string combo key
 def fetch_supabase_wildcard_mapping(combination_str):
     try:
         res = supabase.table("assign_third").select("*").eq("group_combination", combination_str).execute()
         if res.data:
             return res.data[0]
-    except Exception as database_error:
+    except Exception:
         pass
     return None
 
