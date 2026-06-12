@@ -499,6 +499,7 @@ DYNAMIC_R32_CONFIG = {
 # ==============================================================================
 # --- 6. DATABASE HELPER WRAPPERS ---
 # ==============================================================================
+@st.cache_data
 def db_fetch_user_predictions(user_id, league_id):
     res = supabase.table("predictions").select("match_key, score_value").eq("user_id", user_id).eq("league_id", league_id).execute()
     preds = {}
@@ -526,6 +527,7 @@ def db_save_prediction(user_id, league_id, match_key, value):
         "score_value": score_val
     }, on_conflict="user_id,league_id,match_key").execute()
 
+@st.cache_data
 def db_fetch_locked_status(user_id, league_id):
     res = supabase.table("predictions").select("match_key, is_locked").eq("user_id", user_id).eq("league_id", league_id).execute()
     locked_keys = set()
@@ -549,6 +551,7 @@ def db_lock_predictions(user_id, league_id, match_keys_list):
     except Exception as e:
         st.error(f"Failed to bulk update predictions: {e}")
 
+@st.cache_data
 def db_fetch_user_leagues(user_id):
     res = supabase.table("league_members").select("leagues(id, name, creator_id)").eq("user_id", user_id).execute()
     leagues_list = []
@@ -562,6 +565,7 @@ def db_fetch_user_leagues(user_id):
                 })
     return leagues_list
 
+@st.cache_data
 def db_fetch_league_actual_results(league_id):
     res = supabase.table("actual_results").select("match_key, score_value").eq("league_id", league_id).execute()
     results = {"group": {}, "ko_winners": {}, "third_place": "", "finalists": []}
@@ -591,6 +595,7 @@ def db_delete_league_actual_result(league_id, match_key):
     supabase.table("actual_results").delete().eq("league_id", league_id).eq("match_key", match_key).execute()
 
 # --- PERSISTENT TIE BREAKER EXTRA DRIVERS ---
+@st.cache_data
 def db_fetch_group_tie_breakers(user_id, league_id):
     """Retrieves all locked tie breakers from the database table."""
     try:
@@ -612,6 +617,7 @@ def db_save_group_tie_breaker(user_id, league_id, group_name, team_order):
     except Exception as e:
         st.error(f"Failed to persist tie-breaker structure to database: {e}")
 
+@st.cache_data
 def fetch_supabase_wildcard_mapping(combination_str):
     try:
         res = supabase.table("assign_third").select("*").eq("group_combination", combination_str).execute()
@@ -636,7 +642,8 @@ def check_group_stage_completion(user_preds):
     return completed_matches, total_group_matches, percent
 
 # --- FINAL TICKER WORKSPACE ENGINE (DYNAMIC ALL ROUNDS + DISPLAY STRINGS) ---
-def generate_live_ticker_stream(league_id):
+@st.cache_data
+def calculate_live_ticker_html(league_id):
     # Fetch existing official admin results
     actual = db_fetch_league_actual_results(league_id)
 
@@ -769,7 +776,12 @@ def generate_live_ticker_stream(league_id):
     </style>
     <div class="ticker-container"><div class="ticker-wrapper"><div class="ticker-content">{ticker_string} &nbsp;&nbsp;&nbsp;&nbsp;•&nbsp;&nbsp;&nbsp;&nbsp; {ticker_string}</div></div></div>
     """
+    return marquee_html
+
+def generate_live_ticker_stream(league_id):
+    marquee_html = calculate_live_ticker_html(league_id)
     st.components.v1.html(marquee_html, height=46)
+
 
 # ==============================================================================
 # --- 7. SESSION INITIALIZATION ---
