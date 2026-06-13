@@ -2129,36 +2129,49 @@ elif app_tab == "🛠️ Admin Dashboard" and is_league_admin:
                 selected_user_name = st.selectbox("🎯 Select Teammate Profile:", sorted_names, key="canteen_pdf_select_v3")
                 target_user_id = user_map[selected_user_name]
 
-                # 2. FETCH ALL RELATIONAL PREDICTION ROWS FOR THIS USER & LEAGUE CONTEXT
+                                # 2. FETCH ALL RELATIONAL PREDICTION ROWS FOR THIS USER & LEAGUE CONTEXT
                 try:
                     raw_rows = supabase.table("predictions").select("match_key, score_value").eq("user_id", target_user_id).eq("league_id", active_league_id).execute().data
                 except Exception as e:
                     st.error(f"Error fetching user predictions: {e}")
                     raw_rows = []
 
-                # Reconstruct the precise multi-layered dictionary your calculation engine requires
-                user_preds = {"group": {}, "ko_winners": {}}
+                # Reconstruct the precise dictionaries your calculation engine expects
+                group_scores_only = {}
+                ko_winners_only = {}
+                
                 for r in raw_rows:
                     m_key = r.get("match_key", "")
                     s_val = r.get("score_value")
                     
                     if m_key.startswith("Match_"):
-                        # If it contains an '_h' or '_a', it's a group score prediction
                         if m_key.endswith("_h") or m_key.endswith("_a"):
-                            user_preds["group"][m_key] = s_val
+                            # This goes into the flat dictionary your standings engine reads
+                            group_scores_only[m_key] = s_val
                         else:
-                            # Otherwise, it's a structural knockout round selection row
-                            user_preds["ko_winners"][m_key] = s_val
+                            ko_winners_only[m_key] = s_val
+
+                # Reassemble the unified tracking object for the PDF generator
+                user_preds = {
+                    "group": group_scores_only,
+                    "ko_winners": ko_winners_only
+                }
 
                 # 3. RUN THE CALCULATED STANDINGS THROUGH YOUR INTEGRATED VALIDATOR ENGINE
-                user_actual_structure = db_fetch_league_actual_results(active_league_id)
-                user_calc_bracket = resolve_bracket_teams(
-                    target_user_id, 
-                    target_is_actual=False, 
-                    actual_results_obj=user_actual_structure,
-                    manual_tb_locks={}, 
-                    manual_tb_orders={}
-                )
+                # We pass group_scores_only explicitly to prevent the NoneType engine crash!
+                with st.spinner(f"Running tournament matrix for {selected_user_name}..."):
+                    try:
+                        user_calc_bracket = resolve_bracket_teams(
+                            group_scores_only,  # Pass the explicit scores dictionary directly here
+                            target_is_actual=False, 
+                            actual_results_obj=None,
+                            manual_tb_locks={}, 
+                            manual_tb_orders={}
+                        )
+                    except Exception as engine_err:
+                        st.error(f"Engine parsing failure: {engine_err}")
+                        user_calc_bracket = {}
+
 
                 # --- PDF GENERATION LOGIC ---
                 def generate_user_pdf(name, preds, calc_bracket):
