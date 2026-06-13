@@ -1692,7 +1692,7 @@ elif app_tab == "📝 Submit Predictions":
 
                 o_qf = {
                     "Match_97": (get_ko_prev_r16("Match_89"), get_ko_prev_r16("Match_90")), "Match_98": (get_ko_prev_r16("Match_93"), get_ko_prev_r16("Match_94")),
-                    "Match_99": (get_ko_prev_r16("Match_91"), get_ko_prev_r16("Match_92")), "Match_100": (get_ko_prev_r16("Match_95"), get_ko_prev_r16("Match_100"))
+                    "Match_99": (get_ko_prev_r16("Match_91"), get_ko_prev_r16("Match_92")), "Match_100": (get_ko_prev_r16("Match_95"), get_ko_prev_r16("Match_96"))
                 }
                 qf_keys = list(o_qf.keys())
                 is_qf_locked = global_tournament_lock or all(k in locked_keys_set for k in qf_keys)
