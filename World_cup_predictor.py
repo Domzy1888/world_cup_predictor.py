@@ -2129,7 +2129,7 @@ elif app_tab == "🛠️ Admin Dashboard" and is_league_admin:
                 selected_user_name = st.selectbox("🎯 Select Teammate Profile:", sorted_names, key="canteen_pdf_select_v3")
                 target_user_id = user_map[selected_user_name]
 
-                                # 2. FETCH ALL RELATIONAL PREDICTION ROWS FOR THIS USER & LEAGUE CONTEXT
+                # 2. FETCH ALL RELATIONAL PREDICTION ROWS FOR THIS USER & LEAGUE CONTEXT
                 try:
                     raw_rows = supabase.table("predictions").select("match_key, score_value").eq("user_id", target_user_id).eq("league_id", active_league_id).execute().data
                 except Exception as e:
@@ -2171,7 +2171,6 @@ elif app_tab == "🛠️ Admin Dashboard" and is_league_admin:
                     except Exception as engine_err:
                         st.error(f"Engine parsing failure: {engine_err}")
                         user_calc_bracket = {}
-
 
                 # --- PDF GENERATION LOGIC ---
                 def generate_user_pdf(name, preds, calc_bracket):
@@ -2306,17 +2305,22 @@ elif app_tab == "🛠️ Admin Dashboard" and is_league_admin:
                     buffer.seek(0)
                     return buffer.getvalue()
 
-                                    # 4. PACKAGE DATA INTO THE EXPORT BUTTON (CORRECTED SNAKE_CASE KEYWORD)
+                # 4. PACKAGE DATA INTO THE EXPORT BUTTON
+                try:
+                    # Explicitly generate the binary data first!
+                    pdf_data = generate_user_pdf(selected_user_name, user_preds, user_calc_bracket)
+                    
+                    st.success(f"📋 Verification dossier compiled successfully for **{selected_user_name}**!")
+                    
                     st.download_button(
                         label=f"📥 Download {selected_user_name}'s Master Print PDF",
                         data=pdf_data,
-                        file_name=f"Tournament_Dossier_{selected_user_name.replace(' ', '_')}.pdf",  # Changed from fileName to file_name
+                        file_name=f"Tournament_Dossier_{selected_user_name.replace(' ', '_')}.pdf",
                         mime="application/pdf",
                         use_container_width=True
                     )
-
                     
-                    # Live On-Screen preview container so you see it instantly hydra-hydrate
+                    # Live On-Screen preview container
                     with st.expander("👁️ Quick On-Screen Layout Verification", expanded=True):
                         col_view1, col_view2 = st.columns(2)
                         with col_view1:
@@ -2340,5 +2344,6 @@ elif app_tab == "🛠️ Admin Dashboard" and is_league_admin:
                     st.error(f"Error packaging PDF layout design blueprint: {pdf_err}")
             else:
                 st.warning("No submission profiles found inside your users infrastructure record.")
+
 
 
