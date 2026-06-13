@@ -2155,10 +2155,8 @@ elif app_tab == "🛠️ Admin Dashboard" and is_league_admin:
 
                 # 3. REVERSE-ENGINEER STANDINGS MATRIX LOCALLY
                 with st.spinner(f"Compiling tournament data matrix for {selected_user_name}..."):
-                    # Step A: Build out dynamic structures for all 12 groups
                     local_group_standings = {}
                     for g_name, matches in CHRONO_MATCHES.items():
-                        # Initialize tracking for the four teams inside this specific group
                         teams_stats = {}
                         for m in matches:
                             if m["home"] not in teams_stats: teams_stats[m["home"]] = {"pts": 0, "gd": 0, "gf": 0}
@@ -2186,16 +2184,16 @@ elif app_tab == "🛠️ Admin Dashboard" and is_league_admin:
                                 except:
                                     pass
                         
-                        # Sort teams using traditional football matrix parameters: Points -> Goal Diff -> Goals For
                         sorted_teams = sorted(
                             teams_stats.keys(),
                             key=lambda x: (teams_stats[x]["pts"], teams_stats[x]["gd"], teams_stats[x]["gf"]),
                             reverse=True
                         )
-                        # Pad out with placeholders if matches haven't been filled
                         while len(sorted_teams) < 4:
                             sorted_teams.append("—")
+                        # We save using both short and long keys to ensure ReportLab maps it flawlessly
                         local_group_standings[g_name] = sorted_teams
+                        local_group_standings[g_name.replace("Group ", "")] = sorted_teams
 
                 # --- PDF GENERATION LOGIC ---
                 def generate_user_pdf(name, preds, standings, ko_map):
@@ -2269,7 +2267,8 @@ elif app_tab == "🛠️ Admin Dashboard" and is_league_admin:
                     group_data_rows = [["Group", "1st Position", "2nd Position", "3rd Position", "4th Position"]]
                     
                     for g in groups_abc:
-                        teams_list = standings.get(g, ["—", "—", "—", "—"])
+                        # Fallback checks targeting both 'Group A' and 'A' as valid keys
+                        teams_list = standings.get(f"Group {g}", standings.get(g, ["—", "—", "—", "—"]))
                         group_data_rows.append([f"Group {g}", str(teams_list[0]), str(teams_list[1]), str(teams_list[2]), str(teams_list[3])])
                         
                     group_table = Table(group_data_rows, colWidths=[60, 115, 115, 115, 115])
@@ -2290,13 +2289,18 @@ elif app_tab == "🛠️ Admin Dashboard" and is_league_admin:
                     # PART C: RESOLVED KNOCKOUT TARGET SELECTIONS
                     story.append(Paragraph("🌳 Part 3: Predicted Knockout Progression Paths", section_style))
                     
-                    # Mapping translation step for flag indicators (1=Home winner, 2=Away winner)
+                    # Improved flag translation using explicit lookups matching your layout setup
                     def translate_flag_to_team(m_id, flag):
                         if not flag or flag == "TBD": return "TBD"
-                        if not flag.isdigit(): return flag # If it's already text, leave it alone
+                        if not flag.isdigit(): return flag
                         
-                        # Fallback descriptive mapping strings
-                        return f"Advance Bracket Choice ({flag})"
+                        # Look up structural pairing paths
+                        for g_name, matches in CHRONO_MATCHES.items():
+                            for m in matches:
+                                if str(m.get("id")) == m_id.replace("Match_", ""):
+                                    return m["home"] if flag == "1" else m["away"]
+                                    
+                        return f"Selection Option ({flag})"
 
                     ko_data = [
                         ["Round Parameter Stage", "Predicted Winner Outcome Selection"],
@@ -2310,7 +2314,7 @@ elif app_tab == "🛠️ Admin Dashboard" and is_league_admin:
                         ["Match 100 Winner (Quarter Final 4)", translate_flag_to_team("Match_100", ko_map.get("Match_100"))],
                         ["Match 101 Winner (Semi Final 1)", translate_flag_to_team("Match_101", ko_map.get("Match_101"))],
                         ["Match 102 Winner (Semi Final 2)", translate_flag_to_team("Match_102", ko_map.get("Match_102"))],
-                        ["🥉 3rd Place Playoff Winner", translate_flag_to_team("Match_103", ko_map.get("Match_103"))],
+                        ["🏆 3rd Place Playoff Winner", translate_flag_to_team("Match_103", ko_map.get("Match_103"))],
                         ["🥇 GRAND TOURNAMENT CHAMPION", translate_flag_to_team("Match_104", ko_map.get("Match_104")).upper()]
                     ]
                     
@@ -2358,6 +2362,7 @@ elif app_tab == "🛠️ Admin Dashboard" and is_league_admin:
                     st.error(f"Error packaging PDF layout design blueprint: {pdf_err}")
             else:
                 st.warning("No submission profiles found inside your users infrastructure record.")
+
 
 
 
