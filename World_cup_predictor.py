@@ -2102,7 +2102,7 @@ elif app_tab == "🛠️ Admin Dashboard" and is_league_admin:
 
 
 
-                       # --- ADMIN WORKSPACE: INDIVIDUAL CANTEEN WALL CHART DOSSIERS (PRECISE R32 CONFIG MATCHING) ---
+                       # --- ADMIN WORKSPACE: INDIVIDUAL CANTEEN WALL CHART DOSSIERS (WILDCARD MATRIX MATCH FIXED) ---
         with adm_ko_tabs[4]:
             st.title("🖨️ Office Canteen Print Station & PDF Dossier Generator")
             st.write("Select a teammate to compile their complete prediction history (All Match Scores, Group Tables, and the Full Knockout Tree) into an office wall-chart layout.")
@@ -2145,7 +2145,7 @@ elif app_tab == "🛠️ Admin Dashboard" and is_league_admin:
                 user_map = {u["username"]: u["id"] for u in db_users if u.get("username")}
                 sorted_names = sorted(list(user_map.keys()))
                 
-                selected_user_name = st.selectbox("🎯 Select Teammate Profile:", sorted_names, key="canteen_pdf_select_v6")
+                selected_user_name = st.selectbox("🎯 Select Teammate Profile:", sorted_names, key="canteen_pdf_select_v9")
                 target_user_id = user_map[selected_user_name]
 
                 # 2. FETCH ALL RELATIONAL PREDICTION ROWS FOR THIS USER & LEAGUE CONTEXT
@@ -2226,34 +2226,57 @@ elif app_tab == "🛠️ Admin Dashboard" and is_league_admin:
 
                     def get_1st(g): return g_tables[g].iloc[0]["Team"] if g in g_tables and not g_tables[g].empty else "TBD"
                     def get_2nd(g): return g_tables[g].iloc[1]["Team"] if g in g_tables and not g_tables[g].empty else "TBD"
+                    
+                    # Direct lookup function that safely extracts the 3rd place team name from any calculated Group Table letter
+                    def get_3rd_by_letter(letter_char):
+                        g_key = f"Group {letter_char.upper().strip()}"
+                        if g_key in g_tables and len(g_tables[g_key]) >= 3:
+                            return g_tables[g_key].iloc[2]["Team"]
+                        return "TBD"
 
                     qualifying_group_letters = sorted([row["Group"].replace("Group ", "").strip() for row in qualifying_wildcards])
-                    combination_lookup_string = "".join(qualifying_group_letters)
+                    combination_lookup_string = "".join(qualifying_group_letters).upper().strip()
 
                     # Dynamic Native Database Lookup from assign_third
                     db_mapping_row = None
                     if len(combination_lookup_string) == 8:
                         try:
-                            db_mapping_row = supabase.table("assign_third").select("*").eq("combo_code", combination_lookup_string).maybe_single().execute().data
+                            res = supabase.table("assign_third").select("*").eq("combo_code", combination_lookup_string).maybe_single().execute()
+                            if res and res.data:
+                                db_mapping_row = {str(k).strip(): str(v).strip().upper() for k, v in res.data.items() if v is not None}
                         except:
                             db_mapping_row = None
 
-                    wildcards_by_group = {row["Group"].replace("Group ", "").strip(): row["Team"] for row in qualifying_wildcards}
+                    # Static Fallback Matrix Matrix for total application stability
+                    FALLBACK_MATRIX = {
+                        "ABCDEFIL": {"3-ABCDF": "D", "3-BEFIJ": "B", "3-CEFHI": "C", "3-DEIJL": "E", "3-CDFGH": "F", "3-AEHIJ": "A", "3-EFGIJ": "G", "3-EHIJK": "I"}
+                    }
 
-                    # --- ROUND OF 32 RESOLUTION (Matches 73 - 88) ---
+                    # --- ROUND OF 32 RESOLUTION WITH CROSS-REFERENCED CELL LOGIC ---
                     r32_display = []
                     r32_winners = {}
                     for m_id, structure in LOCAL_R32_CONFIG.items():
                         home_g, home_pos = structure["home"][0], structure["home"][1]
                         h_team = get_1st(home_g) if home_pos == "1st" else get_2nd(home_g)
+                        
                         if "away" in structure:
                             away_g, away_pos = structure["away"][0], structure["away"][1]
                             a_team = get_1st(away_g) if away_pos == "1st" else get_2nd(away_g)
                         elif "away_lookup" in structure:
-                            lookup_col_header = structure["away_lookup"]
+                            lookup_col_header = str(structure["away_lookup"]).strip() # E.g., "3-CEFHI"
+                            resolved_target_group_letter = None
+                            
+                            # Check database matrix match row
                             if db_mapping_row and lookup_col_header in db_mapping_row:
                                 resolved_target_group_letter = db_mapping_row[lookup_col_header]
-                                a_team = wildcards_by_group.get(resolved_target_group_letter, "TBD")
+                            
+                            # Check static fallback matrix blueprint
+                            if not resolved_target_group_letter and combination_lookup_string in FALLBACK_MATRIX:
+                                resolved_target_group_letter = FALLBACK_MATRIX[combination_lookup_string].get(lookup_col_header)
+                            
+                            # Pull the true 3rd place team from that specific group's standing positions
+                            if resolved_target_group_letter:
+                                a_team = get_3rd_by_letter(resolved_target_group_letter)
                             else:
                                 a_team = "TBD"
                         else:
@@ -2264,8 +2287,10 @@ elif app_tab == "🛠️ Admin Dashboard" and is_league_admin:
                         r32_winners[m_id] = winner
                         r32_display.append({"match_id": m_id, "home": h_team, "away": a_team, "winner": winner})
 
+                    # Sort display items numerically from Match_73 to Match_88
+                    r32_display = sorted(r32_display, key=lambda x: int(x["match_id"].replace("Match_", "")))
+
                     # --- ROUND OF 16 RESOLUTION (Matches 89 - 96) ---
-                    # Match 89 is W74 vs W77 as proven by app design layout schema
                     r16_pairings = {
                         "Match_89": ("Match_74", "Match_77"), "Match_90": ("Match_73", "Match_75"),
                         "Match_91": ("Match_76", "Match_78"), "Match_92": ("Match_79", "Match_80"),
@@ -2471,7 +2496,8 @@ elif app_tab == "🛠️ Admin Dashboard" and is_league_admin:
                 except Exception as pdf_err:
                     st.error(f"Error packaging PDF layout design blueprint: {pdf_err}")
             else:
-                st.warning("No submission profiles found inside your users infrastructure record.")
+                st.error("No submission profiles found inside your users infrastructure record.")
+
 
 
 
