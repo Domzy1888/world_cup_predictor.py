@@ -2102,7 +2102,7 @@ elif app_tab == "🛠️ Admin Dashboard" and is_league_admin:
 
 
 
-                       # --- ADMIN WORKSPACE: INDIVIDUAL CANTEEN WALL CHART DOSSIERS (WILDCARD MATRIX MATCH FIXED) ---
+                       # --- ADMIN WORKSPACE: INDIVIDUAL CANTEEN WALL CHART DOSSIERS (FULL 495-MATRIX DYNAMIC LOOKUP) ---
         with adm_ko_tabs[4]:
             st.title("🖨️ Office Canteen Print Station & PDF Dossier Generator")
             st.write("Select a teammate to compile their complete prediction history (All Match Scores, Group Tables, and the Full Knockout Tree) into an office wall-chart layout.")
@@ -2145,7 +2145,7 @@ elif app_tab == "🛠️ Admin Dashboard" and is_league_admin:
                 user_map = {u["username"]: u["id"] for u in db_users if u.get("username")}
                 sorted_names = sorted(list(user_map.keys()))
                 
-                selected_user_name = st.selectbox("🎯 Select Teammate Profile:", sorted_names, key="canteen_pdf_select_v9")
+                selected_user_name = st.selectbox("🎯 Select Teammate Profile:", sorted_names, key="canteen_pdf_select_v10")
                 target_user_id = user_map[selected_user_name]
 
                 # 2. FETCH ALL RELATIONAL PREDICTION ROWS FOR THIS USER & LEAGUE CONTEXT
@@ -2227,7 +2227,7 @@ elif app_tab == "🛠️ Admin Dashboard" and is_league_admin:
                     def get_1st(g): return g_tables[g].iloc[0]["Team"] if g in g_tables and not g_tables[g].empty else "TBD"
                     def get_2nd(g): return g_tables[g].iloc[1]["Team"] if g in g_tables and not g_tables[g].empty else "TBD"
                     
-                    # Direct lookup function that safely extracts the 3rd place team name from any calculated Group Table letter
+                    # Direct lookup function extracting the 3rd place team name from any calculated Group letter
                     def get_3rd_by_letter(letter_char):
                         g_key = f"Group {letter_char.upper().strip()}"
                         if g_key in g_tables and len(g_tables[g_key]) >= 3:
@@ -2237,22 +2237,20 @@ elif app_tab == "🛠️ Admin Dashboard" and is_league_admin:
                     qualifying_group_letters = sorted([row["Group"].replace("Group ", "").strip() for row in qualifying_wildcards])
                     combination_lookup_string = "".join(qualifying_group_letters).upper().strip()
 
-                    # Dynamic Native Database Lookup from assign_third
+                    # --- DYNAMIC 495 MATRIX SCAN VIA ILIKE WILDCARDS (Handles Trailing Spaces/Paddings Flawlessly) ---
                     db_mapping_row = None
                     if len(combination_lookup_string) == 8:
                         try:
-                            res = supabase.table("assign_third").select("*").eq("combo_code", combination_lookup_string).maybe_single().execute()
-                            if res and res.data:
-                                db_mapping_row = {str(k).strip(): str(v).strip().upper() for k, v in res.data.items() if v is not None}
-                        except:
+                            # Use an ILIKE wildcard scan to pull any matching row regardless of column whitespace padding
+                            res = supabase.table("assign_third").select("*").ilike("combo_code", f"%{combination_lookup_string}%").execute()
+                            if res and res.data and len(res.data) > 0:
+                                # Standardize all columns and returned assignment letters
+                                db_mapping_row = {str(k).strip(): str(v).strip().upper() for k, v in res.data[0].items() if v is not None}
+                        except Exception as matrix_err:
+                            st.warning(f"Database lookup challenge for code {combination_lookup_string}: {matrix_err}")
                             db_mapping_row = None
 
-                    # Static Fallback Matrix Matrix for total application stability
-                    FALLBACK_MATRIX = {
-                        "ABCDEFIL": {"3-ABCDF": "D", "3-BEFIJ": "B", "3-CEFHI": "C", "3-DEIJL": "E", "3-CDFGH": "F", "3-AEHIJ": "A", "3-EFGIJ": "G", "3-EHIJK": "I"}
-                    }
-
-                    # --- ROUND OF 32 RESOLUTION WITH CROSS-REFERENCED CELL LOGIC ---
+                    # --- ROUND OF 32 RESOLUTION (Fully Dynamic Across All 495 Combos) ---
                     r32_display = []
                     r32_winners = {}
                     for m_id, structure in LOCAL_R32_CONFIG.items():
@@ -2263,22 +2261,21 @@ elif app_tab == "🛠️ Admin Dashboard" and is_league_admin:
                             away_g, away_pos = structure["away"][0], structure["away"][1]
                             a_team = get_1st(away_g) if away_pos == "1st" else get_2nd(away_g)
                         elif "away_lookup" in structure:
-                            lookup_col_header = str(structure["away_lookup"]).strip() # E.g., "3-CEFHI"
+                            lookup_col_header = str(structure["away_lookup"]).strip() # E.g., "3-ABCDF"
                             resolved_target_group_letter = None
                             
-                            # Check database matrix match row
-                            if db_mapping_row and lookup_col_header in db_mapping_row:
-                                resolved_target_group_letter = db_mapping_row[lookup_col_header]
+                            # Scan the retrieved database row dynamically for any variations of the bracket column key
+                            if db_mapping_row:
+                                if lookup_col_header in db_mapping_row:
+                                    resolved_target_group_letter = db_mapping_row[lookup_col_header]
+                                elif lookup_col_header.replace("-", "_") in db_mapping_row:
+                                    resolved_target_group_letter = db_mapping_row[lookup_col_header.replace("-", "_")]
                             
-                            # Check static fallback matrix blueprint
-                            if not resolved_target_group_letter and combination_lookup_string in FALLBACK_MATRIX:
-                                resolved_target_group_letter = FALLBACK_MATRIX[combination_lookup_string].get(lookup_col_header)
-                            
-                            # Pull the true 3rd place team from that specific group's standing positions
+                            # Pull the true 3rd place team from that group's standing positions
                             if resolved_target_group_letter:
                                 a_team = get_3rd_by_letter(resolved_target_group_letter)
                             else:
-                                a_team = "TBD"
+                                a_team = f"TBD ({lookup_col_header})"
                         else:
                             a_team = "TBD"
                         
@@ -2497,6 +2494,7 @@ elif app_tab == "🛠️ Admin Dashboard" and is_league_admin:
                     st.error(f"Error packaging PDF layout design blueprint: {pdf_err}")
             else:
                 st.error("No submission profiles found inside your users infrastructure record.")
+
 
 
 
