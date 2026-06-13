@@ -884,12 +884,10 @@ def run_standings_engine(scores_dict, manual_tb_locks=None, manual_tb_orders=Non
 
         df_g = pd.DataFrame.from_dict(standings, orient='index').reset_index().rename(columns={'index': 'Team'})
         
-        # H2H Logic... 
+        # [Your existing H2H point_clusters logic here]
         df_g['h2h_pts'] = 0
         df_g['h2h_gd'] = 0
         df_g['h2h_gf'] = 0
-        
-        # ... [Your existing H2H point_clusters logic here] ...
 
         # Sort based on tie-breakers
         df_g = df_g.sort_values(by=["Pts", "h2h_pts", "h2h_gd", "h2h_gf", "GD", "GF"], ascending=False).reset_index(drop=True)
@@ -904,14 +902,11 @@ def run_standings_engine(scores_dict, manual_tb_locks=None, manual_tb_orders=Non
                 df_g = df_g.sort_values(by='Team', ascending=True).reset_index(drop=True)
                 df_g['Team'] = df_g['Team'].astype(str)
 
-        # --- ADDITION: Assign explicit Position for indexing ---
+        # Assign explicit Position for indexing
         df_g['Position'] = range(1, len(df_g) + 1)
-        
-        # Save results, keeping Position column but dropping intermediate H2H helpers
         all_group_results[g_name] = df_g.drop(columns=['h2h_pts', 'h2h_gd', 'h2h_gf'])
 
     # Step 2: Resolve 3rd place wildcard layout
-    # We now filter by Position 3 to be 100% accurate
     third_place_pool = [df[df['Position'] == 3].iloc[0].to_dict() for df in all_group_results.values() if not df[df['Position'] == 3].empty]
     
     wildcard_df = pd.DataFrame(third_place_pool).sort_values(by=["Pts", "GD", "GF"], ascending=False).reset_index(drop=True)
@@ -922,12 +917,10 @@ def run_standings_engine(scores_dict, manual_tb_locks=None, manual_tb_orders=Non
 
 @st.cache_data
 def build_full_third_place_table(scores_dict, manual_tb_locks=None, manual_tb_orders=None):
-    """Authoritative version: Consistently sorts 3rd place teams using explicit position filtering."""
     all_group_results, top8_list = run_standings_engine(scores_dict, manual_tb_locks, manual_tb_orders)
 
     third_place_rows = []
     for df in all_group_results.values():
-        # Look for the team explicitly marked as Position 3
         third_row = df[df['Position'] == 3]
         if not third_row.empty:
             third_place_rows.append(third_row.iloc[0].to_dict())
@@ -935,18 +928,13 @@ def build_full_third_place_table(scores_dict, manual_tb_locks=None, manual_tb_or
     if not third_place_rows:
         return pd.DataFrame(), pd.DataFrame(), ""
 
-    # Sort the filtered 3rd-place teams
-    full_wildcards_df = pd.DataFrame(third_place_rows).sort_values(
-        by=["Pts", "GD", "GF"], ascending=False
-    ).reset_index(drop=True)
+    full_wildcards_df = pd.DataFrame(third_place_rows).sort_values(by=["Pts", "GD", "GF"], ascending=False).reset_index(drop=True)
 
     top8_df = pd.DataFrame(top8_list)
     top8_teams = set(top8_df["Team"].tolist()) if not top8_df.empty else set()
     full_wildcards_df["Qualifies (Top 8)"] = full_wildcards_df["Team"].isin(top8_teams)
 
-    qualifying_group_letters = sorted([
-        row["Group"].replace("Group ", "").strip() for row in top8_list
-    ])
+    qualifying_group_letters = sorted([row["Group"].replace("Group ", "").strip() for row in top8_list])
     combo_code = "".join(qualifying_group_letters)
 
     return full_wildcards_df, top8_df, combo_code
@@ -954,16 +942,21 @@ def build_full_third_place_table(scores_dict, manual_tb_locks=None, manual_tb_or
 
 @st.cache_data
 def resolve_bracket_teams(scores_dict, target_is_actual=False, actual_results_obj=None, manual_tb_locks=None, manual_tb_orders=None):
+    """
+    Resolves the exact names of teams progressing through each round.
+    Handles user selections (which save as '1' or '2') and parses them relative
+    to that specific user's generated bracket mapping.
+    """
     if target_is_actual and actual_results_obj is not None:
-        g_scores = actual_results_obj["group"]
-        ko_choices = actual_results_obj["ko_winners"]
+        g_scores = actual_results_obj.get("group", {})
+        ko_choices = actual_results_obj.get("ko_winners", {})
     else:
-        g_scores = scores_dict
-        ko_choices = scores_dict
+        g_scores = scores_dict if scores_dict is not None else {}
+        ko_choices = scores_dict if scores_dict is not None else {}
 
+    # Build underlying group standings structures safely
     g_tables, qualifying_wildcards = run_standings_engine(g_scores, manual_tb_locks, manual_tb_orders)
 
-    # Respect the tie-breaker/user-locked table state for the bracket representation
     def get_1st(g): 
         if g not in g_tables or g_tables[g].empty: return ""
         return g_tables[g].iloc[0]["Team"]
@@ -972,9 +965,8 @@ def resolve_bracket_teams(scores_dict, target_is_actual=False, actual_results_ob
         if g not in g_tables or g_tables[g].empty: return ""
         return g_tables[g].iloc[1]["Team"]
 
-    qualifying_group_letters = []
     wildcards_by_group = {}
-
+    qualifying_group_letters = []
     for row in qualifying_wildcards:
         g_letter = row["Group"].replace("Group ", "").strip()
         qualifying_group_letters.append(g_letter)
@@ -987,6 +979,7 @@ def resolve_bracket_teams(scores_dict, target_is_actual=False, actual_results_ob
     if len(combination_lookup_string) == 8:
         db_mapping_row = fetch_supabase_wildcard_mapping(combination_lookup_string)
 
+    # Reconstruct Round of 32 baseline starting lines
     r32_teams = {}
     for m_id, structure in DYNAMIC_R32_CONFIG.items():
         home_g, home_pos = structure["home"][0], structure["home"][1]
@@ -1007,16 +1000,23 @@ def resolve_bracket_teams(scores_dict, target_is_actual=False, actual_results_ob
 
         r32_teams[m_id] = (h_team, a_team)
 
-    # 1. Round of 16
+    # Helper to resolve selection strings safely ('1', '2', or literal team names)
+    def clean_choice_resolution(match_key, current_pair):
+        raw = str(ko_choices.get(match_key, "")).strip()
+        if raw == "1": return current_pair[0]
+        if raw == "2": return current_pair[1]
+        return raw
+
+    # 1. Evaluate Round of 16 Progressors
     r16_teams = set()
     for m in range(73, 89):
         m_key = f"Match_{m}"
-        teams = r32_teams.get(m_key, ("", ""))
-        choice = str(ko_choices.get(m_key, ""))
-        if choice == "1" or choice == teams[0]: r16_teams.add(teams[0])
-        elif choice == "2" or choice == teams[1]: r16_teams.add(teams[1])
+        pair = r32_teams.get(m_key, ("", ""))
+        winner = clean_choice_resolution(m_key, pair)
+        if winner and winner != "Select Winner" and not winner.startswith("W"):
+            r16_teams.add(winner)
 
-    # 2. Quarter-Finals
+    # 2. Evaluate Quarter-Final Progressors
     qf_pairings = {
         "Match_89": ("Match_74", "Match_77"), "Match_90": ("Match_73", "Match_75"),
         "Match_93": ("Match_83", "Match_84"), "Match_94": ("Match_81", "Match_82"),
@@ -1024,49 +1024,56 @@ def resolve_bracket_teams(scores_dict, target_is_actual=False, actual_results_ob
         "Match_95": ("Match_86", "Match_88"), "Match_96": ("Match_85", "Match_87")
     }
     qf_teams = set()
+    r16_match_winners = {}
+
+    # First cache winners of R32 to feed into R16 matches correctly
+    for m in range(73, 89):
+        m_id = f"Match_{m}"
+        r16_match_winners[m_id] = clean_choice_resolution(m_id, r32_teams.get(m_id, ("", "")))
+
     for m_id, (prev1, prev2) in qf_pairings.items():
-        t1 = str(ko_choices.get(prev1, ""))
-        t2 = str(ko_choices.get(prev2, ""))
-        if t1 == "1": t1 = r32_teams.get(prev1, ("",""))[0]
-        elif t1 == "2": t1 = r32_teams.get(prev1, ("",""))[1]
-        if t2 == "1": t2 = r32_teams.get(prev2, ("",""))[0]
-        elif t2 == "2": t2 = r32_teams.get(prev2, ("",""))[1]
+        t1 = r16_match_winners.get(prev1, "")
+        t2 = r16_match_winners.get(prev2, "")
+        winner = clean_choice_resolution(m_id, (t1, t2))
+        if winner and winner != "Select Winner" and not winner.startswith("W"):
+            qf_teams.add(winner)
 
-        choice = str(ko_choices.get(m_id, ""))
-        if choice == "1" or choice == t1: qf_teams.add(t1)
-        elif choice == "2" or choice == t2: qf_teams.add(t2)
-
-    # 3. Semi-Finals
+    # 3. Evaluate Semi-Final Progressors
     sf_pairings = {
         "Match_97": ("Match_89", "Match_90"), "Match_98": ("Match_93", "Match_94"),
         "Match_99": ("Match_91", "Match_92"), "Match_100": ("Match_95", "Match_96")
     }
     sf_teams = set()
-    for m_id, (p1, p2) in sf_pairings.items():
-        def get_winner_of_r16(r16_id):
-            ch = str(ko_choices.get(r16_id, ""))
-            if ch == "1": 
-                prev = qf_pairings[r16_id][0]
-                val = str(ko_choices.get(prev, ""))
-                return r32_teams[prev][0] if val == "1" else r32_teams[prev][1]
-            elif ch == "2":
-                prev = qf_pairings[r16_id][1]
-                val = str(ko_choices.get(prev, ""))
-                return r32_teams[prev][0] if val == "1" else r32_teams[prev][1]
-            return ch
+    qf_match_winners = {}
 
-        t1 = get_winner_of_r16(p1)
-        t2 = get_winner_of_r16(p2)
-        choice = str(ko_choices.get(m_id, ""))
-        if choice == "1" or choice == t1: sf_teams.add(t1)
-        elif choice == "2" or choice == t2: sf_teams.add(t2)
+    for m_id, (prev1, prev2) in sf_pairings.items():
+        # Trace back to find who won the QF feeding branches
+        t1_r16_1, t1_r16_2 = qf_pairings[prev1]
+        t1 = clean_choice_resolution(prev1, (r16_match_winners.get(t1_r16_1, ""), r16_match_winners.get(t1_r16_2, "")))
+        
+        t2_r16_1, t2_r16_2 = qf_pairings[prev2]
+        t2 = clean_choice_resolution(prev2, (r16_match_winners.get(t2_r16_1, ""), r16_match_winners.get(t2_r16_2, "")))
 
-    f1_winner_sel = str(ko_choices.get("Match_101", ""))
-    f2_winner_sel = str(ko_choices.get("Match_102", ""))
+        winner = clean_choice_resolution(m_id, (t1, t2))
+        qf_match_winners[m_id] = winner
+        if winner and winner != "Select Winner" and not winner.startswith("W"):
+            sf_teams.add(winner)
 
-    finalists = set([f1_winner_sel, f2_winner_sel])
-    champ = str(ko_choices.get("Match_104", ""))
-    third = str(ko_choices.get("Match_103" if not target_is_actual else "Match_103_winner", ""))
+    # 4. Evaluate Finalists, 3rd place, and Grand Champion
+    sf1_h = qf_match_winners.get("Match_97", "")
+    sf1_a = qf_match_winners.get("Match_98", "")
+    sf2_h = qf_match_winners.get("Match_99", "")
+    sf2_a = qf_match_winners.get("Match_100", "")
+
+    f1_winner = clean_choice_resolution("Match_101", (sf1_h, sf1_a))
+    f2_winner = clean_choice_resolution("Match_102", (sf2_h, sf2_a))
+    finalists = set([f1_winner, f2_winner]) if (f1_winner and f2_winner) else set()
+
+    champ = clean_choice_resolution("Match_104", (f1_winner, f2_winner))
+
+    sf1_loser = sf1_a if f1_winner == sf1_h else sf1_h
+    sf2_loser = sf2_a if f2_winner == sf2_h else sf2_h
+    third = clean_choice_resolution("Match_103", (sf1_loser, sf2_loser))
 
     return {
         "r32_pairings": r32_teams,
@@ -1080,21 +1087,25 @@ def resolve_bracket_teams(scores_dict, target_is_actual=False, actual_results_ob
         "third_place_code": combination_lookup_string
     }
 
+
 def calculate_user_points(user_id, league_id):
     user_preds = db_fetch_user_predictions(user_id, league_id)
     actual = db_fetch_league_actual_results(league_id)
     points = 0
 
+    # Safety exit check if live truth data is empty
+    if not actual or "group" not in actual:
+        return 0
+
+    # Feed manual group tie-breakers if saved by user
     tb_saved_records = db_fetch_group_tie_breakers(user_id, league_id)
     local_tb_orders = {}
     local_tb_locks = {}
-    
     for row in tb_saved_records:
-        st.session_state[f"tb_order_{row['group_name']}"] = row["team_order"]
-        st.session_state[f"tb_locked_{row['group_name']}"] = row["is_locked"]
         local_tb_orders[f"tb_order_{row['group_name']}"] = row["team_order"]
         local_tb_locks[f"tb_locked_{row['group_name']}"] = row["is_locked"]
 
+    # --- PART 1: GROUP STAGE CALCULATIONS (Remains completely unchanged) ---
     for g_name, matches in CHRONO_MATCHES.items():
         for match in matches:
             m_id = match["id"]
@@ -1107,25 +1118,35 @@ def calculate_user_points(user_id, league_id):
                 elif (int(p_h) > int(p_a) and int(a_h) > int(a_a)) or (int(p_a) > int(p_h) and int(a_a) > int(a_h)) or (int(p_h) == int(p_a) and int(a_h) == int(a_a)): 
                     points += 1  
 
+    # --- PART 2: KNOCKOUT TEAM INTERSECTION MATCHES ---
     user_bracket = resolve_bracket_teams(user_preds, target_is_actual=False, manual_tb_locks=local_tb_locks, manual_tb_orders=local_tb_orders)
-    actual_bracket = resolve_bracket_teams(None, target_is_actual=True, actual_results_obj=actual, manual_tb_locks=local_tb_locks, manual_tb_orders=local_tb_orders)
+    actual_bracket = resolve_bracket_teams(None, target_is_actual=True, actual_results_obj=actual, manual_tb_locks={}, manual_tb_orders={})
 
+    # Validate team-by-team positioning intersections cleanly
     for team in user_bracket["r16"]:
-        if team and team in actual_bracket["r16"]: points += 3
+        if team and team in actual_bracket["r16"]: 
+            points += 3
 
     for team in user_bracket["qf"]:
-        if team and team in actual_bracket["qf"]: points += 5
+        if team and team in actual_bracket["qf"]: 
+            points += 5
 
     for team in user_bracket["sf"]:
-        if team and team in actual_bracket["sf"]: points += 10
+        if team and team in actual_bracket["sf"]: 
+            points += 10
 
     for team in user_bracket["finalists"]:
-        if team and team in actual_bracket["finalists"]: points += 15
+        if team and team in actual_bracket["finalists"]: 
+            points += 15
 
-    if user_bracket["third"] and user_bracket["third"] == actual_bracket["third"]: points += 15
-    if user_bracket["champ"] and user_bracket["champ"] == actual_bracket["champ"]: points += 25
+    if user_bracket["third"] and user_bracket["third"] == actual_bracket["third"]: 
+        points += 15
+        
+    if user_bracket["champ"] and user_bracket["champ"] == actual_bracket["champ"]: 
+        points += 25
 
     return points
+
 
 
 # ==============================================================================
