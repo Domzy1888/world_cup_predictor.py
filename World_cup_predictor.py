@@ -2306,19 +2306,15 @@ elif app_tab == "🛠️ Admin Dashboard" and is_league_admin:
                     buffer.seek(0)
                     return buffer.getvalue()
 
-                # 4. PACKAGE DATA INTO THE EXPORT BUTTON
-                try:
-                    pdf_data = generate_user_pdf(selected_user_name, user_preds, user_calc_bracket)
-                    
-                    st.success(f"📋 Verification dossier compiled successfully for **{selected_user_name}**!")
-                    
+                                    # 4. PACKAGE DATA INTO THE EXPORT BUTTON (CORRECTED SNAKE_CASE KEYWORD)
                     st.download_button(
                         label=f"📥 Download {selected_user_name}'s Master Print PDF",
                         data=pdf_data,
-                        fileName=f"Tournament_Dossier_{selected_user_name.replace(' ', '_')}.pdf",
+                        file_name=f"Tournament_Dossier_{selected_user_name.replace(' ', '_')}.pdf",  # Changed from fileName to file_name
                         mime="application/pdf",
                         use_container_width=True
                     )
+
                     
                     # Live On-Screen preview container so you see it instantly hydra-hydrate
                     with st.expander("👁️ Quick On-Screen Layout Verification", expanded=True):
