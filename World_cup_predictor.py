@@ -2102,7 +2102,7 @@ elif app_tab == "🛠️ Admin Dashboard" and is_league_admin:
 
 
 
-                       # --- ADMIN WORKSPACE: INDIVIDUAL CANTEEN WALL CHART DOSSIERS (FULL 495-MATRIX DYNAMIC LOOKUP) ---
+                       # --- ADMIN WORKSPACE: INDIVIDUAL CANTEEN WALL CHART DOSSIERS (EXPLICIT MATRIX SCHEMA FIX) ---
         with adm_ko_tabs[4]:
             st.title("🖨️ Office Canteen Print Station & PDF Dossier Generator")
             st.write("Select a teammate to compile their complete prediction history (All Match Scores, Group Tables, and the Full Knockout Tree) into an office wall-chart layout.")
@@ -2145,7 +2145,7 @@ elif app_tab == "🛠️ Admin Dashboard" and is_league_admin:
                 user_map = {u["username"]: u["id"] for u in db_users if u.get("username")}
                 sorted_names = sorted(list(user_map.keys()))
                 
-                selected_user_name = st.selectbox("🎯 Select Teammate Profile:", sorted_names, key="canteen_pdf_select_v10")
+                selected_user_name = st.selectbox("🎯 Select Teammate Profile:", sorted_names, key="canteen_pdf_select_v12")
                 target_user_id = user_map[selected_user_name]
 
                 # 2. FETCH ALL RELATIONAL PREDICTION ROWS FOR THIS USER & LEAGUE CONTEXT
@@ -2237,18 +2237,16 @@ elif app_tab == "🛠️ Admin Dashboard" and is_league_admin:
                     qualifying_group_letters = sorted([row["Group"].replace("Group ", "").strip() for row in qualifying_wildcards])
                     combination_lookup_string = "".join(qualifying_group_letters).upper().strip()
 
-                    # --- DYNAMIC 495 MATRIX SCAN VIA ILIKE WILDCARDS (Handles Trailing Spaces/Paddings Flawlessly) ---
+                    # --- EXPLICIT LOOKUP QUERY AGAINST group_combination ---
                     db_mapping_row = None
                     if len(combination_lookup_string) == 8:
                         try:
-                            # Use an ILIKE wildcard scan to pull any matching row regardless of column whitespace padding
-                            res = supabase.table("assign_third").select("*").ilike("combo_code", f"%{combination_lookup_string}%").execute()
+                            # Direct precise match against the group_combination schema column using case-insensitive ILIKE wildcards
+                            res = supabase.table("assign_third").select("*").ilike("group_combination", f"%{combination_lookup_string}%").execute()
                             if res and res.data and len(res.data) > 0:
-                                # Standardize all columns and returned assignment letters
                                 db_mapping_row = {str(k).strip(): str(v).strip().upper() for k, v in res.data[0].items() if v is not None}
                         except Exception as matrix_err:
-                            st.warning(f"Database lookup challenge for code {combination_lookup_string}: {matrix_err}")
-                            db_mapping_row = None
+                            st.error(f"Matrix indexing issue encountered: {matrix_err}")
 
                     # --- ROUND OF 32 RESOLUTION (Fully Dynamic Across All 495 Combos) ---
                     r32_display = []
@@ -2264,7 +2262,7 @@ elif app_tab == "🛠️ Admin Dashboard" and is_league_admin:
                             lookup_col_header = str(structure["away_lookup"]).strip() # E.g., "3-ABCDF"
                             resolved_target_group_letter = None
                             
-                            # Scan the retrieved database row dynamically for any variations of the bracket column key
+                            # Scan row dynamically for exact or underscored layout variations
                             if db_mapping_row:
                                 if lookup_col_header in db_mapping_row:
                                     resolved_target_group_letter = db_mapping_row[lookup_col_header]
@@ -2494,6 +2492,7 @@ elif app_tab == "🛠️ Admin Dashboard" and is_league_admin:
                     st.error(f"Error packaging PDF layout design blueprint: {pdf_err}")
             else:
                 st.error("No submission profiles found inside your users infrastructure record.")
+
 
 
 
