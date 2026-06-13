@@ -1417,7 +1417,7 @@ elif app_tab == "📝 Submit Predictions":
                         
                         db_lock_predictions(c_uid, active_league_id, group_keys)
                         st.success(f"Group {selected_group} successfully committed to database!")
-                        st.clear_cache()  # Safely sync any global caching dependencies 
+                        st.cache_data.clear()  # Safe, precise cache cleanup function call
                         st.rerun()
 
         with col_table:
@@ -1494,7 +1494,7 @@ elif app_tab == "📝 Submit Predictions":
                             db_save_group_tie_breaker(c_uid, active_league_id, selected_group, full_group_order)
 
                             st.success("Tie-break sequence locked successfully!")
-                            st.clear_cache()
+                            st.cache_data.clear()
                             st.rerun()
                         else:
                             st.error("Invalid Selection: Please ensure you haven't assigned the same team to multiple positions.")
@@ -1641,7 +1641,7 @@ elif app_tab == "📝 Submit Predictions":
                                 elif val == opts[1]: db_save_prediction(c_uid, active_league_id, m_key, 2)
                         db_lock_predictions(c_uid, active_league_id, r32_keys)
                         st.success("Round of 32 predictions successfully locked!")
-                        st.clear_cache()
+                        st.cache_data.clear()
                         st.rerun()
 
             with ko_tabs[1]:
@@ -1681,7 +1681,7 @@ elif app_tab == "📝 Submit Predictions":
                                 elif val == opts[1]: db_save_prediction(c_uid, active_league_id, m_key, 2)
                         db_lock_predictions(c_uid, active_league_id, r16_keys)
                         st.success("Round of 16 predictions successfully locked!")
-                        st.clear_cache()
+                        st.cache_data.clear()
                         st.rerun()
 
             with ko_tabs[2]:
@@ -1718,7 +1718,7 @@ elif app_tab == "📝 Submit Predictions":
                                 elif val == opts[1]: db_save_prediction(c_uid, active_league_id, m_key, 2)
                         db_lock_predictions(c_uid, active_league_id, qf_keys)
                         st.success("Quarter-Final predictions successfully locked!")
-                        st.clear_cache()
+                        st.cache_data.clear()
                         st.rerun()
 
             with ko_tabs[3]:
@@ -1788,8 +1788,9 @@ elif app_tab == "📝 Submit Predictions":
 
                         db_lock_predictions(c_uid, active_league_id, finals_keys)
                         st.success("Finals brackets predictions successfully locked!")
-                        st.clear_cache()
+                        st.cache_data.clear()
                         st.rerun()
+
 
 
 
