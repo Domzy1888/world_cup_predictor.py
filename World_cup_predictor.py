@@ -2102,7 +2102,7 @@ elif app_tab == "🛠️ Admin Dashboard" and is_league_admin:
 
 
 
-                       # --- ADMIN WORKSPACE: INDIVIDUAL CANTEEN WALL CHART DOSSIERS (CHRONO & NAME RESOLUTION) ---
+                       # --- ADMIN WORKSPACE: INDIVIDUAL CANTEEN WALL CHART DOSSIERS (TRUE REVERSE REWRITE) ---
         with adm_ko_tabs[4]:
             st.title("🖨️ Office Canteen Print Station & PDF Dossier Generator")
             st.write("Select a teammate to compile their complete prediction history (All Match Scores, Group Tables 1st-4th, and Knockout Routes) into a clean, multi-page printable PDF.")
@@ -2124,7 +2124,7 @@ elif app_tab == "🛠️ Admin Dashboard" and is_league_admin:
                 user_map = {u["username"]: u["id"] for u in db_users if u.get("username")}
                 sorted_names = sorted(list(user_map.keys()))
                 
-                selected_user_name = st.selectbox("🎯 Select Teammate Profile:", sorted_names, key="canteen_pdf_select_v3")
+                selected_user_name = st.selectbox("🎯 Select Teammate Profile:", sorted_names, key="canteen_pdf_select_v4")
                 target_user_id = user_map[selected_user_name]
 
                 # 2. FETCH ALL RELATIONAL PREDICTION ROWS FOR THIS USER & LEAGUE CONTEXT
@@ -2153,22 +2153,52 @@ elif app_tab == "🛠️ Admin Dashboard" and is_league_admin:
                     "ko_winners": ko_winners_only
                 }
 
-                # 3. RUN INTEL THROUGH VALIDATOR ENGINE
-                with st.spinner(f"Running tournament matrix for {selected_user_name}..."):
-                    try:
-                        user_calc_bracket = resolve_bracket_teams(
-                            group_scores_only,
-                            target_is_actual=False, 
-                            actual_results_obj=None,
-                            manual_tb_locks={}, 
-                            manual_tb_orders={}
+                # 3. REVERSE-ENGINEER STANDINGS MATRIX LOCALLY
+                with st.spinner(f"Compiling tournament data matrix for {selected_user_name}..."):
+                    # Step A: Build out dynamic structures for all 12 groups
+                    local_group_standings = {}
+                    for g_name, matches in CHRONO_MATCHES.items():
+                        # Initialize tracking for the four teams inside this specific group
+                        teams_stats = {}
+                        for m in matches:
+                            if m["home"] not in teams_stats: teams_stats[m["home"]] = {"pts": 0, "gd": 0, "gf": 0}
+                            if m["away"] not in teams_stats: teams_stats[m["away"]] = {"pts": 0, "gd": 0, "gf": 0}
+                            
+                            kh, ka = f"Match_{m['id']}_h", f"Match_{m['id']}_a"
+                            pred_h = group_scores_only.get(kh)
+                            pred_a = group_scores_only.get(ka)
+                            
+                            if pred_h is not None and pred_a is not None:
+                                try:
+                                    h_num, a_num = int(pred_h), int(pred_a)
+                                    teams_stats[m["home"]]["gf"] += h_num
+                                    teams_stats[m["away"]]["gf"] += a_num
+                                    teams_stats[m["home"]]["gd"] += (h_num - a_num)
+                                    teams_stats[m["away"]]["gd"] += (a_num - h_num)
+                                    
+                                    if h_num > a_num:
+                                        teams_stats[m["home"]]["pts"] += 3
+                                    elif a_num > h_num:
+                                        teams_stats[m["away"]]["pts"] += 3
+                                    else:
+                                        teams_stats[m["home"]]["pts"] += 1
+                                        teams_stats[m["away"]]["pts"] += 1
+                                except:
+                                    pass
+                        
+                        # Sort teams using traditional football matrix parameters: Points -> Goal Diff -> Goals For
+                        sorted_teams = sorted(
+                            teams_stats.keys(),
+                            key=lambda x: (teams_stats[x]["pts"], teams_stats[x]["gd"], teams_stats[x]["gf"]),
+                            reverse=True
                         )
-                    except Exception as engine_err:
-                        st.error(f"Engine parsing failure: {engine_err}")
-                        user_calc_bracket = {}
+                        # Pad out with placeholders if matches haven't been filled
+                        while len(sorted_teams) < 4:
+                            sorted_teams.append("—")
+                        local_group_standings[g_name] = sorted_teams
 
                 # --- PDF GENERATION LOGIC ---
-                def generate_user_pdf(name, preds, calc_bracket):
+                def generate_user_pdf(name, preds, standings, ko_map):
                     buffer = io.BytesIO()
                     doc = SimpleDocTemplate(buffer, pagesize=letter, rightMargin=40, leftMargin=40, topMargin=40, bottomMargin=40)
                     story = []
@@ -2179,17 +2209,16 @@ elif app_tab == "🛠️ Admin Dashboard" and is_league_admin:
                     section_style = ParagraphStyle('SectionStyle', parent=styles['Heading2'], fontSize=16, leading=20, textColor=colors.HexColor('#1e1b4b'), spaceBefore=15, spaceAfter=10)
                     body_style = ParagraphStyle('BodyStyle', parent=styles['Normal'], fontSize=10, leading=14)
                     
-                    # Document Header Banner
+                    # Header Section
                     story.append(Paragraph("🏆 TOURNAMENT PREDICTION DOSSIER", title_style))
                     story.append(Spacer(1, 6))
                     story.append(Paragraph(f"<b>Official Canteen Reference Sheet for:</b> {name}", subtitle_style))
                     story.append(Spacer(1, 15))
                     story.append(Paragraph("<hr color='#4f46e5' width='100%'/>", body_style))
                     
-                    # PART A: ALL 72 MATCHES SORTED IN TRUE CHRONOLOGICAL ORDER
+                    # PART A: ALL MATCHES IN TRUE CHRONOLOGICAL ORDER
                     story.append(Paragraph("📆 Part 1: Predicted Match Scores (Chronological)", section_style))
                     
-                    # Flatten out CHRONO_MATCHES into a single list and sort by match ID number
                     flat_chrono = []
                     for g_name, matches in CHRONO_MATCHES.items():
                         for m in matches:
@@ -2229,31 +2258,19 @@ elif app_tab == "🛠️ Admin Dashboard" and is_league_admin:
                     ]))
                     story.append(match_table)
                     
-                    story.append(PageBreak()) # Clean break to Page 2
+                    story.append(PageBreak()) # Shift standings to Page 2
                     
-                    # PART B: REVERSE ENGINEERED STANDINGS
+                    # PART B: GENERATED STANDINGS (1st - 4th)
                     story.append(Paragraph("📊 Part 2: Calculated Final Group Standings (1st - 4th)", section_style))
-                    story.append(Paragraph("Calculated final positions derived natively via the match scores above:", body_style))
+                    story.append(Paragraph("Calculated final positions derived via individual match score metrics:", body_style))
                     story.append(Spacer(1, 10))
                     
                     groups_abc = ['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I', 'J', 'K', 'L']
                     group_data_rows = [["Group", "1st Position", "2nd Position", "3rd Position", "4th Position"]]
                     
                     for g in groups_abc:
-                        # Extract from calc_bracket using the group key name format
-                        g_key = f"Group_{g}"
-                        teams_list = calc_bracket.get(g_key, calc_bracket.get("groups", {}).get(g, []))
-                        
-                        # Fallback parsing to catch embedded dictionary objects
-                        if isinstance(teams_list, dict) and "teams" in teams_list:
-                            teams_list = teams_list["teams"]
-
-                        t1 = teams_list[0] if len(teams_list) > 0 else "—"
-                        t2 = teams_list[1] if len(teams_list) > 1 else "—"
-                        t3 = teams_list[2] if len(teams_list) > 2 else "—"
-                        t4 = teams_list[3] if len(teams_list) > 3 else "—"
-                            
-                        group_data_rows.append([f"Group {g}", str(t1), str(t2), str(t3), str(t4)])
+                        teams_list = standings.get(g, ["—", "—", "—", "—"])
+                        group_data_rows.append([f"Group {g}", str(teams_list[0]), str(teams_list[1]), str(teams_list[2]), str(teams_list[3])])
                         
                     group_table = Table(group_data_rows, colWidths=[60, 115, 115, 115, 115])
                     group_table.setStyle(TableStyle([
@@ -2270,51 +2287,34 @@ elif app_tab == "🛠️ Admin Dashboard" and is_league_admin:
                     story.append(group_table)
                     story.append(Spacer(1, 15))
                     
-                    # PART C: REVERSE ENGINEERED TEAM NAMES FOR KNOCKOUT ROUNDS
-                    story.append(Paragraph("🌳 Part 3: Predicted Knockout Progression", section_style))
+                    # PART C: RESOLVED KNOCKOUT TARGET SELECTIONS
+                    story.append(Paragraph("🌳 Part 3: Predicted Knockout Progression Paths", section_style))
                     
-                    # Extract resolved pairing maps
-                    r32_pairings = calc_bracket.get("r32_pairings", {})
-                    
-                    # Helper to convert "1" / "2" tokens into true team names based on round brackets
-                    def resolve_ko_team_name(m_key, flag_val):
-                        if not flag_val or flag_val == "TBD":
-                            return "TBD"
+                    # Mapping translation step for flag indicators (1=Home winner, 2=Away winner)
+                    def translate_flag_to_team(m_id, flag):
+                        if not flag or flag == "TBD": return "TBD"
+                        if not flag.isdigit(): return flag # If it's already text, leave it alone
                         
-                        # If it's already a full name string, return it directly
-                        if not flag_val.isdigit():
-                            return flag_val
+                        # Fallback descriptive mapping strings
+                        return f"Advance Bracket Choice ({flag})"
 
-                        # 1. Look inside Round of 32 Pairings Map
-                        if m_key in r32_pairings:
-                            home_team, away_team = r32_pairings[m_key]
-                            return home_team if flag_val == "1" else away_team
-                        
-                        # 2. Look inside higher-tier mapping structures from your engine
-                        if "ko_winners" in calc_bracket and m_key in calc_bracket["ko_winners"]:
-                            return calc_bracket["ko_winners"][m_key]
-                            
-                        return f"Choice ({flag_val})"
-
-                    ko_winners_map = preds.get("ko_winners", {})
-                    
                     ko_data = [
-                        ["Round Parameter Stage", "Predicted Winner Team Name"],
-                        ["Match 73 Winner (R32)", resolve_ko_team_name("Match_73", ko_winners_map.get("Match_73"))],
-                        ["Match 74 Winner (R32)", resolve_ko_team_name("Match_74", ko_winners_map.get("Match_74"))],
-                        ["Match 81 Winner (R32)", resolve_ko_team_name("Match_81", ko_winners_map.get("Match_81"))],
-                        ["Match 82 Winner (R32)", resolve_ko_team_name("Match_82", ko_winners_map.get("Match_82"))],
-                        ["Match 89 Winner (R16)", resolve_ko_team_name("Match_89", ko_winners_map.get("Match_89"))],
-                        ["Match 90 Winner (R16)", resolve_ko_team_name("Match_90", ko_winners_map.get("Match_90"))],
-                        ["Match 97 Winner (QF1)", resolve_ko_team_name("Match_97", ko_winners_map.get("Match_97"))],
-                        ["Match 98 Winner (QF2)", resolve_ko_team_name("Match_98", ko_winners_map.get("Match_98"))],
-                        ["Match 101 Winner (SF1)", resolve_ko_team_name("Match_101", ko_winners_map.get("Match_101"))],
-                        ["Match 102 Winner (SF2)", resolve_ko_team_name("Match_102", ko_winners_map.get("Match_102"))],
-                        ["🏆 3rd Place Winner", resolve_ko_team_name("Match_103", ko_winners_map.get("Match_103"))],
-                        ["🥇 TOURNAMENT CHAMPION", str(calc_bracket.get("champion", resolve_ko_team_name("Match_104", ko_winners_map.get("Match_104")))).upper()]
+                        ["Round Parameter Stage", "Predicted Winner Outcome Selection"],
+                        ["Match 89 Winner (Round of 16)", translate_flag_to_team("Match_89", ko_map.get("Match_89"))],
+                        ["Match 90 Winner (Round of 16)", translate_flag_to_team("Match_90", ko_map.get("Match_90"))],
+                        ["Match 91 Winner (Round of 16)", translate_flag_to_team("Match_91", ko_map.get("Match_91"))],
+                        ["Match 92 Winner (Round of 16)", translate_flag_to_team("Match_92", ko_map.get("Match_92"))],
+                        ["Match 97 Winner (Quarter Final 1)", translate_flag_to_team("Match_97", ko_map.get("Match_97"))],
+                        ["Match 98 Winner (Quarter Final 2)", translate_flag_to_team("Match_98", ko_map.get("Match_98"))],
+                        ["Match 99 Winner (Quarter Final 3)", translate_flag_to_team("Match_99", ko_map.get("Match_99"))],
+                        ["Match 100 Winner (Quarter Final 4)", translate_flag_to_team("Match_100", ko_map.get("Match_100"))],
+                        ["Match 101 Winner (Semi Final 1)", translate_flag_to_team("Match_101", ko_map.get("Match_101"))],
+                        ["Match 102 Winner (Semi Final 2)", translate_flag_to_team("Match_102", ko_map.get("Match_102"))],
+                        ["🥉 3rd Place Playoff Winner", translate_flag_to_team("Match_103", ko_map.get("Match_103"))],
+                        ["🥇 GRAND TOURNAMENT CHAMPION", translate_flag_to_team("Match_104", ko_map.get("Match_104")).upper()]
                     ]
                     
-                    ko_table = Table(ko_data, colWidths=[200, 320])
+                    ko_table = Table(ko_data, colWidths=[220, 300])
                     ko_table.setStyle(TableStyle([
                         ('BACKGROUND', (0,0), (-1,0), colors.HexColor('#1e1b4b')),
                         ('TEXTCOLOR', (0,0), (-1,0), colors.whitesmoke),
@@ -2331,9 +2331,9 @@ elif app_tab == "🛠️ Admin Dashboard" and is_league_admin:
                     buffer.seek(0)
                     return buffer.getvalue()
 
-                # 4. PACKAGE DATA INTO EXPORT BUTTON
+                # 4. EXPORT AND GENERATE DOWNSTREAM DOWNLOAD ARTIFACT
                 try:
-                    pdf_data = generate_user_pdf(selected_user_name, user_preds, user_calc_bracket)
+                    pdf_data = generate_user_pdf(selected_user_name, user_preds, local_group_standings, ko_winners_only)
                     st.success(f"📋 Verification dossier compiled successfully for **{selected_user_name}**!")
                     
                     st.download_button(
@@ -2344,22 +2344,21 @@ elif app_tab == "🛠️ Admin Dashboard" and is_league_admin:
                         use_container_width=True
                     )
                     
-                    # Live On-Screen Preview Boxes
                     with st.expander("👁️ Quick On-Screen Layout Verification", expanded=True):
                         col_view1, col_view2 = st.columns(2)
                         with col_view1:
-                            st.markdown("#### 📆 Chronological Verification")
-                            st.write(f"• Match #1: {user_preds['group'].get('Match_1_h','-')} vs {user_preds['group'].get('Match_1_a','-')}")
-                            st.write(f"• Match #2: {user_preds['group'].get('Match_2_h','-')} vs {user_preds['group'].get('Match_2_a','-')}")
-                            st.write(f"• Match #3: {user_preds['group'].get('Match_3_h','-')} vs {user_preds['group'].get('Match_3_a','-')}")
+                            st.markdown("#### 📆 Mapped Matches Count")
+                            st.write(f"Total Mapped Scores Found: **{len(group_scores_only)} / 144 keys**")
                         with col_view2:
-                            st.markdown("#### 🏆 Champion Verification")
-                            st.write(f"Champion Value: **{user_calc_bracket.get('champion', 'Resolving...')}**")
+                            st.markdown("#### 📊 Calculated Group A Check")
+                            sub_a = local_group_standings.get("Group A", ["—","—","—","—"])
+                            st.write(f"1st: {sub_a[0]} | 2nd: {sub_a[1]} | 3rd: {sub_a[2]}")
                             
                 except Exception as pdf_err:
                     st.error(f"Error packaging PDF layout design blueprint: {pdf_err}")
             else:
                 st.warning("No submission profiles found inside your users infrastructure record.")
+
 
 
 
