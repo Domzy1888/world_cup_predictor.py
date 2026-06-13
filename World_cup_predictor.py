@@ -2102,136 +2102,226 @@ elif app_tab == "🛠️ Admin Dashboard" and is_league_admin:
 
 
 
-                        # --- ADMIN WORKSPACE: INDIVIDUAL CANTEEN WALL CHART DOSSIERS (NATIVE REWRITE) ---
+                       # --- ADMIN WORKSPACE: INDIVIDUAL CANTEEN WALL CHART DOSSIERS (PDF ENGINE REWRITE) ---
         with adm_ko_tabs[4]:
-            st.title("🖨️ Office Canteen Print Station")
-            st.write("Select a teammate below to generate a compact, single-page print layout for the work canteen wall.")
+            st.title("🖨️ Office Canteen Print Station & PDF Dossier Generator")
+            st.write("Select a teammate to compile their complete prediction history (All Match Scores, Group Tables 1st-4th, and Knockout Routes) into a clean, multi-page printable PDF.")
 
+            import io
+            from reportlab.lib.pagesizes import letter
+            from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, Table, TableStyle, PageBreak
+            from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
+            from reportlab.lib import colors
+
+            # 1. FETCH ALL TRUE LEAGUE USERS NATIVELY
             try:
-                # Fetch prediction rows for the active league
-                all_users_predictions = supabase.table("predictions").select("*").eq("league_id", active_league_id).execute().data
+                league_users = supabase.table("league_members").select("user_id, display_name, username").eq("league_id", active_league_id).execute().data
+                if not league_users:
+                    all_rows = supabase.table("predictions").select("user_id, username").eq("league_id", active_league_id).execute().data
+                    seen = set()
+                    league_users = []
+                    for r in all_rows:
+                        uid = r["user_id"]
+                        if uid not in seen:
+                            seen.add(uid)
+                            league_users.append({"user_id": uid, "display_name": r.get("username") or f"Player {uid}"})
             except Exception as e:
-                all_users_predictions = []
-                st.error(f"Error connecting to data layer: {e}")
+                st.error(f"Error compiling participant roster: {e}")
+                league_users = []
 
-            if all_users_predictions:
-                # Deduplicate usernames so each individual appears exactly once in the dropdown
-                seen_users = set()
-                for u in all_users_predictions:
-                    uname = u.get("username") or f"User {u.get('user_id')}"
-                    seen_users.add(uname)
+            if league_users:
+                user_map = {u.get("display_name") or u.get("username") or f"Player {u['user_id']}": u["user_id"] for u in league_users}
+                sorted_names = sorted(list(user_map.keys()))
+                
+                selected_user_name = st.selectbox("🎯 Select Teammate Profile:", sorted_names, key="canteen_pdf_select")
+                target_user_id = user_map[selected_user_name]
 
-                user_names = sorted(list(seen_users))
-                selected_user = st.selectbox("🎯 Select Teammate Profile:", user_names, key="canteen_dossier_select_native")
+                # 2. GATHER DATA AND RE-RUN INTEL THROUGH THE MATH ENGINE
+                user_actual_structure = db_fetch_league_actual_results(active_league_id)
+                user_preds = db_fetch_user_predictions(target_user_id, active_league_id)
+                
+                # Dynamic bracket state mapping from your math calculations
+                user_calc_bracket = resolve_bracket_teams(
+                    target_user_id, 
+                    target_is_actual=False, 
+                    actual_results_obj=user_actual_structure,
+                    manual_tb_locks={}, 
+                    manual_tb_orders={}
+                )
 
-                # Filter down to the selected user's rows
-                matching_user_rows = [u for u in all_users_predictions if (u.get("username") == selected_user or f"User {u.get('user_id')}" == selected_user)]
-
-                # Consolidate predictions dictionary data across rows
-                preds_dict = {}
-                import json
-                for row in matching_user_rows:
-                    row_preds = row.get("predictions_dict", {})
-                    if isinstance(row_preds, str):
-                        try: row_preds = json.loads(row_preds)
-                        except: row_preds = {}
-                    if isinstance(row_preds, dict):
-                        preds_dict.update(row_preds)
-
-                if matching_user_rows:
-                    # --- INJECT CLEAN PRINT ENGINE OVERRIDES ---
-                    # This hides everything except the actual dossier content container when printing
-                    st.markdown("""
-                        <style>
-                        @media print {
-                            /* Hide sidebars, tabs, dropdowns, headers, and alerts */
-                            [data-testid="stSidebar"], 
-                            header, 
-                            footer,
-                            .stSelectbox, 
-                            .stAlert,
-                            [data-testid="stHeader"],
-                            .stTabs [role="tablist"] {
-                                display: none !important;
-                            }
-                            .main .block-container {
-                                padding-top: 0 !important;
-                                padding-bottom: 0 !important;
-                                max-width: 100% !important;
-                            }
-                            body {
-                                background-color: #ffffff !important;
-                                color: #000000 !important;
-                            }
-                            .canteen-container {
-                                border: 3px double #000000 !important;
-                                padding: 15px !important;
-                            }
-                        }
-                        /* Screen styling for a sleek dashboard card look */
-                        .canteen-container {
-                            background-color: rgba(255,255,255,0.02);
-                            border: 1px solid rgba(255,255,255,0.1);
-                            border-radius: 8px;
-                            padding: 20px;
-                            margin-top: 10px;
-                        }
-                        .canteen-title {
-                            text-align: center;
-                            border-bottom: 2px dashed #4f46e5;
-                            padding-bottom: 10px;
-                            margin-bottom: 15px;
-                        }
-                        </style>
-                    """, unsafe_allow_html=True)
-
-                    st.success(f"📋 Dossier compiled for **{selected_user}**. Press **Ctrl + P** or **Cmd + P** to print.")
-
-                    # --- COMPACT DOSSIER BOX ---
-                    st.markdown(f"""
-                        <div class="canteen-container">
-                            <div class="canteen-title">
-                                <h2 style='margin:0; font-size: 22px; letter-spacing: 1px;'>🏆 OFFICE POOL WALL CHART</h2>
-                                <h3 style='margin:5px 0 0 0; color:#4f46e5; font-size: 18px;'>Player: {selected_user}</h3>
-                            </div>
-                        </div>
-                    """, unsafe_allow_html=True)
-
-                    # Build side-by-side print columns
-                    print_col1, print_col2 = st.columns(2)
-
-                    with print_col1:
-                        st.markdown("### 🏟️ Predicted Group Standings")
-                        
-                        # Loop through groups cleanly without bulky borders
-                        groups_list = ['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I', 'J', 'K', 'L']
-                        for g in groups_list:
-                            p1 = preds_dict.get(f"Group_{g}_1", "—")
-                            p2 = preds_dict.get(f"Group_{g}_2", "—")
-                            p3 = preds_dict.get(f"Group_{g}_3", "—")
-                            p4 = preds_dict.get(f"Group_{g}_4", "—")
+                # --- PDF GENERATION LOGIC ---
+                def generate_user_pdf(name, preds, calc_bracket):
+                    buffer = io.BytesIO()
+                    doc = SimpleDocTemplate(buffer, pagesize=letter, rightMargin=40, leftMargin=40, topMargin=40, bottomMargin=40)
+                    story = []
+                    
+                    styles = getSampleStyleSheet()
+                    title_style = ParagraphStyle('TitleStyle', parent=styles['Heading1'], fontSize=24, leading=28, textColor=colors.HexColor('#4f46e5'), alignment=1)
+                    subtitle_style = ParagraphStyle('SubTitleStyle', parent=styles['Normal'], fontSize=14, leading=18, textColor=colors.HexColor('#1f2937'), alignment=1)
+                    section_style = ParagraphStyle('SectionStyle', parent=styles['Heading2'], fontSize=16, leading=20, textColor=colors.HexColor('#1e1b4b'), spaceBefore=15, spaceAfter=10)
+                    body_style = ParagraphStyle('BodyStyle', parent=styles['Normal'], fontSize=10, leading=14)
+                    
+                    # Page 1 Cover Banner
+                    story.append(Paragraph("🏆 TOURNAMENT PREDICTION DOSSIER", title_style))
+                    story.append(Spacer(1, 6))
+                    story.append(Paragraph(f"<b>Official Canteen Reference Sheet for:</b> {name}", subtitle_style))
+                    story.append(Spacer(1, 15))
+                    story.append(Paragraph("<hr color='#4f46e5' width='100%'/>", body_style))
+                    
+                    # PART A: ALL 72 INDIVIDUAL MATCH PREDICTIONS (Split into Columns for clean fit)
+                    story.append(Paragraph("📆 Part 1: Predicted Match Scores", section_style))
+                    
+                    match_data_rows = []
+                    match_counter = 0
+                    current_pair = []
+                    
+                    for g_name, matches in CHRONO_MATCHES.items():
+                        for m in matches:
+                            m_id = m["id"]
+                            kh, ka = f"Match_{m_id}_h", f"Match_{m_id}_a"
                             
-                            st.markdown(f"**Group {g}:** `1st` {p1} | `2nd` {p2} | `3rd` {p3}")
+                            pred_h = preds.get("group", {}).get(kh, "-")
+                            pred_a = preds.get("group", {}).get(ka, "-")
+                            
+                            match_str = f"<b>#{m_id}</b> {m['home']} <b>{pred_h} - {pred_a}</b> {m['away']} <i>({g_name})</i>"
+                            current_pair.append(Paragraph(match_str, body_style))
+                            
+                            if len(current_pair) == 2:
+                                match_data_rows.append(current_pair)
+                                current_pair = []
+                    
+                    if current_pair:
+                        current_pair.append(Paragraph("", body_style))
+                        match_data_rows.append(current_pair)
 
-                    with print_col2:
-                        st.markdown("### 🌳 Knockout Pathways")
+                    match_table = Table(match_data_rows, colWidths=[260, 260])
+                    match_table.setStyle(TableStyle([
+                        ('VALIGN', (0,0), (-1,-1), 'TOP'),
+                        ('BOTTOMPADDING', (0,0), (-1,-1), 6),
+                    ]))
+                    story.append(match_table)
+                    
+                    story.append(PageBreak()) # Push tables to Page 2 for absolute visual organization
+                    
+                    # PART B: FINAL CALCULATED GROUP PLACEMENTS (1st - 4th)
+                    story.append(Paragraph("📊 Part 2: Calculated Final Group Standings (1st - 4th)", section_style))
+                    story.append(Paragraph("Calculated final positions derived natively via the match scores above:", body_style))
+                    story.append(Spacer(1, 10))
+                    
+                    groups_abc = ['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I', 'J', 'K', 'L']
+                    group_data_rows = [["Group", "1st Position", "2nd Position", "3rd Position", "4th Position"]]
+                    
+                    for g in groups_abc:
+                        group_key = f"Group_{g}"
+                        if group_key in calc_bracket:
+                            teams_list = calc_bracket[group_key]
+                            t1 = teams_list[0] if len(teams_list) > 0 else "—"
+                            t2 = teams_list[1] if len(teams_list) > 1 else "—"
+                            t3 = teams_list[2] if len(teams_list) > 2 else "—"
+                            t4 = teams_list[3] if len(teams_list) > 3 else "—"
+                        else:
+                            sub_g = calc_bracket.get("groups", {}).get(g, [])
+                            t1 = sub_g[0] if len(sub_g) > 0 else "—"
+                            t2 = sub_g[1] if len(sub_g) > 1 else "—"
+                            t3 = sub_g[2] if len(sub_g) > 2 else "—"
+                            t4 = sub_g[3] if len(sub_g) > 3 else "—"
+                            
+                        group_data_rows.append([f"Group {g}", t1, t2, t3, t4])
                         
-                        st.markdown("**Round of 16 Picks:**")
-                        st.write(f"• M81: {preds_dict.get('Match_81_home', 'TBD')} vs {preds_dict.get('Match_81_away', 'TBD')}")
-                        st.write(f"• M82: {preds_dict.get('Match_82_home', 'TBD')} vs {preds_dict.get('Match_82_away', 'TBD')}")
-                        st.write(f"• M85: {preds_dict.get('Match_85_home', 'TBD')} vs {preds_dict.get('Match_85_away', 'TBD')}")
-                        st.write(f"• M86: {preds_dict.get('Match_86_home', 'TBD')} vs {preds_dict.get('Match_86_away', 'TBD')}")
-                        
-                        st.markdown("---")
-                        st.markdown("**Deep Runs:**")
-                        st.write(f"• QF 1 Winner: **{preds_dict.get('Match_97', 'TBD')}**")
-                        st.write(f"• QF 2 Winner: **{preds_dict.get('Match_98', 'TBD')}**")
-                        st.write(f"• SF 1 Winner: ✨ **{preds_dict.get('Match_101', 'TBD')}**")
-                        st.write(f"• SF 2 Winner: ✨ **{preds_dict.get('Match_102', 'TBD')}**")
-                        
-                        st.markdown("---")
-                        champ = str(preds_dict.get('Match_104', 'TBD')).upper()
-                        st.markdown(f"🥇 **TOURNAMENT CHAMPION:**\n<h3 style='color:#eab308; margin:0;'>🏆 {champ}</h3>", unsafe_allow_html=True)
+                    group_table = Table(group_data_rows, colWidths=[60, 115, 115, 115, 115])
+                    group_table.setStyle(TableStyle([
+                        ('BACKGROUND', (0,0), (-1,0), colors.HexColor('#4f46e5')),
+                        ('TEXTCOLOR', (0,0), (-1,0), colors.whitesmoke),
+                        ('ALIGN', (0,0), (-1,-1), 'LEFT'),
+                        ('FONTNAME', (0,0), (-1,0), 'Helvetica-Bold'),
+                        ('FONTSIZE', (0,0), (-1,0), 10),
+                        ('BOTTOMPADDING', (0,0), (-1,0), 6),
+                        ('BACKGROUND', (0,1), (-1,-1), colors.HexColor('#f9fafb')),
+                        ('GRID', (0,0), (-1,-1), 0.5, colors.HexColor('#e5e7eb')),
+                        ('ROWBACKGROUNDS', (0,1), (-1,-1), [colors.white, colors.HexColor('#f3f4f6')])
+                    ]))
+                    story.append(group_table)
+                    story.append(Spacer(1, 15))
+                    
+                    # PART C: DEEP KNOCKOUT ROUND SELECTIONS
+                    story.append(Paragraph("🌳 Part 3: Predicted Knockout Progression", section_style))
+                    
+                    ko_winners = preds.get("ko_winners", {})
+                    champ_prediction = calc_bracket.get("champion", ko_winners.get("Match_104", "TBD"))
+                    third_place_pred = ko_winners.get("Match_103", "TBD")
+                    
+                    ko_data = [
+                        ["Round Parameter Stage", "Predicted Locked Winner"],
+                        ["Match 89 Winner (R16)", str(ko_winners.get('Match_89', 'TBD'))],
+                        ["Match 90 Winner (R16)", str(ko_winners.get('Match_90', 'TBD'))],
+                        ["Match 91 Winner (R16)", str(ko_winners.get('Match_91', 'TBD'))],
+                        ["Match 92 Winner (R16)", str(ko_winners.get('Match_92', 'TBD'))],
+                        ["Match 97 Winner (QF1)", str(ko_winners.get('Match_97', 'TBD'))],
+                        ["Match 98 Winner (QF2)", str(ko_winners.get('Match_98', 'TBD'))],
+                        ["Match 99 Winner (QF3)", str(ko_winners.get('Match_99', 'TBD'))],
+                        ["Match 100 Winner (QF4)", str(ko_winners.get('Match_100', 'TBD'))],
+                        ["Match 101 Winner (SF1)", str(ko_winners.get('Match_101', 'TBD'))],
+                        ["Match 102 Winner (SF2)", str(ko_winners.get('Match_102', 'TBD'))],
+                        ["🏆 3rd Place Playoff Winner", str(third_place_pred)],
+                        ["🥇 GRAND TOURNAMENT CHAMPION", str(champ_prediction).upper()]
+                    ]
+                    
+                    ko_table = Table(ko_data, colWidths=[200, 320])
+                    ko_table.setStyle(TableStyle([
+                        ('BACKGROUND', (0,0), (-1,0), colors.HexColor('#1e1b4b')),
+                        ('TEXTCOLOR', (0,0), (-1,0), colors.whitesmoke),
+                        ('FONTNAME', (0,0), (-1,0), 'Helvetica-Bold'),
+                        ('GRID', (0,0), (-1,-1), 0.5, colors.HexColor('#e5e7eb')),
+                        ('FONTNAME', (0,-1), (-1,-1), 'Helvetica-Bold'),
+                        ('BACKGROUND', (0,-1), (-1,-1), colors.HexColor('#fef08a')), # Highlights champion row in yellow
+                        ('TEXTCOLOR', (0,-1), (-1,-1), colors.HexColor('#854d0e')),
+                        ('PADDING', (0,0), (-1,-1), 5),
+                    ]))
+                    story.append(ko_table)
+                    
+                    doc.build(story)
+                    buffer.seek(0)
+                    return buffer.getvalue()
+
+                # 3. GENERATE BINARY DATA FILE FOR DOWNLOAD
+                try:
+                    pdf_data = generate_user_pdf(selected_user_name, user_preds, user_calc_bracket)
+                    
+                    st.success(f"📋 Verification dossier compiled successfully for **{selected_user_name}**!")
+                    
+                    st.download_button(
+                        label=f"📥 Download {selected_user_name}'s Master Print PDF",
+                        data=pdf_data,
+                        fileName=f"Tournament_Dossier_{selected_user_name.replace(' ', '_')}.pdf",
+                        mime="application/pdf",
+                        use_container_width=True
+                    )
+                    
+                    # On-screen preview box so you can scan it visually before downloading
+                    with st.expander("👁️ Quick On-Screen Layout Scan", expanded=True):
+                        col_view1, col_view2 = st.columns(2)
+                        with col_view1:
+                            st.markdown("#### 📆 Score Sheets Preview")
+                            # Show a small sample of the 72 games on screen to ensure hydration works
+                            preview_count = 0
+                            for g_name, matches in CHRONO_MATCHES.items():
+                                for m in matches:
+                                    if preview_count < 6:
+                                        kh, ka = f"Match_{m['id']}_h", f"Match_{m['id']}_a"
+                                        st.write(f"Match #{m['id']} - {m['home']} ({user_preds.get('group',{}).get(kh, '-')}) vs ({user_preds.get('group',{}).get(ka, '-')}) {m['away']}")
+                                    preview_count += 1
+                            st.caption("...complete list of 72 matches packaged safely inside PDF output.")
+                        with col_view2:
+                            st.markdown("#### 📊 Group Standings Preview")
+                            groups_abc = ['A', 'B', 'C']
+                            for g in groups_abc:
+                                sub_g = user_calc_bracket.get(f"Group_{g}", user_calc_bracket.get("groups", {}).get(g, ["—","—","—","—"]))
+                                st.write(f"**Group {g}:** 1st: {sub_g[0]} | 2nd: {sub_g[1]} | 3rd: {sub_g[2]} | 4th: {sub_g[3]}")
+                            st.caption("...all 12 groups (A-L) packaged inside PDF output.")
+                            
+                except Exception as pdf_err:
+                    st.error(f"Error packaging PDF blueprint layout: {pdf_err}")
             else:
                 st.warning("No submission logs found in this league context.")
+
 
