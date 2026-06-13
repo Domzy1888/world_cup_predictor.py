@@ -1816,6 +1816,7 @@ elif app_tab == "📝 Submit Predictions":
 
 
 # ==============================================================================
+# ==============================================================================
 # --- 15. ADMINISTRATIVE CONTROL PANEL ---
 # ==============================================================================
 elif app_tab == "🛠️ Admin Dashboard" and is_league_admin:
@@ -1854,7 +1855,7 @@ elif app_tab == "🛠️ Admin Dashboard" and is_league_admin:
                     if st.button("📢 Save Match Score", key=f"btn_pub_Match_{m_id}", use_container_width=True):
                         db_save_league_actual_result(active_league_id, kh, actual["group"][kh])
                         db_save_league_actual_result(active_league_id, ka, actual["group"][ka])
-                        st.cache_data.clear()  # Clear cache to force fresh DB fetch on rerun
+                        st.cache_data.clear()  
                         st.success(f"Match #{m_id} score locked and live!")
                         st.rerun()
                 else:
@@ -1864,7 +1865,7 @@ elif app_tab == "🛠️ Admin Dashboard" and is_league_admin:
                     if st.button("🔓 Reset / Unlock Match Score", key=f"btn_unl_Match_{m_id}", use_container_width=True):
                         db_delete_league_actual_result(active_league_id, kh)
                         db_delete_league_actual_result(active_league_id, ka)
-                        st.cache_data.clear()  # Clear cache to force fresh DB fetch on rerun
+                        st.cache_data.clear()  
                         st.warning(f"Match #{m_id} score cleared from records.")
                         st.rerun()
             st.markdown("<hr style='margin: 15px 0; border: 0; border-top: 1px solid rgba(255,255,255,0.1);' />", unsafe_allow_html=True)
@@ -1882,7 +1883,6 @@ elif app_tab == "🛠️ Admin Dashboard" and is_league_admin:
         with adm_ko_tabs[0]:
             st.subheader("🌳 Round of 32 Matches (Populated via Real Group Standings)")
             
-            # --- EXACT REPLICATION OF 3RD PLACE STANDINGS UI ---
             st.markdown("### 📊 Official Third-Place Standings Calculation")
             
             if "third_place_table" in actual_calc_bracket:
@@ -1916,11 +1916,10 @@ elif app_tab == "🛠️ Admin Dashboard" and is_league_admin:
             for m_id, (h, a) in adm_r32_pairings.items():
                 is_ko_saved = (m_id in actual["ko_winners"])
 
+                # Unified resolution mapping helper path tracking
                 saved_winner = actual["ko_winners"].get(m_id)
-                if str(saved_winner) == "1":
-                    actual["ko_winners"][m_id] = h
-                elif str(saved_winner) == "2":
-                    actual["ko_winners"][m_id] = a
+                if str(saved_winner) == "1": actual["ko_winners"][m_id] = h
+                elif str(saved_winner) == "2": actual["ko_winners"][m_id] = a
 
                 actual["ko_winners"][m_id] = render_match_card(h, a, f"Winner: {m_id.replace('_', ' ')}", m_id, disabled=is_ko_saved, score_mode=False, scores_dict=actual["ko_winners"])
 
@@ -1965,10 +1964,8 @@ elif app_tab == "🛠️ Admin Dashboard" and is_league_admin:
                 is_ko_saved = (m_id in actual["ko_winners"])
 
                 saved_winner = actual["ko_winners"].get(m_id)
-                if str(saved_winner) == "1":
-                    actual["ko_winners"][m_id] = h
-                elif str(saved_winner) == "2":
-                    actual["ko_winners"][m_id] = a
+                if str(saved_winner) == "1": actual["ko_winners"][m_id] = h
+                elif str(saved_winner) == "2": actual["ko_winners"][m_id] = a
 
                 actual["ko_winners"][m_id] = render_match_card(h, a, f"Winner: {m_id.replace('_', ' ')}", m_id, disabled=is_ko_saved, score_mode=False, scores_dict=actual["ko_winners"])
 
@@ -2004,17 +2001,15 @@ elif app_tab == "🛠️ Admin Dashboard" and is_league_admin:
 
             adm_qf = {
                 "Match_97": (get_adm_ko_prev_r16("Match_89"), get_adm_ko_prev_r16("Match_90")), "Match_98": (get_adm_ko_prev_r16("Match_93"), get_adm_ko_prev_r16("Match_94")),
-                "Match_99": (get_adm_ko_prev_r16("Match_91"), get_adm_ko_prev_r16("Match_92")), "Match_100": (get_adm_ko_prev_r16("Match_95"), get_adm_ko_prev_r16("Match_96"))
+                "Match_99": (get_adm_ko_prev_r16("Match_91"), get_adm_ko_prev_r16("Match_92")), "Match_100": (get_adm_ko_prev_r16("Match_95"), get_adm_ko_prev_r16("Match_100"))
             }
             st.subheader("🌳 Quarter-Final Matches")
             for m_id, (h, a) in adm_qf.items():
                 is_ko_saved = (m_id in actual["ko_winners"])
 
                 saved_winner = actual["ko_winners"].get(m_id)
-                if str(saved_winner) == "1":
-                    actual["ko_winners"][m_id] = h
-                elif str(saved_winner) == "2":
-                    actual["ko_winners"][m_id] = a
+                if str(saved_winner) == "1": actual["ko_winners"][m_id] = h
+                elif str(saved_winner) == "2": actual["ko_winners"][m_id] = a
 
                 actual["ko_winners"][m_id] = render_match_card(h, a, f"Winner: {m_id.replace('_', ' ')}", m_id, disabled=is_ko_saved, score_mode=False, scores_dict=actual["ko_winners"])
 
@@ -2055,6 +2050,11 @@ elif app_tab == "🛠️ Admin Dashboard" and is_league_admin:
 
             # Match 101 (Semi Final 1)
             is_m101_saved = ("Match_101" in actual["ko_winners"])
+            
+            saved_m101 = actual["ko_winners"].get("Match_101")
+            if str(saved_m101) == "1": actual["ko_winners"]["Match_101"] = sf1_h
+            elif str(saved_m101) == "2": actual["ko_winners"]["Match_101"] = sf1_a
+            
             actual["ko_winners"]["Match_101"] = render_match_card(sf1_h, sf1_a, "Semi Final 1 Official Winner", "Match_101", disabled=is_m101_saved, score_mode=False, scores_dict=actual["ko_winners"])
             c_sf1_1, c_sf1_2 = st.columns(2)
             with c_sf1_1:
@@ -2076,6 +2076,11 @@ elif app_tab == "🛠️ Admin Dashboard" and is_league_admin:
 
             # Match 102 (Semi Final 2)
             is_m102_saved = ("Match_102" in actual["ko_winners"])
+            
+            saved_m102 = actual["ko_winners"].get("Match_102")
+            if str(saved_m102) == "1": actual["ko_winners"]["Match_102"] = sf2_h
+            elif str(saved_m102) == "2": actual["ko_winners"]["Match_102"] = sf2_a
+
             actual["ko_winners"]["Match_102"] = render_match_card(sf2_h, sf2_a, "Semi Final 2 Official Winner", "Match_102", disabled=is_m102_saved, score_mode=False, scores_dict=actual["ko_winners"])
             c_sf2_1, c_sf2_2 = st.columns(2)
             with c_sf2_1:
@@ -2099,22 +2104,21 @@ elif app_tab == "🛠️ Admin Dashboard" and is_league_admin:
             sf1_winner_saved = actual["ko_winners"].get("Match_101")
             sf2_winner_saved = actual["ko_winners"].get("Match_102")
 
-            if str(sf1_winner_saved) == "1" or sf1_winner_saved == sf1_h:
-                sf1_w, sf1_l = sf1_h, sf1_a
-            elif str(sf1_winner_saved) == "2" or sf1_winner_saved == sf1_a:
-                sf1_w, sf1_l = sf1_a, sf1_h
-            else:
-                sf1_w, sf1_l = None, "TBD (Loser SF1)"
+            if str(sf1_winner_saved) == "1" or sf1_winner_saved == sf1_h: sf1_w, sf1_l = sf1_h, sf1_a
+            elif str(sf1_winner_saved) == "2" or sf1_winner_saved == sf1_a: sf1_w, sf1_l = sf1_a, sf1_h
+            else: sf1_w, sf1_l = None, "TBD (Loser SF1)"
 
-            if str(sf2_winner_saved) == "1" or sf2_winner_saved == sf2_h:
-                sf2_w, sf2_l = sf2_h, sf2_a
-            elif str(sf2_winner_saved) == "2" or sf2_winner_saved == sf2_a:
-                sf2_w, sf2_l = sf2_a, sf2_h
-            else:
-                sf2_w, sf2_l = None, "TBD (Loser SF2)"
+            if str(sf2_winner_saved) == "1" or sf2_winner_saved == sf2_h: sf2_w, sf2_l = sf2_h, sf2_a
+            elif str(sf2_winner_saved) == "2" or sf2_winner_saved == sf2_a: sf2_w, sf2_l = sf2_a, sf2_h
+            else: sf2_w, sf2_l = None, "TBD (Loser SF2)"
 
             # Match 103 (3rd Place Playoff)
             is_m103_saved = ("Match_103" in actual["ko_winners"])
+            
+            saved_m103 = actual["ko_winners"].get("Match_103")
+            if str(saved_m103) == "1": actual["ko_winners"]["Match_103"] = sf1_l
+            elif str(saved_m103) == "2": actual["ko_winners"]["Match_103"] = sf2_l
+
             actual["ko_winners"]["Match_103"] = render_match_card(sf1_l, sf2_l, "🥉 3rd Place Playoff Winner", "Match_103", disabled=is_m103_saved, score_mode=False, scores_dict=actual["ko_winners"])
             c_p3_1, c_p3_2 = st.columns(2)
             with c_p3_1:
@@ -2139,6 +2143,11 @@ elif app_tab == "🛠️ Admin Dashboard" and is_league_admin:
             f_a = sf2_w if sf2_w else "TBD (Winner SF2)"
 
             is_m104_saved = ("Match_104" in actual["ko_winners"])
+            
+            saved_m104 = actual["ko_winners"].get("Match_104")
+            if str(saved_m104) == "1": actual["ko_winners"]["Match_104"] = f_h
+            elif str(saved_m104) == "2": actual["ko_winners"]["Match_104"] = f_a
+
             actual["ko_winners"]["Match_104"] = render_match_card(f_h, f_a, "🥇 Grand Final Tournament Champion", "Match_104", disabled=is_m104_saved, score_mode=False, scores_dict=actual["ko_winners"])
             c_f_1, c_f_2 = st.columns(2)
             with c_f_1:
@@ -2155,6 +2164,7 @@ elif app_tab == "🛠️ Admin Dashboard" and is_league_admin:
                     db_delete_league_actual_result(active_league_id, "Match_104")
                     st.cache_data.clear()
                     st.rerun()
+
 
 
 
