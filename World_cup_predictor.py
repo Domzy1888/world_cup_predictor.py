@@ -1818,7 +1818,7 @@ elif app_tab == "🛠️ Admin Dashboard" and is_league_admin:
             manual_tb_locks={}, manual_tb_orders={}
         )
 
-        adm_ko_tabs = st.tabs(["Round of 32", "Round of 16", "Quarter-Finals", "Finals"])
+        adm_ko_tabs = st.tabs(["Round of 32", "Round of 16", "Quarter-Finals", "Finals","Canteen Print Station"])
 
         # --- ADMIN WORKSPACE: ROUND OF 32 ---
         with adm_ko_tabs[0]:
