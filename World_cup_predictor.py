@@ -2172,7 +2172,7 @@ elif app_tab == "🛠️ Admin Dashboard" and is_league_admin:
 
                        # --- ADMIN WORKSPACE: INDIVIDUAL CANTEEN WALL CHART DOSSIERS (EXPLICIT MATRIX SCHEMA FIX) ---
         with adm_ko_tabs[4]:
-            st.title("🖨️ Office Canteen Print Station & PDF Dossier Generator")
+            st.title("🖨️ PDF Generator")
             st.write("Select a teammate to compile their complete prediction history (All Match Scores, Group Tables, and the Full Knockout Tree) into an office wall-chart layout.")
 
             import io
@@ -2427,14 +2427,14 @@ elif app_tab == "🛠️ Admin Dashboard" and is_league_admin:
                     body_style = ParagraphStyle('BStyle', parent=styles['Normal'], fontSize=9, leading=12)
 
                     # Cover Header Banner
-                    story.append(Paragraph("🏆 TOURNAMENT MASTER PREDICTION DOSSIER", title_style))
+                    story.append(Paragraph("🏆 WORLD CUP 2026 TOURNAMENT PREDICTION", title_style))
                     story.append(Spacer(1, 4))
-                    story.append(Paragraph(f"<b>Official Canteen Verification Record:</b> {name}", sub_style))
+                    story.append(Paragraph(f"<b>Username:</b> {name}", sub_style))
                     story.append(Spacer(1, 10))
                     story.append(Paragraph("<hr color='#4f46e5' width='100%'/>", body_style))
                     
                     # PART 1: MATCH SCORES
-                    story.append(Paragraph("📆 Part 1: Predicted Match Scores (Chronological)", h2_style))
+                    story.append(Paragraph("📆 Part 1: Group Score Predictions", h2_style))
                     match_rows = []
                     current_pair = []
                     
@@ -2458,8 +2458,8 @@ elif app_tab == "🛠️ Admin Dashboard" and is_league_admin:
                     
                     story.append(PageBreak()) # Shift Standings to Page 2
                     
-                    # PART 2: STANDINGS
-                    story.append(Paragraph("📊 Part 2: Calculated Final Group Standings (1st - 4th)", h2_style))
+                    # PART 2: FINAL STANDINGS
+                    story.append(Paragraph("📊 Part 2: Predicted Final Group Standings (1st - 4th)", h2_style))
                     standings_data = [["Group Table", "1st Position", "2nd Position", "3rd Position", "4th Position"]]
                     for g in sorted(GROUPS.keys()):
                         teams_list = [g_tables[g].iloc[i]["Team"] if g in g_tables and i < len(g_tables[g]) else "—" for i in range(4)]
@@ -2478,7 +2478,7 @@ elif app_tab == "🛠️ Admin Dashboard" and is_league_admin:
                     story.append(PageBreak()) # Shift Knockout Tree to Page 3
                     
                     # PART 3: FULL DYNAMIC KNOCKOUT TREE PROGRESSION
-                    story.append(Paragraph("🌳 Part 3: Predicted Knockout Tree Pathway Progression", h2_style))
+                    story.append(Paragraph("🌳 Part 3: Predicted Knockout Stage Teams to Progress", h2_style))
                     story.append(Paragraph(f"<b>Calculated Wildcard Combination Code:</b> <font color='#4f46e5'><b>{combination_lookup_string or 'N/A'}</b></font>", body_style))
                     story.append(Spacer(1, 8))
 
@@ -2501,10 +2501,10 @@ elif app_tab == "🛠️ Admin Dashboard" and is_league_admin:
                         ko_tree_rows.append([f"{m_id} (Semi Final)", r["home"], r["away"], r["winner"]])
 
                     # 3rd Place Playoff
-                    ko_tree_rows.append(["Match_103 (3rd Place Winner)", "Semifinal 1 Loser", "Semifinal 2 Loser", str(third_winner)])
+                    ko_tree_rows.append(["Match_103 (3rd Place)", "SF 1 Loser", "SF 2 Loser", str(third_winner)])
 
                     # Tournament Champion Row
-                    ko_tree_rows.append(["🏆 GRAND TOURNAMENT CHAMPION", "Finalist 1", "Finalist 2", str(champion).upper()])
+                    ko_tree_rows.append(["CHAMPION", "Finalist 1", "Finalist 2", str(champion).upper()])
 
                     t_ko = Table(ko_tree_rows, colWidths=[130, 135, 135, 140])
                     t_ko.setStyle(TableStyle([
