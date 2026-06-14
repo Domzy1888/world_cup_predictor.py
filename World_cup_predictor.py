@@ -2496,15 +2496,33 @@ elif app_tab == "🛠️ Admin Dashboard" and is_league_admin:
                     for m_id, r in sorted(qf_data.items(), key=lambda x: int(x[0].replace("Match_",""))):
                         ko_tree_rows.append([f"{m_id} (Quarter Final)", r["home"], r["away"], r["winner"]])
 
-                    # Semi Finals
+                                        # Semi Finals
                     for m_id, r in sorted(sf_data.items(), key=lambda x: int(x[0].replace("Match_",""))):
                         ko_tree_rows.append([f"{m_id} (Semi Final)", r["home"], r["away"], r["winner"]])
 
-                    # 3rd Place Playoff
-                    ko_tree_rows.append(["Match_103 (3rd Place)", "SF 1 Loser", "SF 2 Loser", str(third_winner)])
+                    # === UPDATED: DYNAMICALLY RESOLVE 3RD PLACE & GRAND FINAL MATCHUPS ===
+                    # Extract the actual teams involved in the Semifinals to find out who won and lost
+                    sf1 = sf_data.get("Match_101", {"home": "TBD", "away": "TBD", "winner": ""})
+                    sf2 = sf_data.get("Match_102", {"home": "TBD", "away": "TBD", "winner": ""})
 
-                    # Tournament Champion Row
-                    ko_tree_rows.append(["CHAMPION", "Finalist 1", "Finalist 2", str(champion).upper()])
+                    # Identify SF 1 Winner & Loser
+                    if sf1["winner"] == sf1["home"]:
+                        sf1_w, sf1_l = sf1["home"], sf1["away"]
+                    else:
+                        sf1_w, sf1_l = sf1["away"], sf1["home"]
+
+                    # Identify SF 2 Winner & Loser
+                    if sf2["winner"] == sf2["home"]:
+                        sf2_w, sf2_l = sf2["home"], sf2["away"]
+                    else:
+                        sf2_w, sf2_l = sf2["away"], sf2["home"]
+
+                    # Append Match_103 using the actual computed loser names instead of placeholders
+                    ko_tree_rows.append(["Match_103 (3rd Place)", sf1_l, sf2_l, str(third_winner)])
+
+                    # Append Tournament Champion Row using the actual finalist team names
+                    ko_tree_rows.append(["CHAMPION", sf1_w, sf2_w, str(champion).upper()])
+
 
                     t_ko = Table(ko_tree_rows, colWidths=[130, 135, 135, 140])
                     t_ko.setStyle(TableStyle([
