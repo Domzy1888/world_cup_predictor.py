@@ -1300,17 +1300,19 @@ if app_tab == "🏆 Leaderboards":
         df_leaderboard = df_leaderboard.sort_values(by="POINTS", ascending=False).reset_index(drop=True)
         df_leaderboard["POS"] = df_leaderboard.index + 1
 
-        # EXCLUSIVE COHESIVE STREAMLIT RENDER THEME RULE FIX WITH ALIGNMENT
+                # EXCLUSIVE COHESIVE STREAMLIT RENDER THEME RULE FIX WITH ALIGNMENT AND HEIGHT EXTENSION
         st.dataframe(
             df_leaderboard[["POS", "NAME", "POINTS"]], 
             use_container_width=True, 
             hide_index=True,
+            height=None,  # <-- This tells Streamlit to auto-expand to fit all rows vertically
             column_config={
                 "POS": st.column_config.Column(alignment="center"),
                 "NAME": st.column_config.Column(alignment="center"),
                 "POINTS": st.column_config.Column(alignment="center"),
             }
         )
+
 
 
 # ==============================================================================
