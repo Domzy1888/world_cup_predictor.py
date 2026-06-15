@@ -71,64 +71,18 @@ st.markdown(
 )
 
 # Unified Main Application Styling, Background & Match Card Setup
-video_url = "https://raw.githubusercontent.com/Domzy1888/world_cup_predictor.py/main/McTominay_%20Highest%20Bicycle%20Kick%F0%9F%94%A5.mp4"
-
-video_html = f"""
-<style>
-    /* 1. Make Streamlit's app wrapper transparent so the video underneath is visible */
-    .stApp {{
-        background: transparent !important;
-    }}
-
-    /* 2. Fix the video container across the entire viewport background */
-    .bg-video-container {{
-        position: fixed;
-        right: 0;
-        bottom: 0;
-        min-width: 100%;
-        min-height: 100%;
-        width: auto;
-        height: auto;
-        z-index: -2;
-        overflow: hidden;
-    }}
-
-    /* 3. Cover the background space smoothly without image/video distortion */
-    .bg-video {{
-        position: absolute;
-        top: 50%;
-        left: 50%;
-        transform: translate(-50%, -50%);
-        min-width: 100%;
-        min-height: 100%;
-        object-fit: cover;
-    }}
-
-    /* 4. Unified Dark Overlay Tint to protect text contrast and readability */
-    .video-overlay {{
-        position: fixed;
-        top: 0;
-        left: 0;
-        width: 100%;
-        height: 100%;
-        background-color: rgba(15, 23, 42, 0.65); /* Keeps your signature brand dark blue tint */
-        backdrop-filter: blur(2px);               /* Optional sleek glass-blur accent */
-        z-index: -1;
-    }}
-</style>
-
-<div class="bg-video-container">
-    <video autoplay loop muted playsinline class="bg-video">
-        <source src="{video_url}" type="video/mp4">
-    </video>
-</div>
-<div class="video-overlay"></div>
-"""
-
-st.markdown(video_html, unsafe_allow_html=True)
-
+st.markdown("""
+    <style>
+    /* Background Image setup */
+    .stApp {
+        background: linear-gradient(rgba(15, 23, 42, 0.2), rgba(15, 23, 42, 0.4)),
+                    url("https://cdn-media.theathletic.com/cdn-cgi/image/width=1000,quality=70,format=auto/https://cdn-media.theathletic.com/vwYC1qZfTwfm_3qmyXkIC5Rja_1440x960.jpg");
+        background-size: cover;
+        background-position: center;
+        background-attachment: fixed;
+    }
     
-   /* Main body typography - Explicitly isolated only to the main content panel */
+    /* Main body typography - Explicitly isolated only to the main content panel */
     [data-testid="stMain"] p, 
     [data-testid="stMain"] label, 
     [data-testid="stMain"] .stMarkdown, 
