@@ -1837,10 +1837,10 @@ elif app_tab == "🛠️ Admin Dashboard" and is_league_admin:
     actual = db_fetch_league_actual_results(active_league_id)
     admin_tabs = st.tabs(["Group Stage Results", "Knockout Round Results"])
 
-        with admin_tabs[0]:
+    with admin_tabs[0]:
         st.subheader("📆 All Group Matches (Match Order)")
 
-        # 1. Add a visual toggle switch at the top of the tab
+        # Toggle to auto-hide matches that already have an official score locked in
         hide_completed = st.checkbox("🔍 Hide games with locked scores", value=True, key="admin_hide_completed")
 
         flat_chrono_list = []
@@ -1858,10 +1858,9 @@ elif app_tab == "🛠️ Admin Dashboard" and is_league_admin:
             m_id = match["id"]
             kh, ka = f"Match_{m_id}_h", f"Match_{m_id}_a"
 
-            # Check if this specific match already has its score locked
             is_score_saved = (kh in actual["group"] and ka in actual["group"])
 
-            # 2. DYNAMIC FILTER: Skip rendering if the toggle is active and the score is already locked
+            # Skip rendering this match card entirely if it's locked and the hide filter is enabled
             if hide_completed and is_score_saved:
                 continue
 
@@ -1891,13 +1890,13 @@ elif app_tab == "🛠️ Admin Dashboard" and is_league_admin:
                         st.rerun()
             st.markdown("<hr style='margin: 15px 0; border: 0; border-top: 1px solid rgba(255,255,255,0.1);' />", unsafe_allow_html=True)
 
-
     with admin_tabs[1]:
         # Pass empty tie-breaker structures into the bracket manager for official standings
         actual_calc_bracket = resolve_bracket_teams(
             None, target_is_actual=True, actual_results_obj=actual,
             manual_tb_locks={}, manual_tb_orders={}
         )
+
 
         adm_ko_tabs = st.tabs(["Round of 32", "Round of 16", "Quarter-Finals", "Finals","Canteen Print Station"])
 
