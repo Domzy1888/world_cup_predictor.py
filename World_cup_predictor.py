@@ -15,6 +15,7 @@ st.set_page_config(
     page_icon="🏆",
     layout="wide"
 )
+
 def is_tournament_locked():
     """
     Returns True if the current time has passed the tournament kickoff:
@@ -126,6 +127,7 @@ video_html = f"""
 """
 
 st.markdown(video_html, unsafe_allow_html=True)
+
 
     
    /* Main body typography - Explicitly isolated only to the main content panel */
