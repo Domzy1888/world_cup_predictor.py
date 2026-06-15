@@ -1277,8 +1277,8 @@ def get_cached_leaderboard(active_league_id, member_rows_json):
             m_name = row["users"]["username"]
             leaderboard_data.append({
                 "POS": 0,
-                "COMPETITOR NAME": m_name, 
-                "CURRENT TOTAL POINTS": calculate_user_points(m_id, active_league_id)
+                "NAME": m_name, 
+                "POINTS": calculate_user_points(m_id, active_league_id)
             })
     return leaderboard_data
 
@@ -1297,15 +1297,21 @@ if app_tab == "🏆 Leaderboards":
     df_leaderboard = pd.DataFrame(leaderboard_data)
     if not df_leaderboard.empty:
         # Sort and recalculate global position sequence numbers dynamically 
-        df_leaderboard = df_leaderboard.sort_values(by="CURRENT TOTAL POINTS", ascending=False).reset_index(drop=True)
+        df_leaderboard = df_leaderboard.sort_values(by="POINTS", ascending=False).reset_index(drop=True)
         df_leaderboard["POS"] = df_leaderboard.index + 1
 
-        # EXCLUSIVE COHESIVE STREAMLIT RENDER THEME RULE FIX
+        # EXCLUSIVE COHESIVE STREAMLIT RENDER THEME RULE FIX WITH ALIGNMENT
         st.dataframe(
-            df_leaderboard[["POS", "COMPETITOR NAME", "CURRENT TOTAL POINTS"]], 
+            df_leaderboard[["POS", "NAME", "POINTS"]], 
             use_container_width=True, 
-            hide_index=True
+            hide_index=True,
+            column_config={
+                "POS": st.column_config.Column(alignment="center"),
+                "NAME": st.column_config.Column(alignment="center"),
+                "POINTS": st.column_config.Column(alignment="center"),
+            }
         )
+
 
 # ==============================================================================
 # --- 13. CREATE / JOIN LEAGUE HUB ---
