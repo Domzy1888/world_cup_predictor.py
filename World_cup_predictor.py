@@ -15,7 +15,6 @@ st.set_page_config(
     page_icon="🏆",
     layout="wide"
 )
-
 def is_tournament_locked():
     """
     Returns True if the current time has passed the tournament kickoff:
@@ -127,78 +126,6 @@ video_html = f"""
 """
 
 st.markdown(video_html, unsafe_allow_html=True)
-
-# Main typography definition safely aligned to structural zero-indentation 
-st.markdown(
-    """
-    <style>
-    /* Main body typography - Explicitly isolated only to the main content panel */
-    body, .main, .block-container {
-        font-family: 'Inter', sans-serif !important;
-    }
-    </style>
-    """,
-    unsafe_allow_html=True
-)
-
-
-# Unified Main Application Styling, Background & Match Card Setup
-video_url = "https://raw.githubusercontent.com/Domzy1888/world_cup_predictor.py/main/McTominay_%20Highest%20Bicycle%20Kick%F0%9F%94%A5.mp4"
-
-video_html = f"""
-<style>
-    /* 1. Make Streamlit's app wrapper transparent so the video underneath is visible */
-    .stApp {{
-        background: transparent !important;
-    }}
-
-    /* 2. Fix the video container across the entire viewport background */
-    .bg-video-container {{
-        position: fixed;
-        right: 0;
-        bottom: 0;
-        min-width: 100%;
-        min-height: 100%;
-        width: auto;
-        height: auto;
-        z-index: -2;
-        overflow: hidden;
-    }}
-
-    /* 3. Cover the background space smoothly without image/video distortion */
-    .bg-video {{
-        position: absolute;
-        top: 50%;
-        left: 50%;
-        transform: translate(-50%, -50%);
-        min-width: 100%;
-        min-height: 100%;
-        object-fit: cover;
-    }}
-
-    /* 4. Unified Dark Overlay Tint to protect text contrast and readability */
-    .video-overlay {{
-        position: fixed;
-        top: 0;
-        left: 0;
-        width: 100%;
-        height: 100%;
-        background-color: rgba(15, 23, 42, 0.65); /* Keeps your signature brand dark blue tint */
-        backdrop-filter: blur(2px);               /* Optional sleek glass-blur accent */
-        z-index: -1;
-    }}
-</style>
-
-<div class="bg-video-container">
-    <video autoplay loop muted playsinline class="bg-video">
-        <source src="{video_url}" type="video/mp4">
-    </video>
-</div>
-<div class="video-overlay"></div>
-"""
-
-st.markdown(video_html, unsafe_allow_html=True)
-
 
     
    /* Main body typography - Explicitly isolated only to the main content panel */
@@ -2710,13 +2637,3 @@ elif app_tab == "🛠️ Admin Dashboard" and is_league_admin:
                     st.error(f"Error packaging PDF layout design blueprint: {pdf_err}")
             else:
                 st.error("No submission profiles found inside your users infrastructure record.")
-
-
-
-
-
-
-
-
-
-
