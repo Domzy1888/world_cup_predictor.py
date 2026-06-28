@@ -1946,7 +1946,6 @@ elif app_tab == "🛠️ Admin Dashboard" and is_league_admin:
             manual_tb_locks={}, manual_tb_orders={}
         )
 
-
         adm_ko_tabs = st.tabs(["Round of 32", "Round of 16", "Quarter-Finals", "Finals","Canteen Print Station"])
 
         # --- ADMIN WORKSPACE: ROUND OF 32 ---
@@ -1955,21 +1954,21 @@ elif app_tab == "🛠️ Admin Dashboard" and is_league_admin:
             
             st.markdown("### 📊 Official Third-Place Standings Calculation")
             
-            if "third_place_table" in actual_calc_bracket:
-                admin_3rd_table = actual_calc_bracket["third_place_table"]
-                admin_combo_str = actual_calc_bracket.get("lookup_string", "UNKNOWN")
+            if "third_place_top8" in actual_calc_bracket:
+                admin_3rd_table = actual_calc_bracket["third_place_top8"]
+                admin_combo_str = actual_calc_bracket.get("third_place_code", "UNKNOWN")
                 
                 st.write("Below is the official ranking of all third-placed teams across the 12 groups. The top 8 teams qualify for the Round of 32 layout matrix.")
                 
                 st.dataframe(
                     admin_3rd_table,
                     column_config={
-                        "group": "Group",
-                        "team": "Team Name",
-                        "points": "Pts",
-                        "gd": "GD",
-                        "gs": "GS",
-                        "qualified": "Status"
+                        "Group": "Group",
+                        "Team": "Team Name",
+                        "Pts": "Pts",
+                        "GD": "GD",
+                        "GF": "GS",
+                        "Position": "Status"
                     },
                     use_container_width=True
                 )
@@ -2070,8 +2069,10 @@ elif app_tab == "🛠️ Admin Dashboard" and is_league_admin:
                 return f"W{m_key.split('_')[1]}"
 
             adm_qf = {
-                "Match_97": (get_adm_ko_prev_r16("Match_89"), get_adm_ko_prev_r16("Match_90")), "Match_98": (get_adm_ko_prev_r16("Match_93"), get_adm_ko_prev_r16("Match_94")),
-                "Match_99": (get_adm_ko_prev_r16("Match_91"), get_adm_ko_prev_r16("Match_92")), "Match_100": (get_adm_ko_prev_r16("Match_95"), get_adm_ko_prev_r16("Match_100"))
+                "Match_97": (get_adm_ko_prev_r16("Match_89"), get_adm_ko_prev_r16("Match_90")), 
+                "Match_98": (get_adm_ko_prev_r16("Match_93"), get_adm_ko_prev_r16("Match_94")),
+                "Match_99": (get_adm_ko_prev_r16("Match_91"), get_adm_ko_prev_r16("Match_92")), 
+                "Match_100": (get_adm_ko_prev_r16("Match_95"), get_adm_ko_prev_r16("Match_96"))
             }
             st.subheader("🌳 Quarter-Final Matches")
             for m_id, (h, a) in adm_qf.items():
@@ -2235,12 +2236,7 @@ elif app_tab == "🛠️ Admin Dashboard" and is_league_admin:
                     st.cache_data.clear()
                     st.rerun()
 
-
-
-
-
-
-                       # --- ADMIN WORKSPACE: INDIVIDUAL CANTEEN WALL CHART DOSSIERS (EXPLICIT MATRIX SCHEMA FIX) ---
+        # --- ADMIN WORKSPACE: INDIVIDUAL CANTEEN WALL CHART DOSSIERS (EXPLICIT MATRIX SCHEMA FIX) ---
         with adm_ko_tabs[4]:
             st.title("🖨️ PDF Generator")
             st.write("Select a teammate to compile their complete prediction history (All Match Scores, Group Tables, and the Full Knockout Tree) into an office wall-chart layout.")
@@ -2566,7 +2562,7 @@ elif app_tab == "🛠️ Admin Dashboard" and is_league_admin:
                     for m_id, r in sorted(qf_data.items(), key=lambda x: int(x[0].replace("Match_",""))):
                         ko_tree_rows.append([f"{m_id} (Quarter Final)", r["home"], r["away"], r["winner"]])
 
-                                        # Semi Finals
+                    # Semi Finals
                     for m_id, r in sorted(sf_data.items(), key=lambda x: int(x[0].replace("Match_",""))):
                         ko_tree_rows.append([f"{m_id} (Semi Final)", r["home"], r["away"], r["winner"]])
 
@@ -2592,7 +2588,6 @@ elif app_tab == "🛠️ Admin Dashboard" and is_league_admin:
 
                     # Append Tournament Champion Row using the actual finalist team names
                     ko_tree_rows.append(["CHAMPION", sf1_w, sf2_w, str(champion).upper()])
-
 
                     t_ko = Table(ko_tree_rows, colWidths=[130, 135, 135, 140])
                     t_ko.setStyle(TableStyle([
@@ -2648,3 +2643,4 @@ elif app_tab == "🛠️ Admin Dashboard" and is_league_admin:
                     st.error(f"Error packaging PDF layout design blueprint: {pdf_err}")
             else:
                 st.error("No submission profiles found inside your users infrastructure record.")
+
