@@ -2618,3 +2618,13 @@ elif app_tab == "🛠️ Admin Dashboard" and is_league_admin:
             else:
                 st.error("No submission profiles found inside your users infrastructure record.")
 
+st.markdown("### 🔄 Global Leaderboard Lifecycle Control")
+if st.button("♻️ Force Recalculate Standings & Flush Cache", type="primary", use_container_width=True):
+    # 1. Clear all Streamlit memory caches
+    st.cache_data.clear()
+    st.cache_resource.clear()
+    
+    # 2. Touch/Rerun the app to force a clean, top-to-bottom re-execution
+    st.success("All cache flushed! Recalculating Leaderboard...")
+    st.rerun()
+
