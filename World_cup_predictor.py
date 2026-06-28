@@ -1113,8 +1113,7 @@ def calculate_user_points(user_id, league_id):
         local_tb_locks[f"tb_locked_{row['group_name']}"] = row["is_locked"]
 
     # ==========================================================================
-    # --- PART 2: KNOCKOUT TEAM INTERSECTION MATCHES ---
-    # ==========================================================================
+        # --- PART 2: KNOCKOUT TEAM INTERSECTION MATCHES ---
     user_bracket = resolve_bracket_teams(user_preds, target_is_actual=False, manual_tb_locks=local_tb_locks, manual_tb_orders=local_tb_orders)
     actual_bracket = resolve_bracket_teams(None, target_is_actual=True, actual_results_obj=actual, manual_tb_locks={}, manual_tb_orders={})
 
@@ -1152,6 +1151,7 @@ def calculate_user_points(user_id, league_id):
         points += 25
 
     return points
+
 
 
     # --- PART 1: GROUP STAGE CALCULATIONS (Remains completely unchanged) ---
