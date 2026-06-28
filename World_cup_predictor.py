@@ -981,6 +981,8 @@ def resolve_bracket_teams(scores_dict, target_is_actual=False, actual_results_ob
 
     # Reconstruct Round of 32 baseline starting lines
     r32_teams = {}
+    r32_flat_list = set()  # Set collection to accumulate all unique teams reaching R32
+    
     for m_id, structure in DYNAMIC_R32_CONFIG.items():
         home_g, home_pos = structure["home"][0], structure["home"][1]
         h_team = get_1st(home_g) if home_pos == "1st" else get_2nd(home_g)
@@ -999,6 +1001,10 @@ def resolve_bracket_teams(scores_dict, target_is_actual=False, actual_results_ob
             a_team = "TBD"
 
         r32_teams[m_id] = (h_team, a_team)
+        
+        # Track both qualified teams seamlessly if they aren't empty placeholders
+        if h_team and h_team != "TBD": r32_flat_list.add(h_team)
+        if a_team and a_team != "TBD": r32_flat_list.add(a_team)
 
     # Helper to resolve selection strings safely ('1', '2', or literal team names)
     def clean_choice_resolution(match_key, current_pair):
@@ -1077,6 +1083,7 @@ def resolve_bracket_teams(scores_dict, target_is_actual=False, actual_results_ob
 
     return {
         "r32_pairings": r32_teams,
+        "r32": list(r32_flat_list), # <-- CRUCIAL FIX: Expose flat list to the scoring engine!
         "r16": r16_teams,
         "qf": qf_teams,
         "sf": sf_teams,
@@ -1104,6 +1111,48 @@ def calculate_user_points(user_id, league_id):
     for row in tb_saved_records:
         local_tb_orders[f"tb_order_{row['group_name']}"] = row["team_order"]
         local_tb_locks[f"tb_locked_{row['group_name']}"] = row["is_locked"]
+
+    # ==========================================================================
+    # --- PART 2: KNOCKOUT TEAM INTERSECTION MATCHES ---
+    # ==========================================================================
+    user_bracket = resolve_bracket_teams(user_preds, target_is_actual=False, manual_tb_locks=local_tb_locks, manual_tb_orders=local_tb_orders)
+    actual_bracket = resolve_bracket_teams(None, target_is_actual=True, actual_results_obj=actual, manual_tb_locks={}, manual_tb_orders={})
+
+    # 1. Round of 32 Intersection - 3 Points Per Correct Team
+    for team in user_bracket.get("r32", []):
+        if team and team in actual_bracket.get("r32", []): 
+            points += 3
+
+    # 2. Round of 16 Intersection - 5 Points Per Correct Team
+    for team in user_bracket.get("r16", []):
+        if team and team in actual_bracket.get("r16", []): 
+            points += 5
+
+    # 3. Quarterfinals Intersection - 10 Points Per Correct Team
+    for team in user_bracket.get("qf", []):
+        if team and team in actual_bracket.get("qf", []): 
+            points += 10
+
+    # 4. Semifinals Intersection - 15 Points Per Correct Team
+    for team in user_bracket.get("sf", []):
+        if team and team in actual_bracket.get("sf", []): 
+            points += 15
+
+    # 5. Third Place Winner - 15 Points
+    if user_bracket.get("third") and user_bracket.get("third") == actual_bracket.get("third"): 
+        points += 15
+
+    # 6. Finalists Intersection (Reached the Final) - 20 Points Per Correct Team
+    for team in user_bracket.get("finalists", []):
+        if team and team in actual_bracket.get("finalists", []): 
+            points += 20
+        
+    # 7. Tournament Champion - 25 Points
+    if user_bracket.get("champ") and user_bracket.get("champ") == actual_bracket.get("champ"): 
+        points += 25
+
+    return points
+
 
     # --- PART 1: GROUP STAGE CALCULATIONS (Remains completely unchanged) ---
     for g_name, matches in CHRONO_MATCHES.items():
