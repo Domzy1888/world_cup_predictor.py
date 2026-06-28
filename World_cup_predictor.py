@@ -1003,8 +1003,8 @@ def resolve_bracket_teams(scores_dict, target_is_actual=False, actual_results_ob
         r32_teams[m_id] = (h_team, a_team)
         
         # Track both qualified teams seamlessly if they aren't empty placeholders
-        if h_team and h_team != "TBD": r32_flat_list.add(h_team)
-        if a_team and a_team != "TBD": r32_flat_list.add(a_team)
+        if h_team and h_team != "TBD" and h_team != "": r32_flat_list.add(h_team)
+        if a_team and a_team != "TBD" and a_team != "": r32_flat_list.add(a_team)
 
     # Helper to resolve selection strings safely ('1', '2', or literal team names)
     def clean_choice_resolution(match_key, current_pair):
@@ -1083,7 +1083,7 @@ def resolve_bracket_teams(scores_dict, target_is_actual=False, actual_results_ob
 
     return {
         "r32_pairings": r32_teams,
-        "r32": list(r32_flat_list), # <-- CRUCIAL FIX: Expose flat list to the scoring engine!
+        "r32": list(r32_flat_list),
         "r16": r16_teams,
         "qf": qf_teams,
         "sf": sf_teams,
@@ -1112,14 +1112,28 @@ def calculate_user_points(user_id, league_id):
         local_tb_orders[f"tb_order_{row['group_name']}"] = row["team_order"]
         local_tb_locks[f"tb_locked_{row['group_name']}"] = row["is_locked"]
 
-    # ==========================================================================
-        # --- PART 2: KNOCKOUT TEAM INTERSECTION MATCHES ---
+    # --- PART 1: GROUP STAGE CALCULATIONS ---
+    for g_name, matches in CHRONO_MATCHES.items():
+        for match in matches:
+            m_id = match["id"]
+            kh, ka = f"Match_{m_id}_h", f"Match_{m_id}_a"
+            p_h, p_a = user_preds.get(kh, None), user_preds.get(ka, None)
+            a_h, a_a = actual["group"].get(kh, None), actual["group"].get(ka, None)
+            if p_h is not None and p_a is not None and a_h is not None and a_a is not None:
+                if int(p_h) == int(a_h) and int(p_a) == int(a_a): 
+                    points += 3  
+                elif (int(p_h) > int(p_a) and int(a_h) > int(a_a)) or (int(p_a) > int(p_h) and int(a_a) > int(a_h)) or (int(p_h) == int(p_a) and int(a_h) == int(a_a)): 
+                    points += 1  
+
+    # --- PART 2: KNOCKOUT TEAM INTERSECTION MATCHES ---
     user_bracket = resolve_bracket_teams(user_preds, target_is_actual=False, manual_tb_locks=local_tb_locks, manual_tb_orders=local_tb_orders)
     actual_bracket = resolve_bracket_teams(None, target_is_actual=True, actual_results_obj=actual, manual_tb_locks={}, manual_tb_orders={})
 
-    # 1. Round of 32 Intersection - 3 Points Per Correct Team
-    for team in user_bracket.get("r32", []):
-        if team and team in actual_bracket.get("r32", []): 
+    # 1. Round of 32 Intersection - 3 Points Per Correct Team (Calculated from user group output vs actual)
+    user_r32 = user_bracket.get("r32", [])
+    actual_r32 = actual_bracket.get("r32", [])
+    for team in user_r32:
+        if team and team in actual_r32: 
             points += 3
 
     # 2. Round of 16 Intersection - 5 Points Per Correct Team
@@ -1137,7 +1151,7 @@ def calculate_user_points(user_id, league_id):
         if team and team in actual_bracket.get("sf", []): 
             points += 15
 
-    # 5. Third Place Winner - 15 Points
+    # 5. Third Place Winner - 15 Points (Exactly 1 team matched)
     if user_bracket.get("third") and user_bracket.get("third") == actual_bracket.get("third"): 
         points += 15
 
@@ -1154,47 +1168,7 @@ def calculate_user_points(user_id, league_id):
 
 
 
-    # --- PART 1: GROUP STAGE CALCULATIONS (Remains completely unchanged) ---
-    for g_name, matches in CHRONO_MATCHES.items():
-        for match in matches:
-            m_id = match["id"]
-            kh, ka = f"Match_{m_id}_h", f"Match_{m_id}_a"
-            p_h, p_a = user_preds.get(kh, None), user_preds.get(ka, None)
-            a_h, a_a = actual["group"].get(kh, None), actual["group"].get(ka, None)
-            if p_h is not None and p_a is not None and a_h is not None and a_a is not None:
-                if int(p_h) == int(a_h) and int(p_a) == int(a_a): 
-                    points += 3  
-                elif (int(p_h) > int(p_a) and int(a_h) > int(a_a)) or (int(p_a) > int(p_h) and int(a_a) > int(a_h)) or (int(p_h) == int(p_a) and int(a_h) == int(a_a)): 
-                    points += 1  
 
-    # --- PART 2: KNOCKOUT TEAM INTERSECTION MATCHES ---
-    user_bracket = resolve_bracket_teams(user_preds, target_is_actual=False, manual_tb_locks=local_tb_locks, manual_tb_orders=local_tb_orders)
-    actual_bracket = resolve_bracket_teams(None, target_is_actual=True, actual_results_obj=actual, manual_tb_locks={}, manual_tb_orders={})
-
-    # Validate team-by-team positioning intersections cleanly
-    for team in user_bracket["r16"]:
-        if team and team in actual_bracket["r16"]: 
-            points += 3
-
-    for team in user_bracket["qf"]:
-        if team and team in actual_bracket["qf"]: 
-            points += 5
-
-    for team in user_bracket["sf"]:
-        if team and team in actual_bracket["sf"]: 
-            points += 10
-
-    for team in user_bracket["finalists"]:
-        if team and team in actual_bracket["finalists"]: 
-            points += 15
-
-    if user_bracket["third"] and user_bracket["third"] == actual_bracket["third"]: 
-        points += 15
-        
-    if user_bracket["champ"] and user_bracket["champ"] == actual_bracket["champ"]: 
-        points += 25
-
-    return points
 
 
 
